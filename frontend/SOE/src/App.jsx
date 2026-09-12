@@ -1,16 +1,13 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
-import Login from './Login/Login'
+import { useState } from "react";
+import LoginPage from "./Login/Login";
+import DashboardShell from "./Dashboard/DashboardShell";
 
-function App() {
-  return (
-    <>
-      <Login/>
-    </>
-  )
+export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
+
+  return <DashboardShell />;
 }
-
-export default App
