@@ -1,10 +1,11 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import { FcGoogle } from "react-icons/fc";
+import PageBackground from "../components/PageBackground";
 import aces_logo from "../assets/aceslogo.png";
 import oasis_logo from "../assets/oasislogo.gif"; // Imported the OASIS GIF logo
 
-export default function LoginPage() {
+export default function LoginPage({ onLoginSuccess }) {
   const {
     register,
     handleSubmit,
@@ -18,14 +19,12 @@ export default function LoginPage() {
 
   const onSubmit = (data) => {
     console.log("Form Submitted:", data);
+    onLoginSuccess?.(data);
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#4a080b] via-[#230405] to-black font-['Montserrat',sans-serif]">
-      {/* Background Dot Pattern & Fade Mask */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(#ffffff_1.2px,transparent_1.2px)] opacity-10 [background-size:10px_10px] [mask-image:linear-gradient(to_bottom,rgba(0,0,0,1),rgba(0,0,0,0.08))]" />
-
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-6 py-10 lg:px-24">
+    <PageBackground>
+      <div className="flex min-h-screen items-center justify-center px-6 py-10 lg:px-24">
         <div className="flex w-full max-w-7xl flex-col items-center justify-center gap-12 lg:flex-row lg:gap-44">
           {/* LEFT SIDE: Brand & Institutions */}
           <div className="flex w-full max-w-[420px] flex-col items-center text-center">
@@ -57,8 +56,6 @@ export default function LoginPage() {
                 alt="OASIS Logo"
                 className="h-auto max-w-[280px] object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.4)] lg:max-w-[470px] mb-[-40px]"
               />
-
-              
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -170,6 +167,6 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-    </div>
+    </PageBackground>
   );
 }
