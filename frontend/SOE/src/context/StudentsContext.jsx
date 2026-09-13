@@ -24,26 +24,6 @@ export function StudentsProvider({ children }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
   }, [students]);
 
-  const authenticate = (studentId, password) => {
-    const id = studentId.trim();
-    const match = students.find(
-      (s) => s.studentId.toLowerCase() === id.toLowerCase()
-    );
-
-    if (!match || match.password !== password) {
-      return { ok: false, message: "Invalid student ID or password." };
-    }
-
-    if (match.status === "INACTIVE") {
-      return {
-        ok: false,
-        message: "This account is inactive. Please contact the administrator.",
-      };
-    }
-
-    return { ok: true, student: match };
-  };
-
   const addStudent = (data) => {
     const id = data.studentId.trim();
     const exists = students.some(
@@ -62,9 +42,7 @@ export function StudentsProvider({ children }) {
   };
 
   return (
-    <StudentsContext.Provider
-      value={{ students, authenticate, addStudent, deleteStudents }}
-    >
+    <StudentsContext.Provider value={{ students, addStudent, deleteStudents }}>
       {children}
     </StudentsContext.Provider>
   );

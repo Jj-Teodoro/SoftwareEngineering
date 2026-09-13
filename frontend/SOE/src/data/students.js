@@ -1,7 +1,6 @@
 export const DEFAULT_STUDENTS = [
   {
     studentId: "2024-02333",
-    password: "aces2024",
     name: "NIEVES, RAFAEL JOSEPH G.",
     course: "BS Computer Engineering",
     yearLevel: "3rd Year",
@@ -13,7 +12,6 @@ export const DEFAULT_STUDENTS = [
   },
   {
     studentId: "2024-00429",
-    password: "aces2024",
     name: "OCAMPO, NATHAN LEO",
     course: "BS Computer Engineering",
     yearLevel: "3rd Year",
@@ -25,7 +23,6 @@ export const DEFAULT_STUDENTS = [
   },
   {
     studentId: "2023-01187",
-    password: "aces2024",
     name: "DELA CRUZ, MARIA SANTOS",
     course: "BS Computer Science",
     yearLevel: "4th Year",
@@ -37,7 +34,6 @@ export const DEFAULT_STUDENTS = [
   },
   {
     studentId: "2024-00981",
-    password: "aces2024",
     name: "SANTOS, JOHN MICHAEL R.",
     course: "BS Information Technology",
     yearLevel: "2nd Year",
@@ -49,7 +45,6 @@ export const DEFAULT_STUDENTS = [
   },
   {
     studentId: "2022-00754",
-    password: "aces2024",
     name: "REYES, ANGELA MARIE T.",
     course: "BS Computer Engineering",
     yearLevel: "4th Year",
@@ -61,7 +56,6 @@ export const DEFAULT_STUDENTS = [
   },
   {
     studentId: "2024-01652",
-    password: "aces2024",
     name: "GARCIA, MARK ANTHONY V.",
     course: "BS Computer Science",
     yearLevel: "1st Year",

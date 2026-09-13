@@ -18,7 +18,6 @@ export default function AddStudentModal({ onClose }) {
   } = useForm({
     defaultValues: {
       studentId: "",
-      password: "",
       name: "",
       course: "",
       yearLevel: "1st Year",
@@ -42,42 +41,22 @@ export default function AddStudentModal({ onClose }) {
   return (
     <Modal onClose={onClose} maxWidth="max-w-xl">
       <h2 className="mb-6 text-lg font-bold uppercase tracking-[2px] text-white">
-        Add Student Account
+        Add Student Record
       </h2>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className={labelClass}>Student ID</label>
-            <input
-              className={inputClass}
-              placeholder="2024-00000"
-              {...register("studentId", { required: "Student ID is required" })}
-            />
-            {errors.studentId && (
-              <p className="mt-1 text-xs font-semibold text-red-300">
-                {errors.studentId.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className={labelClass}>Password</label>
-            <input
-              type="password"
-              className={inputClass}
-              placeholder="Temporary password"
-              {...register("password", {
-                required: "Password is required",
-                minLength: { value: 6, message: "Minimum 6 characters" },
-              })}
-            />
-            {errors.password && (
-              <p className="mt-1 text-xs font-semibold text-red-300">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
+        <div>
+          <label className={labelClass}>Student ID</label>
+          <input
+            className={inputClass}
+            placeholder="2024-00000"
+            {...register("studentId", { required: "Student ID is required" })}
+          />
+          {errors.studentId && (
+            <p className="mt-1 text-xs font-semibold text-red-300">
+              {errors.studentId.message}
+            </p>
+          )}
         </div>
 
         <div>

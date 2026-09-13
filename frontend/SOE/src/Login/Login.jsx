@@ -4,10 +4,10 @@ import { FcGoogle } from "react-icons/fc";
 import PageBackground from "../components/PageBackground";
 import aces_logo from "../assets/aceslogo.png";
 import oasis_logo from "../assets/oasislogo.gif"; // Imported the OASIS GIF logo
-import { useStudents } from "../context/StudentsContext";
+import { useAdmin } from "../context/AdminContext";
 
 export default function LoginPage({ onLoginSuccess }) {
-  const { authenticate } = useStudents();
+  const { authenticate } = useAdmin();
   const {
     register,
     handleSubmit,
@@ -26,7 +26,7 @@ export default function LoginPage({ onLoginSuccess }) {
       setError("root", { type: "manual", message: result.message });
       return;
     }
-    onLoginSuccess?.(result.student);
+    onLoginSuccess?.(result.admin);
   };
 
   return (
