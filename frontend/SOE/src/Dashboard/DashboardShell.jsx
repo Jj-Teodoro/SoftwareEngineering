@@ -2,17 +2,13 @@ import { useState } from "react";
 import PageBackground from "../components/PageBackground";
 import Sidebar from "../components/Sidebar";
 import UserPage from "../User/UserPage";
+import EventsPage from "../Events/EventsPage";
+import ImportPage from "../Import/ImportPage";
+import DashboardHome from "./DashboardHome";
+import PaymentsPage from "../Payments/PaymentsPage";
 
-function ComingSoon({ label }) {
-  return (
-    <div className="flex h-full min-h-[300px] w-full items-center justify-center rounded-[24px] border border-white/20 bg-white/10 text-lg font-semibold uppercase tracking-[2px] text-white/70 backdrop-blur-md">
-      {label} — coming soon
-    </div>
-  );
-}
-
-export default function DashboardShell({ currentUser, onLogout }) {
-  const [activeTab, setActiveTab] = useState("User");
+export default function DashboardShell({ currentUser, onLogout, onStartKiosk }) {
+  const [activeTab, setActiveTab] = useState("Dashboard");
 
   return (
     <PageBackground>
@@ -26,9 +22,10 @@ export default function DashboardShell({ currentUser, onLogout }) {
 
         <main className="flex-1">
           {activeTab === "User" && <UserPage />}
-          {activeTab === "Dashboard" && <ComingSoon label="Dashboard" />}
-          {activeTab === "Events" && <ComingSoon label="Events" />}
-          {activeTab === "Import" && <ComingSoon label="Import" />}
+          {activeTab === "Dashboard" && <DashboardHome onNavigate={setActiveTab} />}
+          {activeTab === "Payments" && <PaymentsPage />}
+          {activeTab === "Attendance" && <EventsPage onStartKiosk={onStartKiosk} />}
+          {activeTab === "Import" && <ImportPage />}
         </main>
       </div>
     </PageBackground>

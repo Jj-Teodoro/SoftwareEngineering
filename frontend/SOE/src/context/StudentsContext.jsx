@@ -41,8 +41,37 @@ export function StudentsProvider({ children }) {
     setStudents((prev) => prev.filter((s) => !idSet.has(s.studentId)));
   };
 
+  const importStudents = (rows) => {
+    const existingIds = new Set(students.map((s) => s.studentId.toLowerCase()));
+    const seenInBatch = new Set();
+    const added = [];
+    const skipped = [];
+
+    rows.forEach((row) => {
+      const idLower = row.studentId.toLowerCase();
+      if (!row.studentId || !row.name) {
+        skipped.push({ row, reason: "Missing Student ID or Name" });
+        return;
+      }
+      if (existingIds.has(idLower) || seenInBatch.has(idLower)) {
+        skipped.push({ row, reason: "Duplicate Student ID" });
+        return;
+      }
+      seenInBatch.add(idLower);
+      added.push(row);
+    });
+
+    if (added.length > 0) {
+      setStudents((prev) => [...prev, ...added]);
+    }
+
+    return { added: added.length, skipped };
+  };
+
   return (
-    <StudentsContext.Provider value={{ students, addStudent, deleteStudents }}>
+    <StudentsContext.Provider
+      value={{ students, addStudent, deleteStudents, importStudents }}
+    >
       {children}
     </StudentsContext.Provider>
   );
