@@ -4,11 +4,14 @@ import { FcGoogle } from "react-icons/fc";
 import PageBackground from "../components/PageBackground";
 import aces_logo from "../assets/aceslogo.png";
 import oasis_logo from "../assets/oasislogo.gif"; // Imported the OASIS GIF logo
+import { useStudents } from "../context/StudentsContext";
 
 export default function LoginPage({ onLoginSuccess }) {
+  const { authenticate } = useStudents();
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
@@ -18,8 +21,12 @@ export default function LoginPage({ onLoginSuccess }) {
   });
 
   const onSubmit = (data) => {
-    console.log("Form Submitted:", data);
-    onLoginSuccess?.(data);
+    const result = authenticate(data.studentId, data.password);
+    if (!result.ok) {
+      setError("root", { type: "manual", message: result.message });
+      return;
+    }
+    onLoginSuccess?.(result.student);
   };
 
   return (
@@ -126,6 +133,13 @@ export default function LoginPage({ onLoginSuccess }) {
                   </p>
                 )}
               </div>
+
+              {/* Root / auth error */}
+              {errors.root && (
+                <p className="mb-4 text-center text-xs font-semibold text-red-300">
+                  {errors.root.message}
+                </p>
+              )}
 
               {/* Submit Button */}
               <div className="flex justify-center pt-2">
