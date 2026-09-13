@@ -1,13 +1,24 @@
 import { useState } from "react";
 import LoginPage from "./Login/Login";
 import DashboardShell from "./Dashboard/DashboardShell";
+import { AdminProvider } from "./context/AdminContext";
+import { StudentsProvider } from "./context/StudentsContext";
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  if (!isAuthenticated) {
-    return <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />;
-  }
-
-  return <DashboardShell />;
+  return (
+    <AdminProvider>
+      <StudentsProvider>
+        {currentUser ? (
+          <DashboardShell
+            currentUser={currentUser}
+            onLogout={() => setCurrentUser(null)}
+          />
+        ) : (
+          <LoginPage onLoginSuccess={(admin) => setCurrentUser(admin)} />
+        )}
+      </StudentsProvider>
+    </AdminProvider>
+  );
 }
