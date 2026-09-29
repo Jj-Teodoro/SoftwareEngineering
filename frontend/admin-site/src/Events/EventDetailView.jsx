@@ -7,7 +7,7 @@ import {
   FiMonitor,
 } from "react-icons/fi";
 import { useStudents } from "../context/StudentsContext";
-import { useAttendance } from "../context/AttendanceContext";
+import { useEventAttendance, scanEventAttendance } from "../context/EventsContext";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -17,16 +17,17 @@ function formatTime(iso) {
   });
 }
 
-export default function AttendanceSheetView({ sheet, onBack, onStartKiosk }) {
+export default function EventDetailView({ event, onBack, onStartKiosk }) {
   const { students } = useStudents();
-  const { scanStudent, markPresent, markOut, unmarkPresent } = useAttendance();
+  const { records, markPresent, markOut, unmarkPresent } = useEventAttendance(event.id);
 
   const [scanValue, setScanValue] = useState("");
   const [feedback, setFeedback] = useState(null);
-  const [program, setProgram] = useState("ALL");
   const [section, setSection] = useState("ALL");
   const [search, setSearch] = useState("");
   const inputRef = useRef(null);
+
+  const isRestricted = event.programFilter && event.programFilter !== "ALL";
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -38,31 +39,32 @@ export default function AttendanceSheetView({ sheet, onBack, onStartKiosk }) {
     return () => clearTimeout(timer);
   }, [feedback]);
 
-  const programs = useMemo(
-    () => [...new Set(students.map((s) => s.course))].sort(),
-    [students]
+  const eligibleStudents = useMemo(
+    () =>
+      isRestricted ? students.filter((s) => s.course === event.programFilter) : students,
+    [students, isRestricted, event.programFilter]
   );
+
   const sections = useMemo(
-    () => [...new Set(students.map((s) => s.section))].sort(),
-    [students]
+    () => [...new Set(eligibleStudents.map((s) => s.section))].sort(),
+    [eligibleStudents]
   );
 
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return students.filter((s) => {
-      const matchesProgram = program === "ALL" || s.course === program;
+    return eligibleStudents.filter((s) => {
       const matchesSection = section === "ALL" || s.section === section;
       const matchesQuery =
         !query ||
         s.studentId.toLowerCase().includes(query) ||
         s.name.toLowerCase().includes(query);
-      return matchesProgram && matchesSection && matchesQuery;
+      return matchesSection && matchesQuery;
     });
-  }, [students, program, section, search]);
+  }, [eligibleStudents, section, search]);
 
-  const presentCount = Object.keys(sheet.records).length;
+  const presentCount = Object.keys(records).length;
 
-  const handleCheckIn = (rawId) => {
+  const handleCheckIn = async (rawId) => {
     const id = rawId.trim();
     if (!id) return;
 
@@ -76,7 +78,16 @@ export default function AttendanceSheetView({ sheet, onBack, onStartKiosk }) {
       return;
     }
 
-    const { action, record } = scanStudent(sheet.id, student.studentId);
+    if (isRestricted && student.course !== event.programFilter) {
+      setFeedback({
+        type: "error",
+        message: `This event is only for ${event.programFilter} students.`,
+      });
+      setScanValue("");
+      return;
+    }
+
+    const { action, record } = await scanEventAttendance(event.id, student.studentId);
 
     if (action === "in") {
       setFeedback({
@@ -114,23 +125,24 @@ export default function AttendanceSheetView({ sheet, onBack, onStartKiosk }) {
             type="button"
             onClick={onBack}
             className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/5 text-white transition-all hover:bg-white/15"
-            aria-label="Back to attendance sheets"
+            aria-label="Back to events"
           >
             <FiArrowLeft size={18} />
           </button>
           <div>
             <h2 className="text-lg font-bold uppercase tracking-[2px] text-white">
-              {sheet.title}
+              {event.title}
             </h2>
             <p className="text-xs text-white/60">
-              {sheet.date} {sheet.description ? `· ${sheet.description}` : ""}
+              {event.date} {event.description ? `· ${event.description}` : ""} ·{" "}
+              {event.pointValue} pts · {isRestricted ? event.programFilter : "All Programs"}
             </p>
           </div>
         </div>
 
         <button
           type="button"
-          onClick={() => onStartKiosk?.(sheet.id)}
+          onClick={() => onStartKiosk?.(event.id)}
           className="flex h-11 items-center gap-2 rounded-full bg-white/90 px-6 text-sm font-bold uppercase tracking-[1px] text-[#7a1317] transition-all hover:bg-white"
         >
           <FiMonitor size={16} />
@@ -169,7 +181,8 @@ export default function AttendanceSheetView({ sheet, onBack, onStartKiosk }) {
           </div>
         )}
         <p className="mt-3 text-sm font-bold uppercase tracking-[1px] text-white/70">
-          Present: <span className="text-white">{presentCount}</span> / {students.length}
+          Present: <span className="text-white">{presentCount}</span> /{" "}
+          {eligibleStudents.length}
         </p>
       </div>
 
@@ -182,20 +195,6 @@ export default function AttendanceSheetView({ sheet, onBack, onStartKiosk }) {
           placeholder="Search student ID or name"
           className="h-11 w-full max-w-xs rounded-full border border-white/30 bg-white/10 px-5 text-sm text-white placeholder-white/50 outline-none backdrop-blur-md"
         />
-        <select
-          value={program}
-          onChange={(e) => setProgram(e.target.value)}
-          className="h-11 rounded-full border border-white/30 bg-white/10 px-4 text-sm text-white backdrop-blur-md"
-        >
-          <option className="text-black" value="ALL">
-            All Programs
-          </option>
-          {programs.map((p) => (
-            <option key={p} className="text-black" value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
         <select
           value={section}
           onChange={(e) => setSection(e.target.value)}
@@ -246,7 +245,7 @@ export default function AttendanceSheetView({ sheet, onBack, onStartKiosk }) {
                 </tr>
               )}
               {filteredStudents.map((student, i) => {
-                const record = sheet.records[student.studentId];
+                const record = records[student.studentId];
                 const isCheckedIn = Boolean(record);
                 const isCheckedOut = Boolean(record?.timeOut);
                 return (
@@ -286,7 +285,7 @@ export default function AttendanceSheetView({ sheet, onBack, onStartKiosk }) {
                         {!isCheckedIn && (
                           <button
                             type="button"
-                            onClick={() => markPresent(sheet.id, student.studentId)}
+                            onClick={() => markPresent(student.studentId)}
                             className="flex items-center gap-1 rounded-full border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[1px] text-green-300 transition-all hover:bg-green-500/20"
                           >
                             <FiUserCheck size={14} /> In
@@ -295,7 +294,7 @@ export default function AttendanceSheetView({ sheet, onBack, onStartKiosk }) {
                         {isCheckedIn && !isCheckedOut && (
                           <button
                             type="button"
-                            onClick={() => markOut(sheet.id, student.studentId)}
+                            onClick={() => markOut(student.studentId)}
                             className="flex items-center gap-1 rounded-full border border-blue-400/40 bg-blue-500/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[1px] text-blue-300 transition-all hover:bg-blue-500/20"
                           >
                             <FiUserCheck size={14} /> Out
@@ -304,7 +303,7 @@ export default function AttendanceSheetView({ sheet, onBack, onStartKiosk }) {
                         {isCheckedIn && (
                           <button
                             type="button"
-                            onClick={() => unmarkPresent(sheet.id, student.studentId)}
+                            onClick={() => unmarkPresent(student.studentId)}
                             className="flex items-center gap-1 rounded-full border border-white/30 bg-white/5 px-3 py-1.5 text-xs font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15"
                           >
                             <FiUserX size={14} /> Reset

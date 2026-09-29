@@ -4,7 +4,7 @@ import PageBackground from "../components/PageBackground";
 import aces_logo from "../assets/aceslogo.png";
 import oasis_logo from "../assets/oasislogo.gif";
 import { useStudents } from "../context/StudentsContext";
-import { useAttendance } from "../context/AttendanceContext";
+import { useEvents, scanEventAttendance } from "../context/EventsContext";
 import { useAdmin } from "../context/AdminContext";
 
 function formatTime(iso) {
@@ -15,9 +15,9 @@ function formatTime(iso) {
   });
 }
 
-export default function StudentKioskView({ sheetId, currentAdmin, onExit }) {
+export default function StudentKioskView({ eventId, currentAdmin, onExit }) {
   const { students } = useStudents();
-  const { sheets, scanStudent } = useAttendance();
+  const { events } = useEvents();
   const { authenticate } = useAdmin();
 
   const [scanValue, setScanValue] = useState("");
@@ -28,7 +28,8 @@ export default function StudentKioskView({ sheetId, currentAdmin, onExit }) {
   const [isExiting, setIsExiting] = useState(false);
   const inputRef = useRef(null);
 
-  const sheet = sheets.find((s) => s.id === sheetId);
+  const event = events.find((e) => e.id === eventId);
+  const isRestricted = event?.programFilter && event.programFilter !== "ALL";
 
   useEffect(() => {
     if (!showExitForm) inputRef.current?.focus();
@@ -40,7 +41,7 @@ export default function StudentKioskView({ sheetId, currentAdmin, onExit }) {
     return () => clearTimeout(timer);
   }, [result]);
 
-  if (!sheet) {
+  if (!event) {
     return (
       <PageBackground>
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center text-white">
@@ -59,7 +60,7 @@ export default function StudentKioskView({ sheetId, currentAdmin, onExit }) {
     );
   }
 
-  const handleScan = () => {
+  const handleScan = async () => {
     const id = scanValue.trim();
     if (!id) return;
 
@@ -73,7 +74,16 @@ export default function StudentKioskView({ sheetId, currentAdmin, onExit }) {
       return;
     }
 
-    const { action, record } = scanStudent(sheet.id, student.studentId);
+    if (isRestricted && student.course !== event.programFilter) {
+      setResult({
+        type: "error",
+        message: `This event is only for ${event.programFilter} students.`,
+      });
+      setScanValue("");
+      return;
+    }
+
+    const { action, record } = await scanEventAttendance(event.id, student.studentId);
 
     setResult({
       type: action === "already" ? "info" : "success",
@@ -90,9 +100,9 @@ export default function StudentKioskView({ sheetId, currentAdmin, onExit }) {
       return;
     }
     setIsExiting(true);
-    const result = await authenticate(currentAdmin.studentId, exitPassword);
+    const authResult = await authenticate(currentAdmin.studentId, exitPassword);
     setIsExiting(false);
-    if (!result.ok) {
+    if (!authResult.ok) {
       setExitError("Incorrect password.");
       return;
     }
@@ -113,9 +123,9 @@ export default function StudentKioskView({ sheetId, currentAdmin, onExit }) {
 
         <div className="w-full max-w-lg rounded-[30px] border border-white/20 bg-white/10 px-8 py-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md">
           <h2 className="text-center text-lg font-bold uppercase tracking-[2px] text-white">
-            {sheet.title}
+            {event.title}
           </h2>
-          <p className="mt-1 text-center text-xs text-white/60">{sheet.date}</p>
+          <p className="mt-1 text-center text-xs text-white/60">{event.date}</p>
 
           <div className="mt-8">
             <label className="mb-2 block text-center text-xs font-bold uppercase tracking-[2px] text-white/70">

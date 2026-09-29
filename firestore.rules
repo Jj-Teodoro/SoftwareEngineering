@@ -58,11 +58,11 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if isSignedIn();
       allow write: if isScanner();
+    }
 
-      match /attendance/{studentId} {
-        allow read: if isSignedIn();
-        allow write: if isScanner();
-      }
+    match /attendance/{id} {
+      allow read: if isSignedIn();
+      allow write: if isScanner();
     }
 
     match /notifications/{id} {

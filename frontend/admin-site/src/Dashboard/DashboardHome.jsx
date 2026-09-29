@@ -1,7 +1,7 @@
-import { FiUsers, FiUserCheck, FiUserX, FiCalendar, FiCreditCard } from "react-icons/fi";
+import { FiUsers, FiUserCheck, FiUserX, FiCalendar, FiAward } from "react-icons/fi";
 import { useStudents } from "../context/StudentsContext";
-import { useRequirements } from "../context/RequirementsContext";
-import { useAttendance } from "../context/AttendanceContext";
+import { useEvents } from "../context/EventsContext";
+import { usePoints } from "../context/PointsContext";
 
 function StatCard({ icon, label, value, accent }) {
   return (
@@ -21,23 +21,19 @@ function StatCard({ icon, label, value, accent }) {
 
 export default function DashboardHome({ onNavigate }) {
   const { students } = useStudents();
-  const { items, isPaid, getStatus } = useRequirements();
-  const { sheets } = useAttendance();
+  const { events, presentCounts } = useEvents();
+  const { getTotalPoints, getClearance, targetPoints } = usePoints();
 
   const totalStudents = students.length;
   const activeCount = students.filter((s) => s.status === "ACTIVE").length;
-  const clearedCount = students.filter((s) => getStatus(s.studentId).cleared).length;
+  const clearedCount = students.filter((s) => getClearance(s.studentId).cleared).length;
   const pendingCount = totalStudents - clearedCount;
 
-  const duesProgress = items.map((item) => {
-    const paidCount = students.filter((s) => isPaid(s.studentId, item)).length;
-    const pct = totalStudents > 0 ? Math.round((paidCount / totalStudents) * 100) : 0;
-    return { item, paidCount, pct };
-  });
+  const mostBehind = [...students]
+    .sort((a, b) => getTotalPoints(a.studentId) - getTotalPoints(b.studentId))
+    .slice(0, 5);
 
-  const recentSheets = [...sheets]
-    .sort((a, b) => Number(b.id) - Number(a.id))
-    .slice(0, 4);
+  const recentEvents = [...events].slice(0, 4);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -72,74 +68,85 @@ export default function DashboardHome({ onNavigate }) {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Dues collection progress */}
+        {/* Points status */}
         <div className="rounded-[24px] border border-white/20 bg-white/10 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md lg:col-span-1">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-bold uppercase tracking-[2px] text-white">
-              Dues Collection Progress
+              Points Status
             </h3>
             <button
               type="button"
-              onClick={() => onNavigate?.("Payments")}
+              onClick={() => onNavigate?.("User")}
               className="flex items-center gap-1 text-xs font-bold uppercase tracking-[1px] text-white/60 hover:text-white"
             >
-              <FiCreditCard size={14} /> Manage
+              <FiAward size={14} /> View all
             </button>
           </div>
-          {duesProgress.length === 0 ? (
-            <p className="text-sm text-white/50">No requirements set up yet.</p>
+          <p className="mb-4 text-xs text-white/50">
+            Semester target: <span className="font-bold text-white">{targetPoints} pts</span>
+          </p>
+          {mostBehind.length === 0 ? (
+            <p className="text-sm text-white/50">No students yet.</p>
           ) : (
             <div className="space-y-4">
-              {duesProgress.map(({ item, paidCount, pct }) => (
-                <div key={item}>
-                  <div className="mb-1 flex items-center justify-between text-xs font-semibold text-white/80">
-                    <span>{item}</span>
-                    <span>
-                      {paidCount}/{totalStudents} ({pct}%)
-                    </span>
+              {mostBehind.map((student) => {
+                const points = getTotalPoints(student.studentId);
+                const pct =
+                  targetPoints > 0 ? Math.min(100, Math.round((points / targetPoints) * 100)) : 0;
+                return (
+                  <div key={student.studentId}>
+                    <div className="mb-1 flex items-center justify-between text-xs font-semibold text-white/80">
+                      <span className="truncate">{student.name}</span>
+                      <span>
+                        {points}/{targetPoints} pts
+                      </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-black/30">
+                      <div
+                        className="h-full rounded-full bg-[#97191d] transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-black/30">
-                    <div
-                      className="h-full rounded-full bg-[#97191d] transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* Recent attendance sheets */}
+        {/* Recent events */}
         <div className="rounded-[24px] border border-white/20 bg-white/10 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-bold uppercase tracking-[2px] text-white">
-              Recent Attendance
+              Recent Events
             </h3>
             <button
               type="button"
-              onClick={() => onNavigate?.("Attendance")}
+              onClick={() => onNavigate?.("Event")}
               className="flex items-center gap-1 text-xs font-bold uppercase tracking-[1px] text-white/60 hover:text-white"
             >
               <FiCalendar size={14} /> View all
             </button>
           </div>
-          {recentSheets.length === 0 ? (
-            <p className="text-sm text-white/50">No attendance sheets yet.</p>
+          {recentEvents.length === 0 ? (
+            <p className="text-sm text-white/50">No events yet.</p>
           ) : (
             <div className="space-y-3">
-              {recentSheets.map((sheet) => {
-                const present = Object.keys(sheet.records).length;
-                const pct =
-                  totalStudents > 0 ? Math.round((present / totalStudents) * 100) : 0;
+              {recentEvents.map((event) => {
+                const isRestricted = event.programFilter && event.programFilter !== "ALL";
+                const eligibleCount = isRestricted
+                  ? students.filter((s) => s.course === event.programFilter).length
+                  : totalStudents;
+                const present = presentCounts[event.id] ?? 0;
+                const pct = eligibleCount > 0 ? Math.round((present / eligibleCount) * 100) : 0;
                 return (
-                  <div key={sheet.id}>
+                  <div key={event.id}>
                     <div className="mb-1 flex items-center justify-between text-xs font-semibold text-white/80">
                       <span>
-                        {sheet.title} <span className="text-white/40">· {sheet.date}</span>
+                        {event.title} <span className="text-white/40">· {event.date}</span>
                       </span>
                       <span>
-                        {present}/{totalStudents} present
+                        {present}/{eligibleCount} present
                       </span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-black/30">
