@@ -1,0 +1,11 @@
+{
+  "name": "oasis-workspace",
+  "private": true,
+  "version": "0.0.1",
+  "workspaces": [
+    "frontend/shared",
+    "frontend/admin-site",
+    "frontend/scanner-site",
+    "frontend/user-site"
+  ]
+}
