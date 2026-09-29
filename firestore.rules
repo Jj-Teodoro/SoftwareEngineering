@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isStaff() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/staff/$(request.auth.uid));
+    }
+    function staffRole() {
+      return get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role;
+    }
+    function isAdmin() {
+      return isStaff() && staffRole() == "admin";
+    }
+    function isScanner() {
+      return isStaff() && (staffRole() == "scanner" || staffRole() == "admin");
+    }
+    function isOwnStudent(studentId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/students/$(studentId)).data.authUid == request.auth.uid;
+    }
+
+    match /students/{studentId} {
+      allow read: if isSignedIn();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() ||
+        (isOwnStudent(studentId) &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['bio', 'hobbies', 'talent', 'authUid']));
+
+      match /notificationReads/{notifId} {
+        allow read, write: if isOwnStudent(studentId);
+      }
+    }
+
+    match /hobbiesCatalog/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /staff/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /requirements/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /studentRequirements/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow write: if isScanner();
+
+      match /attendance/{studentId} {
+        allow read: if isSignedIn();
+        allow write: if isScanner();
+      }
+    }
+
+    match /notifications/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /settings/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}
