@@ -22,7 +22,9 @@ export default function DashboardShell({ currentUser, onLogout, onStartKiosk }) 
 
         <main className="flex-1">
           {activeTab === "User" && <UserPage />}
-          {activeTab === "Dashboard" && <DashboardHome onNavigate={setActiveTab} />}
+          {activeTab === "Dashboard" && (
+            <DashboardHome onNavigate={setActiveTab} currentUser={currentUser} />
+          )}
           {activeTab === "Event" && <EventsPage onStartKiosk={onStartKiosk} />}
           {activeTab === "Scan" && <ScanPage onStartKiosk={onStartKiosk} />}
           {activeTab === "Import" && <ImportPage />}
