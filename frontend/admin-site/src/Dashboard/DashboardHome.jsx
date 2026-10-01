@@ -8,12 +8,6 @@ import {
   FiMonitor,
   FiUserPlus,
   FiUpload,
-  FiUser,
-  FiMail,
-  FiPhone,
-  FiMapPin,
-  FiBookOpen,
-  FiShield,
 } from "react-icons/fi";
 import { useStudents } from "../context/StudentsContext";
 import { useEvents } from "../context/EventsContext";
@@ -56,30 +50,10 @@ function SegmentedBar({ points, target, cleared, segments = 10 }) {
   );
 }
 
-function DetailRow({ icon, label, value }) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/70">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-[1px] text-white/50">{label}</p>
-        <p className="truncate text-sm font-semibold text-white">{value || "—"}</p>
-      </div>
-    </div>
-  );
-}
-
-export default function DashboardHome({ onNavigate, currentUser }) {
+export default function DashboardHome({ onNavigate }) {
   const { students } = useStudents();
   const { events, presentCounts } = useEvents();
   const { getTotalPoints, getClearance, targetPoints } = usePoints();
-
-  const myProfile = students.find((s) => s.studentId === currentUser?.studentId);
-  const myPoints = myProfile ? getTotalPoints(myProfile.studentId) : 0;
-  const myClearance = myProfile ? getClearance(myProfile.studentId) : null;
-  const myPct =
-    myProfile && targetPoints > 0 ? Math.min(100, Math.round((myPoints / targetPoints) * 100)) : 0;
 
   const totalStudents = students.length;
   const activeCount = students.filter((s) => s.status === "ACTIVE").length;
@@ -259,65 +233,6 @@ export default function DashboardHome({ onNavigate, currentUser }) {
           </button>
         </div>
       </div>
-
-      {/* My profile */}
-      {currentUser && (
-        <div className="rounded-[24px] border border-white/20 bg-white/10 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md">
-          <h3 className="mb-4 text-sm font-bold uppercase tracking-[2px] text-white">
-            My Profile
-          </h3>
-
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-            <div className="flex items-center gap-4 lg:w-64 lg:shrink-0">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#97191d]">
-                <FiUser size={28} className="text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-base font-bold uppercase tracking-[1px] text-white">
-                  {currentUser.name}
-                </p>
-                <p className="text-xs text-white/60">{currentUser.studentId}</p>
-                <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[1px] text-white/70">
-                  <FiShield size={11} /> {currentUser.role}
-                </span>
-              </div>
-            </div>
-
-            <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <DetailRow icon={<FiBookOpen size={15} />} label="Program" value={myProfile?.course} />
-              <DetailRow icon={<FiUser size={15} />} label="Section" value={myProfile?.section} />
-              <DetailRow icon={<FiUserCheck size={15} />} label="Status" value={myProfile?.status} />
-              <DetailRow icon={<FiMail size={15} />} label="Email" value={myProfile?.email} />
-              <DetailRow icon={<FiPhone size={15} />} label="Contact" value={myProfile?.contactNumber} />
-              <DetailRow icon={<FiMapPin size={15} />} label="Address" value={myProfile?.address} />
-            </div>
-          </div>
-
-          {myProfile && (
-            <div className="mt-6 border-t border-white/10 pt-5">
-              <div className="mb-1 flex items-center justify-between text-xs font-semibold text-white/80">
-                <span>
-                  My Points{" "}
-                  {myClearance?.cleared && (
-                    <span className="ml-1 text-green-400">· Cleared</span>
-                  )}
-                </span>
-                <span>
-                  {myPoints}/{targetPoints} pts
-                </span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-black/30">
-                <div
-                  className={`h-full rounded-full transition-all ${
-                    myClearance?.cleared ? "bg-green-500" : "bg-[#97191d]"
-                  }`}
-                  style={{ width: `${myPct}%` }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
