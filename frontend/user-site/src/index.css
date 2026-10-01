@@ -1,3 +1,25 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --bg-gradient: linear-gradient(to bottom right, #4a080b, #230405, #000000);
+  --surface: rgba(255, 255, 255, 0.1);
+  --surface-strong: rgba(255, 255, 255, 0.15);
+  --surface-border: rgba(255, 255, 255, 0.2);
+  --surface-2: rgba(0, 0, 0, 0.2);
+  --text-primary: #ffffff;
+  --text-muted: rgba(255, 255, 255, 0.6);
+  --text-faint: rgba(255, 255, 255, 0.4);
+}
+
+html.light {
+  --bg-gradient: linear-gradient(to bottom right, #fdf3ec, #f6e4d6, #efd5bf);
+  --surface: rgba(0, 0, 0, 0.04);
+  --surface-strong: rgba(0, 0, 0, 0.08);
+  --surface-border: rgba(0, 0, 0, 0.12);
+  --surface-2: rgba(0, 0, 0, 0.06);
+  --text-primary: #2a0507;
+  --text-muted: rgba(42, 5, 7, 0.6);
+  --text-faint: rgba(42, 5, 7, 0.4);
+}

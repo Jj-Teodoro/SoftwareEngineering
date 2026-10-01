@@ -1,16 +1,54 @@
-import PageBackground from "@oasis/shared/components/PageBackground.jsx";
+import PageBackground from "./components/PageBackground";
+import AuthPage from "./Login/AuthPage";
+import Shell from "./Shell";
+import { ThemeProvider } from "./context/ThemeContext";
+import { NotificationPrefProvider } from "./context/NotificationPrefContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { StudentProvider, useStudent } from "./context/StudentContext";
+import { RequirementsProvider } from "./context/RequirementsContext";
+import { EventsProvider } from "./context/EventsContext";
+import { PointsProvider } from "./context/PointsContext";
+import { NotificationsProvider } from "./context/NotificationsContext";
+
+function AppContent() {
+  const { signOut } = useAuth();
+  const { student, loading } = useStudent();
+
+  if (loading) {
+    return (
+      <PageBackground>
+        <div className="flex min-h-screen items-center justify-center text-sm text-[var(--text-muted)]">
+          Loading...
+        </div>
+      </PageBackground>
+    );
+  }
+
+  if (!student) {
+    return <AuthPage />;
+  }
+
+  return <Shell currentUser={student} onLogout={signOut} />;
+}
 
 export default function App() {
   return (
-    <PageBackground>
-      <div className="flex min-h-screen items-center justify-center px-6 text-center text-white">
-        <div>
-          <h1 className="text-2xl font-bold uppercase tracking-[3px]">OASIS Student Portal</h1>
-          <p className="mt-3 text-sm text-white/60">
-            Login, Activity, Events, Notification, and Settings tabs coming soon.
-          </p>
-        </div>
-      </div>
-    </PageBackground>
+    <ThemeProvider>
+      <NotificationPrefProvider>
+        <AuthProvider>
+          <StudentProvider>
+            <RequirementsProvider>
+              <EventsProvider>
+                <PointsProvider>
+                  <NotificationsProvider>
+                    <AppContent />
+                  </NotificationsProvider>
+                </PointsProvider>
+              </EventsProvider>
+            </RequirementsProvider>
+          </StudentProvider>
+        </AuthProvider>
+      </NotificationPrefProvider>
+    </ThemeProvider>
   );
 }
