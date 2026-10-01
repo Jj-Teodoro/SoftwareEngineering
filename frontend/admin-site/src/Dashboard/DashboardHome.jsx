@@ -74,38 +74,38 @@ export default function DashboardHome({ onNavigate }) {
       <h2 className="text-lg font-bold uppercase tracking-[2px] text-white">Dashboard</h2>
 
       {/* Quick actions */}
-      <div className="rounded-[24px] border border-white/20 bg-white/10 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md">
-        <h3 className="mb-4 text-sm font-bold uppercase tracking-[2px] text-white">
+      <div className="rounded-[20px] border border-white/20 bg-white/10 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md">
+        <h3 className="mb-3 text-xs font-bold uppercase tracking-[2px] text-white/70">
           Quick Actions
         </h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           <button
             type="button"
             onClick={() => onNavigate?.("Event")}
-            className="flex items-center gap-3 rounded-xl border border-white/20 bg-white/5 px-4 py-4 text-left text-sm font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15"
+            className="flex items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-xs font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15"
           >
-            <FiPlus size={18} /> New Event
+            <FiPlus size={14} /> New Event
           </button>
           <button
             type="button"
             onClick={() => onNavigate?.("Scan")}
-            className="flex items-center gap-3 rounded-xl border border-white/20 bg-white/5 px-4 py-4 text-left text-sm font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15"
+            className="flex items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-xs font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15"
           >
-            <FiMonitor size={18} /> Launch Scan
+            <FiMonitor size={14} /> Launch Scan
           </button>
           <button
             type="button"
             onClick={() => onNavigate?.("User")}
-            className="flex items-center gap-3 rounded-xl border border-white/20 bg-white/5 px-4 py-4 text-left text-sm font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15"
+            className="flex items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-xs font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15"
           >
-            <FiUserPlus size={18} /> Add Student
+            <FiUserPlus size={14} /> Add Student
           </button>
           <button
             type="button"
             onClick={() => onNavigate?.("Import")}
-            className="flex items-center gap-3 rounded-xl border border-white/20 bg-white/5 px-4 py-4 text-left text-sm font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15"
+            className="flex items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-xs font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15"
           >
-            <FiUpload size={18} /> Import Students
+            <FiUpload size={14} /> Import
           </button>
         </div>
       </div>
