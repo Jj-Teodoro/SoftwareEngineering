@@ -35,6 +35,27 @@ function StatCard({ icon, label, value, accent }) {
   );
 }
 
+function SegmentedBar({ points, target, cleared, segments = 10 }) {
+  const filled =
+    target > 0 ? Math.round((Math.min(points, target) / target) * segments) : 0;
+  return (
+    <div className="flex gap-1">
+      {Array.from({ length: segments }).map((_, i) => (
+        <div
+          key={i}
+          className={`h-4 w-4 rounded-sm border ${
+            i < filled
+              ? cleared
+                ? "border-green-500 bg-green-500"
+                : "border-[#e23b3b] bg-[#e23b3b]"
+              : "border-white/30 bg-white/10"
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
 function DetailRow({ icon, label, value }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3">
@@ -65,11 +86,14 @@ export default function DashboardHome({ onNavigate, currentUser }) {
   const clearedCount = students.filter((s) => getClearance(s.studentId).cleared).length;
   const pendingCount = totalStudents - clearedCount;
 
-  const mostBehind = [...students]
-    .sort((a, b) => getTotalPoints(a.studentId) - getTotalPoints(b.studentId))
-    .slice(0, 5);
+  const today = new Date().toISOString().slice(0, 10);
+  const upcomingEvents = [...events]
+    .filter((e) => e.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date));
 
-  const recentEvents = [...events].slice(0, 6);
+  const usersStatus = [...students].sort(
+    (a, b) => getTotalPoints(a.studentId) - getTotalPoints(b.studentId)
+  );
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -103,100 +127,100 @@ export default function DashboardHome({ onNavigate, currentUser }) {
         />
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-        {/* Points status */}
-        <div className="rounded-[24px] border border-white/20 bg-white/10 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md lg:col-span-1">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-[2px] text-white">
-              Points Status
-            </h3>
-            <button
-              type="button"
-              onClick={() => onNavigate?.("User")}
-              className="flex items-center gap-1 text-xs font-bold uppercase tracking-[1px] text-white/60 hover:text-white"
-            >
-              <FiAward size={14} /> View all
-            </button>
-          </div>
-          <p className="mb-4 text-xs text-white/50">
-            Semester target: <span className="font-bold text-white">{targetPoints} pts</span>
-          </p>
-          {mostBehind.length === 0 ? (
-            <p className="text-sm text-white/50">No students yet.</p>
-          ) : (
-            <div className="space-y-4">
-              {mostBehind.map((student) => {
-                const points = getTotalPoints(student.studentId);
-                const pct =
-                  targetPoints > 0 ? Math.min(100, Math.round((points / targetPoints) * 100)) : 0;
-                return (
-                  <div key={student.studentId}>
-                    <div className="mb-1 flex items-center justify-between text-xs font-semibold text-white/80">
-                      <span className="truncate">{student.name}</span>
-                      <span>
-                        {points}/{targetPoints} pts
-                      </span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-black/30">
-                      <div
-                        className="h-full rounded-full bg-[#97191d] transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {/* Upcoming events */}
+      <div className="rounded-[24px] border border-white/20 bg-white/10 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-bold uppercase tracking-[2px] text-white">
+            Upcoming Events
+          </h3>
+          <button
+            type="button"
+            onClick={() => onNavigate?.("Event")}
+            className="flex items-center gap-1 text-xs font-bold uppercase tracking-[1px] text-white/60 hover:text-white"
+          >
+            <FiCalendar size={14} /> View all
+          </button>
         </div>
+        {upcomingEvents.length === 0 ? (
+          <p className="text-sm text-white/50">No upcoming events.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {upcomingEvents.map((event) => {
+              const isRestricted = event.programFilter && event.programFilter !== "ALL";
+              const eligibleCount = isRestricted
+                ? students.filter((s) => s.course === event.programFilter).length
+                : totalStudents;
+              const present = presentCounts[event.id] ?? 0;
+              return (
+                <div
+                  key={event.id}
+                  className="rounded-xl border border-white/10 bg-black/20 px-4 py-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-bold text-white">{event.title}</p>
+                    <span className="flex shrink-0 items-center gap-1 rounded-full bg-[#97191d]/30 px-2 py-0.5 text-[10px] font-bold text-white">
+                      <FiAward size={10} /> {event.pointValue} pts
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-white/60">{event.date}</p>
+                  <p className="mt-1 text-xs text-white/50">
+                    {present}/{eligibleCount} present ·{" "}
+                    {isRestricted ? event.programFilter : "All Programs"}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-        {/* Recent events */}
-        <div className="rounded-[24px] border border-white/20 bg-white/10 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-[2px] text-white">
-              Recent Events
-            </h3>
-            <button
-              type="button"
-              onClick={() => onNavigate?.("Event")}
-              className="flex items-center gap-1 text-xs font-bold uppercase tracking-[1px] text-white/60 hover:text-white"
-            >
-              <FiCalendar size={14} /> View all
-            </button>
-          </div>
-          {recentEvents.length === 0 ? (
-            <p className="text-sm text-white/50">No events yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {recentEvents.map((event) => {
-                const isRestricted = event.programFilter && event.programFilter !== "ALL";
-                const eligibleCount = isRestricted
-                  ? students.filter((s) => s.course === event.programFilter).length
-                  : totalStudents;
-                const present = presentCounts[event.id] ?? 0;
-                const pct = eligibleCount > 0 ? Math.round((present / eligibleCount) * 100) : 0;
-                return (
-                  <div key={event.id}>
-                    <div className="mb-1 flex items-center justify-between text-xs font-semibold text-white/80">
-                      <span>
-                        {event.title} <span className="text-white/40">· {event.date}</span>
-                      </span>
-                      <span>
-                        {present}/{eligibleCount} present
-                      </span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-black/30">
-                      <div
-                        className="h-full rounded-full bg-green-600 transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {/* Users status */}
+      <div className="rounded-[24px] border border-white/20 bg-white/10 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-bold uppercase tracking-[2px] text-white">
+            Users Status
+          </h3>
+          <button
+            type="button"
+            onClick={() => onNavigate?.("User")}
+            className="flex items-center gap-1 text-xs font-bold uppercase tracking-[1px] text-white/60 hover:text-white"
+          >
+            <FiAward size={14} /> View all
+          </button>
         </div>
+        <p className="mb-4 text-xs text-white/50">
+          Semester target: <span className="font-bold text-white">{targetPoints} pts</span>
+        </p>
+        {usersStatus.length === 0 ? (
+          <p className="text-sm text-white/50">No students yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {usersStatus.map((student) => {
+              const points = getTotalPoints(student.studentId);
+              const cleared = getClearance(student.studentId).cleared;
+              return (
+                <div
+                  key={student.studentId}
+                  className="flex flex-col gap-2 border-b border-white/10 pb-4 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0 sm:w-1/3">
+                    <p className="truncate text-sm font-bold uppercase tracking-[1px] text-white">
+                      {student.name}
+                    </p>
+                    <p className="text-xs text-white/50">{student.studentId}</p>
+                  </div>
+                  <div className="flex flex-col items-start gap-1 sm:items-end">
+                    <span className="text-xs font-semibold text-white/80">
+                      {points}/{targetPoints} points
+                      {cleared && <span className="ml-1 text-green-400">· Cleared</span>}
+                    </span>
+                    <SegmentedBar points={points} target={targetPoints} cleared={cleared} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Quick actions */}
