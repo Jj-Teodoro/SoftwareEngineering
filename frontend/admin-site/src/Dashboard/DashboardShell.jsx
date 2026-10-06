@@ -6,6 +6,7 @@ import EventsPage from "../Events/EventsPage";
 import ImportPage from "../Import/ImportPage";
 import DashboardHome from "./DashboardHome";
 import ScanPage from "../Scan/ScanPage";
+import RequirementsPage from "../Requirements/RequirementsPage";
 
 export default function DashboardShell({ currentUser, onLogout, onStartKiosk }) {
   const [activeTab, setActiveTab] = useState("Dashboard");
@@ -23,6 +24,7 @@ export default function DashboardShell({ currentUser, onLogout, onStartKiosk }) 
         <main className="flex-1">
           {activeTab === "User" && <UserPage />}
           {activeTab === "Dashboard" && <DashboardHome onNavigate={setActiveTab} />}
+          {activeTab === "Requirements" && <RequirementsPage />}
           {activeTab === "Event" && <EventsPage onStartKiosk={onStartKiosk} />}
           {activeTab === "Scan" && <ScanPage onStartKiosk={onStartKiosk} />}
           {activeTab === "Import" && <ImportPage />}

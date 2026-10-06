@@ -1,4 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  getEventPhase,
+  scanLockMessage,
+  todayLocal,
+} from "@oasis/shared/utils/events.js";
 import { FiLock, FiUser } from "react-icons/fi";
 import PageBackground from "../components/PageBackground";
 import aces_logo from "../assets/aceslogo.png";
@@ -28,6 +33,14 @@ export default function StudentKioskView({ eventId, currentAdmin, onExit }) {
   const [isExiting, setIsExiting] = useState(false);
   const inputRef = useRef(null);
 
+  // The kiosk only accepts scans on the event's own day, and re-checks as the
+  // clock moves so it closes by itself after midnight.
+  const [today, setToday] = useState(todayLocal());
+  useEffect(() => {
+    const timer = setInterval(() => setToday(todayLocal()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   const event = events.find((e) => e.id === eventId);
   const isRestricted = event?.programFilter && event.programFilter !== "ALL";
 
@@ -48,6 +61,24 @@ export default function StudentKioskView({ eventId, currentAdmin, onExit }) {
           <p className="text-lg font-bold uppercase tracking-[2px]">
             This attendance session has ended.
           </p>
+          <button
+            type="button"
+            onClick={onExit}
+            className="rounded-full bg-[#97191d] px-8 py-3 text-sm font-bold uppercase tracking-[2px] text-white transition-all hover:bg-[#b81f25]"
+          >
+            Return to Admin
+          </button>
+        </div>
+      </PageBackground>
+    );
+  }
+
+  if (getEventPhase(event, today) !== "today") {
+    return (
+      <PageBackground>
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center text-white">
+          <p className="text-lg font-bold uppercase tracking-[2px]">{event.title}</p>
+          <p className="max-w-md text-sm text-white/70">{scanLockMessage(event, today)}</p>
           <button
             type="button"
             onClick={onExit}

@@ -8,6 +8,7 @@ import {
   getDocs,
   query,
   setDoc,
+  updateDoc,
   onSnapshot,
   serverTimestamp,
   where,
@@ -82,6 +83,20 @@ export function RequirementsProvider({ children }) {
     return { ok: true };
   };
 
+  const updateItem = async (requirementId, { title, pointValue, programFilter }) => {
+    const trimmed = (title || "").trim();
+    if (!trimmed) return { ok: false, message: "Requirement name is required." };
+    if (items.some((i) => i.id !== requirementId && i.title.toLowerCase() === trimmed.toLowerCase())) {
+      return { ok: false, message: "Another requirement already has this name." };
+    }
+    await updateDoc(doc(db, "requirements", requirementId), {
+      title: trimmed,
+      pointValue: Math.max(0, Number(pointValue) || 0),
+      programFilter: programFilter || "ALL",
+    });
+    return { ok: true };
+  };
+
   // Removing a requirement also removes every student's completion record for it.
   const deleteItem = async (requirementId) => {
     const completionsSnap = await getDocs(
@@ -110,9 +125,14 @@ export function RequirementsProvider({ children }) {
     }
   };
 
-  const getRequirementPoints = (studentId) =>
+  // A requirement can be limited to one program; it only counts for students in it.
+  const appliesTo = (item, course) =>
+    !item.programFilter || item.programFilter === "ALL" || item.programFilter === course;
+
+  const getRequirementPoints = (studentId, course) =>
     items.reduce(
-      (sum, item) => sum + (isCompleted(studentId, item.id) ? item.pointValue : 0),
+      (sum, item) =>
+        sum + (appliesTo(item, course) && isCompleted(studentId, item.id) ? item.pointValue : 0),
       0
     );
 
@@ -121,7 +141,9 @@ export function RequirementsProvider({ children }) {
       value={{
         items,
         addItem,
+        updateItem,
         deleteItem,
+        appliesTo,
         isCompleted,
         toggleCompleted,
         getRequirementPoints,

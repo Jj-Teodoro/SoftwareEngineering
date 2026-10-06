@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { auth, db } from "@oasis/shared/firebaseClient.js";
+import { todayLocal } from "@oasis/shared/utils/events.js";
 import { useStudent } from "./StudentContext";
 
 const EventsContext = createContext(null);
@@ -52,7 +53,7 @@ export function EventsProvider({ children }) {
     (e) => !e.programFilter || e.programFilter === "ALL" || e.programFilter === student?.course
   );
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocal();
   const upcoming = myEvents.filter((e) => e.date >= today && !myAttendance[e.id]);
   const attended = myEvents.filter((e) => myAttendance[e.id]);
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
-import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiPlus, FiRefreshCw, FiTrash2, FiXCircle } from "react-icons/fi";
+import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiRefreshCw, FiXCircle } from "react-icons/fi";
 import { db } from "@oasis/shared/firebaseClient.js";
 import StudentIdCard from "@oasis/shared/components/StudentIdCard.jsx";
 import Modal from "./Modal";
@@ -351,34 +351,13 @@ function StudentAccountTab({ student }) {
 }
 
 function StudentStatusTab({ student }) {
-  const { items, addItem, deleteItem, isCompleted, toggleCompleted } = useRequirements();
+  const { items, appliesTo, isCompleted } = useRequirements();
   const { events } = useEvents();
-  const { getTotalPoints, getClearance, getAttendanceRecords } = usePoints();
-
-  const [newTitle, setNewTitle] = useState("");
-  const [newPoints, setNewPoints] = useState("10");
-  const [addError, setAddError] = useState("");
+  const { getClearance, getAttendanceRecords } = usePoints();
 
   const { totalPoints, targetPoints, cleared } = getClearance(student.studentId);
   const attendanceRecords = getAttendanceRecords(student.studentId);
-
-  const handleAddItem = async () => {
-    const result = await addItem({ title: newTitle, pointValue: newPoints, programFilter: "ALL" });
-    if (!result.ok) {
-      setAddError(result.message);
-      return;
-    }
-    setNewTitle("");
-    setNewPoints("10");
-    setAddError("");
-  };
-
-  const handleRemoveItem = async (item) => {
-    const confirmed = window.confirm(
-      `Remove "${item.title}" for ALL students? Anyone who completed it will lose its ${item.pointValue} points.`
-    );
-    if (confirmed) await deleteItem(item.id);
-  };
+  const applicable = items.filter((item) => appliesTo(item, student.course));
 
   return (
     <div className="mx-6 mb-6 space-y-5">
@@ -401,72 +380,41 @@ function StudentStatusTab({ student }) {
         </div>
       </div>
 
-      {/* Requirements */}
+      {/* Requirements (read-only; managed in the Requirements tab) */}
       <div>
         <p className="mb-2 text-xs font-bold uppercase tracking-[1px] text-white/70">
           Requirements
         </p>
-        <div className="space-y-2">
-          {items.map((item) => {
-            const completed = isCompleted(student.studentId, item.id);
-            return (
-              <div key={item.id} className="flex items-stretch gap-2">
-                <button
-                  type="button"
-                  onClick={() => toggleCompleted(student.studentId, item.id)}
-                  className={`flex min-w-0 flex-1 items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-all ${
+        {applicable.length === 0 ? (
+          <p className="text-sm text-white/50">No requirements apply to this student.</p>
+        ) : (
+          <div className="space-y-2">
+            {applicable.map((item) => {
+              const completed = isCompleted(student.studentId, item.id);
+              return (
+                <div
+                  key={item.id}
+                  className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm font-semibold ${
                     completed
                       ? "border-green-400/40 bg-green-500/10 text-green-200"
-                      : "border-white/20 bg-black/20 text-white/80 hover:bg-white/10"
+                      : "border-white/15 bg-black/20 text-white/70"
                   }`}
                 >
-                  <span className="truncate">{item.title}</span>
-                  <span className="ml-3 shrink-0 text-xs font-bold uppercase tracking-[1px]">
-                    {completed ? `+${item.pointValue} pts` : `${item.pointValue} pts`}
+                  <span className="flex min-w-0 items-center gap-2">
+                    {completed ? <FiCheckCircle size={15} /> : <FiXCircle size={15} className="opacity-50" />}
+                    <span className="truncate">{item.title}</span>
                   </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveItem(item)}
-                  className="flex w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-black/20 text-white/60 transition-all hover:border-red-400/60 hover:bg-red-500/15 hover:text-red-300"
-                  aria-label={`Remove ${item.title}`}
-                  title="Remove requirement"
-                >
-                  <FiTrash2 size={15} />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-3 flex gap-2">
-          <input
-            type="text"
-            value={newTitle}
-            onChange={(e) => {
-              setNewTitle(e.target.value);
-              setAddError("");
-            }}
-            placeholder="Add requirement (e.g. Membership Fee)"
-            className="h-10 flex-1 rounded-lg border border-white/20 bg-black/20 px-3 text-sm text-white placeholder-white/40 outline-none focus:border-white/50"
-          />
-          <input
-            type="number"
-            min={0}
-            value={newPoints}
-            onChange={(e) => setNewPoints(e.target.value)}
-            className="h-10 w-16 rounded-lg border border-white/20 bg-black/20 px-2 text-center text-sm text-white outline-none focus:border-white/50"
-          />
-          <button
-            type="button"
-            onClick={handleAddItem}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-all hover:bg-white/20"
-            aria-label="Add requirement"
-          >
-            <FiPlus size={16} />
-          </button>
-        </div>
-        {addError && <p className="mt-1 text-xs font-semibold text-red-300">{addError}</p>}
+                  <span className="shrink-0 text-xs font-bold uppercase tracking-[1px]">
+                    {completed ? `+${item.pointValue}` : item.pointValue} pts
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <p className="mt-2 text-[11px] text-white/45">
+          Add, edit or remove requirements, and mark who completed them, in the Requirements tab.
+        </p>
       </div>
 
       {/* Attendance history */}
