@@ -34,3 +34,12 @@ html.light {
   --text-muted: rgba(42, 5, 7, 0.65);
   --text-faint: rgba(42, 5, 7, 0.4);
 }
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.cursor-blink {
+  animation: blink 1s steps(1) infinite;
+}
