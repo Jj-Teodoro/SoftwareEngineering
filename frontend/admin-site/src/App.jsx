@@ -4,25 +4,26 @@ import DashboardShell from "./Dashboard/DashboardShell";
 import StudentKioskView from "./Kiosk/StudentKioskView";
 import { AdminProvider, useAdmin } from "./context/AdminContext";
 import { StudentsProvider } from "./context/StudentsContext";
-import { AttendanceProvider } from "./context/AttendanceContext";
+import { EventsProvider } from "./context/EventsContext";
 import { RequirementsProvider } from "./context/RequirementsContext";
+import { PointsProvider } from "./context/PointsContext";
 
 function AppContent() {
   const { signOut } = useAdmin();
   const [currentUser, setCurrentUser] = useState(null);
-  const [kioskSheetId, setKioskSheetId] = useState(null);
+  const [kioskEventId, setKioskEventId] = useState(null);
 
   const handleLogout = async () => {
     await signOut();
     setCurrentUser(null);
   };
 
-  if (kioskSheetId) {
+  if (kioskEventId) {
     return (
       <StudentKioskView
-        sheetId={kioskSheetId}
+        eventId={kioskEventId}
         currentAdmin={currentUser}
-        onExit={() => setKioskSheetId(null)}
+        onExit={() => setKioskEventId(null)}
       />
     );
   }
@@ -32,7 +33,7 @@ function AppContent() {
       <DashboardShell
         currentUser={currentUser}
         onLogout={handleLogout}
-        onStartKiosk={setKioskSheetId}
+        onStartKiosk={setKioskEventId}
       />
     );
   }
@@ -44,11 +45,13 @@ export default function App() {
   return (
     <AdminProvider>
       <StudentsProvider>
-        <AttendanceProvider>
+        <EventsProvider>
           <RequirementsProvider>
-            <AppContent />
+            <PointsProvider>
+              <AppContent />
+            </PointsProvider>
           </RequirementsProvider>
-        </AttendanceProvider>
+        </EventsProvider>
       </StudentsProvider>
     </AdminProvider>
   );

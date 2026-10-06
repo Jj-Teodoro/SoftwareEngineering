@@ -28,7 +28,10 @@ service cloud.firestore {
       allow update: if isAdmin() ||
         (isOwnStudent(studentId) &&
          request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(['bio', 'hobbies', 'talent', 'authUid']));
+           .hasOnly(['bio', 'hobbies', 'talent', 'authUid'])) ||
+        (isSignedIn() && resource.data.authUid == null &&
+         request.resource.data.authUid == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['authUid', 'email']));
 
       match /notificationReads/{notifId} {
         allow read, write: if isOwnStudent(studentId);
@@ -58,11 +61,11 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if isSignedIn();
       allow write: if isScanner();
+    }
 
-      match /attendance/{studentId} {
-        allow read: if isSignedIn();
-        allow write: if isScanner();
-      }
+    match /attendance/{id} {
+      allow read: if isSignedIn();
+      allow write: if isScanner();
     }
 
     match /notifications/{id} {

@@ -1,77 +1,116 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { DEFAULT_REQUIREMENT_ITEMS } from "../data/requirementItems";
-
-const ITEMS_KEY = "oasis_requirement_items";
-const PAYMENTS_KEY = "oasis_requirement_payments";
+import { onAuthStateChanged } from "firebase/auth";
+import {
+  collection,
+  doc,
+  addDoc,
+  deleteDoc,
+  setDoc,
+  onSnapshot,
+  serverTimestamp,
+} from "firebase/firestore";
+import { auth, db } from "@oasis/shared/firebaseClient.js";
 
 const RequirementsContext = createContext(null);
 
-function loadItems() {
-  try {
-    const raw = localStorage.getItem(ITEMS_KEY);
-    if (!raw) return DEFAULT_REQUIREMENT_ITEMS;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_REQUIREMENT_ITEMS;
-  } catch {
-    return DEFAULT_REQUIREMENT_ITEMS;
-  }
-}
-
-function loadPayments() {
-  try {
-    const raw = localStorage.getItem(PAYMENTS_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return typeof parsed === "object" && parsed !== null ? parsed : {};
-  } catch {
-    return {};
-  }
+function completionId(studentId, requirementId) {
+  return `${studentId}_${requirementId}`;
 }
 
 export function RequirementsProvider({ children }) {
-  const [items, setItems] = useState(loadItems);
-  const [payments, setPayments] = useState(loadPayments);
+  const [items, setItems] = useState([]);
+  const [completions, setCompletions] = useState({});
+  const [targetPoints, setTargetPoints] = useState(0);
 
   useEffect(() => {
-    localStorage.setItem(ITEMS_KEY, JSON.stringify(items));
-  }, [items]);
+    let unsubItems = null;
+    let unsubCompletions = null;
+    let unsubSettings = null;
 
-  useEffect(() => {
-    localStorage.setItem(PAYMENTS_KEY, JSON.stringify(payments));
-  }, [payments]);
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      [unsubItems, unsubCompletions, unsubSettings].forEach((u) => u && u());
 
-  const addItem = (name) => {
-    const trimmed = name.trim();
-    if (!trimmed) return { ok: false, message: "Item name is required." };
-    if (items.some((i) => i.toLowerCase() === trimmed.toLowerCase())) {
+      if (!user) {
+        setItems([]);
+        setCompletions({});
+        setTargetPoints(0);
+        return;
+      }
+
+      unsubItems = onSnapshot(collection(db, "requirements"), (snapshot) => {
+        setItems(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      });
+
+      unsubCompletions = onSnapshot(collection(db, "studentRequirements"), (snapshot) => {
+        const next = {};
+        snapshot.forEach((d) => {
+          const data = d.data();
+          if (!data.completed) return;
+          if (!next[data.studentId]) next[data.studentId] = new Set();
+          next[data.studentId].add(data.requirementId);
+        });
+        setCompletions(next);
+      });
+
+      unsubSettings = onSnapshot(doc(db, "settings", "semester"), (snapshot) => {
+        setTargetPoints(snapshot.exists() ? snapshot.data().targetPoints || 0 : 0);
+      });
+    });
+
+    return () => {
+      unsubscribeAuth();
+      [unsubItems, unsubCompletions, unsubSettings].forEach((u) => u && u());
+    };
+  }, []);
+
+  const addItem = async ({ title, pointValue, programFilter }) => {
+    const trimmed = title.trim();
+    if (!trimmed) return { ok: false, message: "Requirement name is required." };
+    if (items.some((i) => i.title.toLowerCase() === trimmed.toLowerCase())) {
       return { ok: false, message: "This requirement already exists." };
     }
-    setItems((prev) => [...prev, trimmed]);
+    await addDoc(collection(db, "requirements"), {
+      title: trimmed,
+      pointValue: Number(pointValue) || 0,
+      programFilter: programFilter || "ALL",
+      createdAt: serverTimestamp(),
+    });
     return { ok: true };
   };
 
-  const isPaid = (studentId, item) => Boolean(payments[studentId]?.[item]);
+  const isCompleted = (studentId, requirementId) =>
+    Boolean(completions[studentId]?.has(requirementId));
 
-  const togglePaid = (studentId, item) => {
-    setPayments((prev) => {
-      const studentPayments = { ...(prev[studentId] || {}) };
-      studentPayments[item] = !studentPayments[item];
-      return { ...prev, [studentId]: studentPayments };
-    });
+  const toggleCompleted = async (studentId, requirementId) => {
+    const id = completionId(studentId, requirementId);
+    if (isCompleted(studentId, requirementId)) {
+      await deleteDoc(doc(db, "studentRequirements", id));
+    } else {
+      await setDoc(doc(db, "studentRequirements", id), {
+        studentId,
+        requirementId,
+        completed: true,
+        completedAt: serverTimestamp(),
+      });
+    }
   };
 
-  const getStatus = (studentId) => {
-    const paidCount = items.filter((item) => isPaid(studentId, item)).length;
-    return {
-      paidCount,
-      totalCount: items.length,
-      cleared: items.length > 0 && paidCount === items.length,
-    };
-  };
+  const getRequirementPoints = (studentId) =>
+    items.reduce(
+      (sum, item) => sum + (isCompleted(studentId, item.id) ? item.pointValue : 0),
+      0
+    );
 
   return (
     <RequirementsContext.Provider
-      value={{ items, addItem, isPaid, togglePaid, getStatus }}
+      value={{
+        items,
+        addItem,
+        isCompleted,
+        toggleCompleted,
+        getRequirementPoints,
+        targetPoints,
+      }}
     >
       {children}
     </RequirementsContext.Provider>

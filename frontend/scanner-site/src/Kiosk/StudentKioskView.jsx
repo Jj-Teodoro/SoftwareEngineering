@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { FiLock, FiUser } from "react-icons/fi";
-import PageBackground from "../components/PageBackground";
+import PageBackground from "@oasis/shared/components/PageBackground.jsx";
 import aces_logo from "../assets/aceslogo.png";
 import oasis_logo from "../assets/oasislogo.gif";
 import { useStudents } from "../context/StudentsContext";
 import { useEvents, scanEventAttendance } from "../context/EventsContext";
-import { useAdmin } from "../context/AdminContext";
+import { useAuth } from "../context/AuthContext";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -15,10 +15,10 @@ function formatTime(iso) {
   });
 }
 
-export default function StudentKioskView({ eventId, currentAdmin, onExit }) {
+export default function StudentKioskView({ eventId, currentStaff, onExit }) {
   const { students } = useStudents();
   const { events } = useEvents();
-  const { authenticate } = useAdmin();
+  const { authenticate } = useAuth();
 
   const [scanValue, setScanValue] = useState("");
   const [result, setResult] = useState(null);
@@ -53,7 +53,7 @@ export default function StudentKioskView({ eventId, currentAdmin, onExit }) {
             onClick={onExit}
             className="rounded-full bg-[#97191d] px-8 py-3 text-sm font-bold uppercase tracking-[2px] text-white transition-all hover:bg-[#b81f25]"
           >
-            Return to Admin
+            Return to Scanner
           </button>
         </div>
       </PageBackground>
@@ -95,12 +95,12 @@ export default function StudentKioskView({ eventId, currentAdmin, onExit }) {
   };
 
   const handleExitSubmit = async () => {
-    if (!currentAdmin?.studentId) {
-      setExitError("No admin session found.");
+    if (!currentStaff?.studentId) {
+      setExitError("No staff session found.");
       return;
     }
     setIsExiting(true);
-    const authResult = await authenticate(currentAdmin.studentId, exitPassword);
+    const authResult = await authenticate(currentStaff.studentId, exitPassword);
     setIsExiting(false);
     if (!authResult.ok) {
       setExitError("Incorrect password.");
@@ -209,7 +209,7 @@ export default function StudentKioskView({ eventId, currentAdmin, onExit }) {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleExitSubmit();
                 }}
-                placeholder="Admin password"
+                placeholder="Staff password"
                 autoFocus
                 className="h-9 w-40 bg-transparent text-sm text-white placeholder-white/40 outline-none"
               />

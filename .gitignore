@@ -3,3 +3,6 @@ dist/
 .env
 .env.local
 *.env
+
+# Local Claude Code tooling (preview config + git worktrees)
+.claude/

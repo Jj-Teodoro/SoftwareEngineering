@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import Modal from "./Modal";
-import { useAttendance } from "../context/AttendanceContext";
+import { useEvents } from "../context/EventsContext";
+import { useStudents } from "../context/StudentsContext";
 
 const inputClass =
   "h-11 w-full rounded-lg border border-white/30 bg-black/20 px-3 text-sm text-white placeholder-white/40 outline-none focus:border-white/60";
@@ -12,8 +14,15 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function CreateAttendanceSheetModal({ onClose, onCreated }) {
-  const { createSheet } = useAttendance();
+export default function CreateEventModal({ onClose, onCreated }) {
+  const { createEvent } = useEvents();
+  const { students } = useStudents();
+
+  const programs = useMemo(
+    () => [...new Set(students.map((s) => s.course))].sort(),
+    [students]
+  );
+
   const {
     register,
     handleSubmit,
@@ -24,32 +33,34 @@ export default function CreateAttendanceSheetModal({ onClose, onCreated }) {
       title: "",
       date: today(),
       description: "",
+      pointValue: 10,
+      programFilter: "ALL",
     },
   });
 
-  const onSubmit = (data) => {
-    const result = createSheet(data);
+  const onSubmit = async (data) => {
+    const result = await createEvent(data);
     if (!result.ok) {
       setError("title", { type: "manual", message: result.message });
       return;
     }
-    onCreated?.(result.sheet);
+    onCreated?.(result.event);
     onClose();
   };
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-lg">
       <h2 className="mb-6 text-lg font-bold uppercase tracking-[2px] text-white">
-        New Attendance Sheet
+        New Event
       </h2>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
         <div>
-          <label className={labelClass}>Activity / Event Name</label>
+          <label className={labelClass}>Event Name</label>
           <input
             className={inputClass}
             placeholder="General Assembly"
-            {...register("title", { required: "Title is required" })}
+            {...register("title", { required: "Event name is required" })}
           />
           {errors.title && (
             <p className="mt-1 text-xs font-semibold text-red-300">
@@ -58,13 +69,46 @@ export default function CreateAttendanceSheetModal({ onClose, onCreated }) {
           )}
         </div>
 
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className={labelClass}>Date</label>
+            <input
+              type="date"
+              className={inputClass}
+              {...register("date", { required: "Date is required" })}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Points</label>
+            <input
+              type="number"
+              min={0}
+              className={inputClass}
+              {...register("pointValue", {
+                required: "Points is required",
+                min: { value: 0, message: "Must be 0 or more" },
+              })}
+            />
+            {errors.pointValue && (
+              <p className="mt-1 text-xs font-semibold text-red-300">
+                {errors.pointValue.message}
+              </p>
+            )}
+          </div>
+        </div>
+
         <div>
-          <label className={labelClass}>Date</label>
-          <input
-            type="date"
-            className={inputClass}
-            {...register("date", { required: "Date is required" })}
-          />
+          <label className={labelClass}>Program</label>
+          <select className={inputClass} {...register("programFilter")}>
+            <option className="text-black" value="ALL">
+              All Programs
+            </option>
+            {programs.map((p) => (
+              <option key={p} className="text-black" value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
@@ -89,7 +133,7 @@ export default function CreateAttendanceSheetModal({ onClose, onCreated }) {
             disabled={isSubmitting}
             className="h-11 rounded-full bg-[#97191d] px-8 text-sm font-bold uppercase tracking-[2px] text-white transition-all hover:bg-[#b81f25] disabled:opacity-50"
           >
-            {isSubmitting ? "Creating..." : "Create Sheet"}
+            {isSubmitting ? "Creating..." : "Create Event"}
           </button>
         </div>
       </form>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FiSearch, FiFilter, FiTrash2 } from "react-icons/fi";
 import { useStudents } from "../context/StudentsContext";
+import { usePoints } from "../context/PointsContext";
 import AddStudentModal from "../components/AddStudentModal";
 import StudentIdCardModal from "../components/StudentIdCardModal";
 
@@ -9,6 +10,7 @@ const FILTER_OPTIONS = ["ALL", "ACTIVE", "INACTIVE"];
 
 export default function UserPage() {
   const { students, deleteStudents } = useStudents();
+  const { getTotalPoints, getClearance, targetPoints } = usePoints();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -175,7 +177,7 @@ export default function UserPage() {
             <thead>
               <tr className="bg-[#7a1317]/70">
                 {selectMode && <th className="w-12 px-4 py-4" />}
-                {["Student ID", "Name", "Section", "Status"].map((col) => (
+                {["Student ID", "Name", "Section", "Status", "Points"].map((col) => (
                   <th
                     key={col}
                     className="px-6 py-4 text-sm font-bold uppercase tracking-[2px] text-white"
@@ -189,7 +191,7 @@ export default function UserPage() {
               {pageStudents.length === 0 && (
                 <tr>
                   <td
-                    colSpan={selectMode ? 5 : 4}
+                    colSpan={selectMode ? 6 : 5}
                     className="px-6 py-10 text-center text-sm text-white/60"
                   >
                     No students found.
@@ -198,6 +200,10 @@ export default function UserPage() {
               )}
               {pageStudents.map((user, i) => {
                 const isSelected = selectedIds.has(user.studentId);
+                const points = getTotalPoints(user.studentId);
+                const cleared = getClearance(user.studentId).cleared;
+                const pct =
+                  targetPoints > 0 ? Math.min(100, Math.round((points / targetPoints) * 100)) : 0;
                 return (
                   <tr
                     key={user.studentId}
@@ -233,6 +239,21 @@ export default function UserPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-white/90">{user.section}</td>
                     <td className="px-6 py-4 text-sm text-white/90">{user.status}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-20 overflow-hidden rounded-full bg-black/30">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              cleared ? "bg-green-500" : "bg-[#97191d]"
+                            }`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-semibold text-white/80">
+                          {points}/{targetPoints}
+                        </span>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}

@@ -3,25 +3,11 @@ import { FiPlus, FiTrash2, FiUsers, FiAward } from "react-icons/fi";
 import { useEvents } from "../context/EventsContext";
 import { useStudents } from "../context/StudentsContext";
 import CreateEventModal from "../components/CreateEventModal";
-import EventDetailView from "./EventDetailView";
 
-export default function EventsPage({ onStartKiosk }) {
+export default function EventsPage() {
   const { events, presentCounts, deleteEvent } = useEvents();
   const { students } = useStudents();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState(null);
-
-  const selectedEvent = events.find((e) => e.id === selectedEventId);
-
-  if (selectedEvent) {
-    return (
-      <EventDetailView
-        event={selectedEvent}
-        onBack={() => setSelectedEventId(null)}
-        onStartKiosk={onStartKiosk}
-      />
-    );
-  }
 
   const handleDelete = async (event) => {
     const confirmed = window.confirm(
@@ -47,7 +33,7 @@ export default function EventsPage({ onStartKiosk }) {
 
       {events.length === 0 && (
         <div className="flex min-h-[200px] w-full items-center justify-center rounded-[24px] border border-white/20 bg-white/10 text-sm text-white/60 backdrop-blur-md">
-          No events yet. Create one to start taking attendance.
+          No events yet. Create one to start scanning attendance.
         </div>
       )}
 
@@ -85,14 +71,7 @@ export default function EventsPage({ onStartKiosk }) {
                 </p>
               </div>
 
-              <div className="mt-6 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedEventId(event.id)}
-                  className="h-10 flex-1 rounded-full bg-[#97191d] text-sm font-bold uppercase tracking-[1px] text-white transition-all hover:bg-[#b81f25]"
-                >
-                  Open
-                </button>
+              <div className="mt-6 flex justify-end">
                 <button
                   type="button"
                   onClick={() => handleDelete(event)}
@@ -108,10 +87,7 @@ export default function EventsPage({ onStartKiosk }) {
       </div>
 
       {showCreateModal && (
-        <CreateEventModal
-          onClose={() => setShowCreateModal(false)}
-          onCreated={(event) => setSelectedEventId(event.id)}
-        />
+        <CreateEventModal onClose={() => setShowCreateModal(false)} onCreated={() => {}} />
       )}
     </div>
   );

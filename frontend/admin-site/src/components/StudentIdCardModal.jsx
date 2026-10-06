@@ -3,7 +3,8 @@ import { FiCheckCircle, FiPlus, FiXCircle } from "react-icons/fi";
 import Modal from "./Modal";
 import aces_logo from "../assets/aceslogo.png";
 import { useRequirements } from "../context/RequirementsContext";
-import { useAttendance } from "../context/AttendanceContext";
+import { useEvents } from "../context/EventsContext";
+import { usePoints } from "../context/PointsContext";
 
 function initialsOf(name) {
   const letters = name
@@ -104,22 +105,25 @@ export default function StudentIdCardModal({ student, onClose }) {
 }
 
 function StudentStatusTab({ student }) {
-  const { items, addItem, isPaid, togglePaid, getStatus } = useRequirements();
-  const { sheets } = useAttendance();
-  const [newItem, setNewItem] = useState("");
+  const { items, addItem, isCompleted, toggleCompleted } = useRequirements();
+  const { events } = useEvents();
+  const { getTotalPoints, getClearance, getAttendanceRecords } = usePoints();
+
+  const [newTitle, setNewTitle] = useState("");
+  const [newPoints, setNewPoints] = useState("10");
   const [addError, setAddError] = useState("");
 
-  const { paidCount, totalCount, cleared } = getStatus(student.studentId);
+  const { totalPoints, targetPoints, cleared } = getClearance(student.studentId);
+  const attendanceRecords = getAttendanceRecords(student.studentId);
 
-  const attended = sheets.filter((sheet) => sheet.records[student.studentId]);
-
-  const handleAddItem = () => {
-    const result = addItem(newItem);
+  const handleAddItem = async () => {
+    const result = await addItem({ title: newTitle, pointValue: newPoints, programFilter: "ALL" });
     if (!result.ok) {
       setAddError(result.message);
       return;
     }
-    setNewItem("");
+    setNewTitle("");
+    setNewPoints("10");
     setAddError("");
   };
 
@@ -136,10 +140,10 @@ function StudentStatusTab({ student }) {
         {cleared ? <FiCheckCircle size={20} /> : <FiXCircle size={20} />}
         <div>
           <p className="text-sm font-bold uppercase tracking-[1px]">
-            {cleared ? "Cleared" : "Pending Requirements"}
+            {cleared ? "Cleared" : "Pending Clearance"}
           </p>
           <p className="text-xs opacity-80">
-            {paidCount} of {totalCount} requirements settled
+            {totalPoints} of {targetPoints} points earned
           </p>
         </div>
       </div>
@@ -147,25 +151,25 @@ function StudentStatusTab({ student }) {
       {/* Requirements */}
       <div>
         <p className="mb-2 text-xs font-bold uppercase tracking-[1px] text-white/70">
-          Requirements &amp; Dues
+          Requirements
         </p>
         <div className="space-y-2">
           {items.map((item) => {
-            const paid = isPaid(student.studentId, item);
+            const completed = isCompleted(student.studentId, item.id);
             return (
               <button
-                key={item}
+                key={item.id}
                 type="button"
-                onClick={() => togglePaid(student.studentId, item)}
+                onClick={() => toggleCompleted(student.studentId, item.id)}
                 className={`flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-all ${
-                  paid
+                  completed
                     ? "border-green-400/40 bg-green-500/10 text-green-200"
                     : "border-white/20 bg-black/20 text-white/80 hover:bg-white/10"
                 }`}
               >
-                <span>{item}</span>
+                <span>{item.title}</span>
                 <span className="text-xs font-bold uppercase tracking-[1px]">
-                  {paid ? "Paid" : "Unpaid"}
+                  {completed ? `+${item.pointValue} pts` : `${item.pointValue} pts`}
                 </span>
               </button>
             );
@@ -175,24 +179,25 @@ function StudentStatusTab({ student }) {
         <div className="mt-3 flex gap-2">
           <input
             type="text"
-            value={newItem}
+            value={newTitle}
             onChange={(e) => {
-              setNewItem(e.target.value);
+              setNewTitle(e.target.value);
               setAddError("");
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleAddItem();
-              }
             }}
             placeholder="Add requirement (e.g. Membership Fee)"
             className="h-10 flex-1 rounded-lg border border-white/20 bg-black/20 px-3 text-sm text-white placeholder-white/40 outline-none focus:border-white/50"
           />
+          <input
+            type="number"
+            min={0}
+            value={newPoints}
+            onChange={(e) => setNewPoints(e.target.value)}
+            className="h-10 w-16 rounded-lg border border-white/20 bg-black/20 px-2 text-center text-sm text-white outline-none focus:border-white/50"
+          />
           <button
             type="button"
             onClick={handleAddItem}
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-all hover:bg-white/20"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-all hover:bg-white/20"
             aria-label="Add requirement"
           >
             <FiPlus size={16} />
@@ -206,24 +211,29 @@ function StudentStatusTab({ student }) {
         <p className="mb-2 text-xs font-bold uppercase tracking-[1px] text-white/70">
           Attendance History
         </p>
-        {attended.length === 0 ? (
+        {attendanceRecords.length === 0 ? (
           <p className="text-sm text-white/50">No attendance records yet.</p>
         ) : (
           <div className="space-y-2">
-            {attended.map((sheet) => (
-              <div
-                key={sheet.id}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-2.5"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-white">{sheet.title}</p>
-                  <p className="text-xs text-white/50">{sheet.date}</p>
+            {attendanceRecords.map((record) => {
+              const event = events.find((e) => e.id === record.eventId);
+              return (
+                <div
+                  key={record.eventId}
+                  className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-2.5"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {event?.title || "Unknown Event"}
+                    </p>
+                    <p className="text-xs text-white/50">{event?.date}</p>
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-[1px] text-green-300">
+                    +{record.pointValue || 0} pts
+                  </span>
                 </div>
-                <span className="text-xs font-bold uppercase tracking-[1px] text-green-300">
-                  Present
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
