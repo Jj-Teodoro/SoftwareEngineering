@@ -59,7 +59,15 @@ function StatusBadge({ student }) {
 }
 
 function AccountBadge({ student }) {
+  const { resetRequests } = useStudents();
   if (!student.authUid) return <Pill tone="gray">No account</Pill>;
+  if (resetRequests[student.studentId]) {
+    return (
+      <Pill tone="amber" pulse>
+        Reset requested
+      </Pill>
+    );
+  }
   return student.mustChangePassword ? (
     <Pill tone="amber">Pending</Pill>
   ) : (

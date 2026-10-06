@@ -58,6 +58,21 @@ service cloud.firestore {
         request.resource.data.online is bool;
     }
 
+    // After an admin re-issues a student's login, the login page looks up the
+    // new address by the hash of the student's email (a single get, no listing).
+    match /loginAliases/{hash} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if isAdmin();
+    }
+
+    // "I forgot my password": anyone can flag a Student ID; only admins can read it.
+    match /passwordRequests/{studentId} {
+      allow create, update: if request.resource.data.keys().hasOnly(['requestedAt']) &&
+        request.resource.data.requestedAt is timestamp;
+      allow read, delete: if isAdmin();
+    }
+
     match /hobbiesCatalog/{id} {
       allow read: if isSignedIn();
       allow write: if isAdmin();

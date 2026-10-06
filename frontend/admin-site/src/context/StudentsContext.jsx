@@ -32,6 +32,20 @@ const ADMIN_EDITABLE_FIELDS = [
   "address",
 ];
 
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// A student's login after a reset: same address with a version tag, e.g.
+// juan@school.edu -> juan+oasis2@school.edu. Students keep typing their normal
+// email; the login page maps it to this one (see loginAliases).
+function aliasEmail(email, version) {
+  const [local, domain] = email.split("@");
+  return `${local}+oasis${version}@${domain}`;
+}
+
 const TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
 
 function generateTempPassword(length = 10) {
@@ -45,20 +59,27 @@ const StudentsContext = createContext(null);
 export function StudentsProvider({ children }) {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [resetRequests, setResetRequests] = useState({});
 
   useEffect(() => {
     // Firestore rules require an authenticated user, so don't subscribe until
     // Firebase Auth has actually signed someone in (avoids a permission-denied
     // listener that starts before login and never recovers).
     let unsubscribeSnapshot = null;
+    let unsubscribeRequests = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (unsubscribeSnapshot) {
         unsubscribeSnapshot();
         unsubscribeSnapshot = null;
       }
+      if (unsubscribeRequests) {
+        unsubscribeRequests();
+        unsubscribeRequests = null;
+      }
       if (!user) {
         setStudents([]);
+        setResetRequests({});
         setLoading(false);
         return;
       }
@@ -66,11 +87,23 @@ export function StudentsProvider({ children }) {
         setStudents(snapshot.docs.map((d) => ({ studentId: d.id, ...d.data() })));
         setLoading(false);
       });
+      unsubscribeRequests = onSnapshot(
+        collection(db, "passwordRequests"),
+        (snapshot) => {
+          const next = {};
+          snapshot.forEach((d) => {
+            next[d.id] = d.data().requestedAt?.toMillis?.() ?? Date.now();
+          });
+          setResetRequests(next);
+        },
+        () => setResetRequests({})
+      );
     });
 
     return () => {
       unsubscribeAuth();
       if (unsubscribeSnapshot) unsubscribeSnapshot();
+      if (unsubscribeRequests) unsubscribeRequests();
     };
   }, []);
 
@@ -148,6 +181,8 @@ export function StudentsProvider({ children }) {
         await updateDoc(doc(db, "students", studentId), {
           authUid: cred.user.uid,
           mustChangePassword: true,
+          loginEmail: email,
+          loginVersion: 1,
         });
       } catch {
         await deleteDoc(doc(db, "accountCredentials", studentId)).catch(() => {});
@@ -184,11 +219,13 @@ export function StudentsProvider({ children }) {
     if (!oldPassword) {
       return {
         ok: false,
-        message: "The current temporary password isn't on file. The student can use Forgot password.",
+        code: "no-credential",
+        message: "The current temporary password isn't on file.",
       };
     }
 
     const email = (student.email || "").trim().toLowerCase();
+    const loginEmail = (student.loginEmail || student.email || "").trim().toLowerCase();
     const newPassword = generateTempPassword();
     const secondaryApp = initializeApp(
       firebaseConfig,
@@ -198,7 +235,7 @@ export function StudentsProvider({ children }) {
 
     try {
       try {
-        const old = await signInWithEmailAndPassword(secondaryAuth, email, oldPassword);
+        const old = await signInWithEmailAndPassword(secondaryAuth, loginEmail, oldPassword);
         await deleteUser(old.user);
       } catch {
         return {
@@ -217,7 +254,7 @@ export function StudentsProvider({ children }) {
 
       let cred;
       try {
-        cred = await createUserWithEmailAndPassword(secondaryAuth, email, newPassword);
+        cred = await createUserWithEmailAndPassword(secondaryAuth, loginEmail, newPassword);
       } catch {
         await resetLink();
         return {
@@ -250,6 +287,92 @@ export function StudentsProvider({ children }) {
       await deleteApp(secondaryApp).catch(() => {});
     }
   };
+
+  // For a student who already chose their own password (which nobody can read or
+  // reset from a browser): create a fresh login with a new temporary password
+  // and point the student record at it. The old login stays in Firebase
+  // Authentication but is no longer linked to anything, so it can't be used.
+  const rotateLogin = async (student) => {
+    const studentId = student.studentId;
+    const realEmail = (student.email || "").trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(realEmail)) {
+      return { ok: false, message: "Add a valid email to this student first." };
+    }
+    const version = (student.loginVersion || 1) + 1;
+    const newLogin = aliasEmail(realEmail, version);
+    const newPassword = generateTempPassword();
+
+    const secondaryApp = initializeApp(
+      firebaseConfig,
+      `rotate-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
+    const secondaryAuth = getAuth(secondaryApp);
+
+    try {
+      let cred;
+      try {
+        cred = await createUserWithEmailAndPassword(secondaryAuth, newLogin, newPassword);
+      } catch {
+        return { ok: false, message: "Could not create the new login." };
+      }
+
+      const previous = {
+        authUid: student.authUid,
+        mustChangePassword: Boolean(student.mustChangePassword),
+        loginEmail: student.loginEmail || realEmail,
+        loginVersion: student.loginVersion || 1,
+      };
+
+      try {
+        await setDoc(doc(db, "accountCredentials", studentId), {
+          tempPassword: newPassword,
+          createdAt: serverTimestamp(),
+        });
+        await updateDoc(doc(db, "students", studentId), {
+          authUid: cred.user.uid,
+          mustChangePassword: true,
+          loginEmail: newLogin,
+          loginVersion: version,
+        });
+        await setDoc(doc(db, "loginAliases", await sha256Hex(realEmail)), {
+          authEmail: newLogin,
+        });
+      } catch {
+        await updateDoc(doc(db, "students", studentId), previous).catch(() => {});
+        await deleteDoc(doc(db, "accountCredentials", studentId)).catch(() => {});
+        await deleteUser(cred.user).catch(() => {});
+        return { ok: false, message: "Could not save the new login. Nothing was changed." };
+      }
+
+      return { ok: true, email: realEmail, tempPassword: newPassword };
+    } finally {
+      await signOutAuth(secondaryAuth).catch(() => {});
+      await deleteApp(secondaryApp).catch(() => {});
+    }
+  };
+
+  // Gives a student a new temporary password (they asked for one, or the
+  // admin is replacing the one they were handed). The student must then
+  // choose their own password again on first login.
+  const issueTempPassword = async (studentId) => {
+    const student = students.find((s) => s.studentId === studentId);
+    if (!student?.authUid) return { ok: false, message: "This student has no account yet." };
+
+    let result;
+    if (student.mustChangePassword) {
+      result = await regenerateTempPassword(studentId);
+      if (!result.ok && result.code === "no-credential") result = await rotateLogin(student);
+    } else {
+      result = await rotateLogin(student);
+    }
+
+    if (result.ok) {
+      await deleteDoc(doc(db, "passwordRequests", studentId)).catch(() => {});
+    }
+    return result;
+  };
+
+  const dismissRequest = (studentId) => deleteDoc(doc(db, "passwordRequests", studentId));
 
   const provisionAccounts = async (studentIds, onProgress) => {
     const results = [];
@@ -319,6 +442,9 @@ export function StudentsProvider({ children }) {
         importStudents,
         provisionAccount,
         regenerateTempPassword,
+        issueTempPassword,
+        dismissRequest,
+        resetRequests,
         provisionAccounts,
       }}
     >
