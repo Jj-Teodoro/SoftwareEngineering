@@ -1,12 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FiSearch, FiFilter, FiTrash2 } from "react-icons/fi";
+import { FiSearch, FiFilter, FiTrash2, FiKey } from "react-icons/fi";
 import { useStudents } from "../context/StudentsContext";
 import { usePoints } from "../context/PointsContext";
 import AddStudentModal from "../components/AddStudentModal";
 import StudentIdCardModal from "../components/StudentIdCardModal";
+import ProvisionAccountsModal from "../components/ProvisionAccountsModal";
 
 const PAGE_SIZE = 6;
 const FILTER_OPTIONS = ["ALL", "ACTIVE", "INACTIVE"];
+
+function AccountBadge({ student }) {
+  if (!student.authUid) {
+    return <span className="text-xs font-semibold uppercase tracking-[1px] text-white/40">None</span>;
+  }
+  return student.mustChangePassword ? (
+    <span className="rounded-full bg-yellow-500/20 px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-yellow-300">
+      Pending
+    </span>
+  ) : (
+    <span className="rounded-full bg-green-500/20 px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-green-300">
+      Active
+    </span>
+  );
+}
 
 export default function UserPage() {
   const { students, deleteStudents } = useStudents();
@@ -21,7 +37,8 @@ export default function UserPage() {
   const [selectedIds, setSelectedIds] = useState(new Set());
 
   const [showAddModal, setShowAddModal] = useState(false);
-  const [viewingStudent, setViewingStudent] = useState(null);
+  const [showProvisionModal, setShowProvisionModal] = useState(false);
+  const [viewingStudentId, setViewingStudentId] = useState(null);
 
   const filterRef = useRef(null);
 
@@ -151,6 +168,14 @@ export default function UserPage() {
 
           <button
             type="button"
+            onClick={() => setShowProvisionModal(true)}
+            className="flex h-12 items-center gap-2 rounded-full border border-white/40 bg-white/5 px-6 text-sm font-bold uppercase tracking-[2px] text-white backdrop-blur-md transition-all hover:bg-white/15"
+          >
+            <FiKey size={16} />
+            Accounts
+          </button>
+          <button
+            type="button"
             onClick={toggleSelectMode}
             className={`h-12 rounded-full border px-8 text-sm font-bold uppercase tracking-[2px] backdrop-blur-md transition-all ${
               selectMode
@@ -177,7 +202,7 @@ export default function UserPage() {
             <thead>
               <tr className="bg-[#7a1317]/70">
                 {selectMode && <th className="w-12 px-4 py-4" />}
-                {["Student ID", "Name", "Section", "Status", "Points"].map((col) => (
+                {["Student ID", "Name", "Section", "Status", "Account", "Points"].map((col) => (
                   <th
                     key={col}
                     className="px-6 py-4 text-sm font-bold uppercase tracking-[2px] text-white"
@@ -191,7 +216,7 @@ export default function UserPage() {
               {pageStudents.length === 0 && (
                 <tr>
                   <td
-                    colSpan={selectMode ? 6 : 5}
+                    colSpan={selectMode ? 7 : 6}
                     className="px-6 py-10 text-center text-sm text-white/60"
                   >
                     No students found.
@@ -231,7 +256,7 @@ export default function UserPage() {
                     <td className="px-6 py-4 text-sm text-white/90">
                       <button
                         type="button"
-                        onClick={() => setViewingStudent(user)}
+                        onClick={() => setViewingStudentId(user.studentId)}
                         className="text-left underline-offset-4 hover:text-white hover:underline"
                       >
                         {user.name}
@@ -239,6 +264,9 @@ export default function UserPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-white/90">{user.section}</td>
                     <td className="px-6 py-4 text-sm text-white/90">{user.status}</td>
+                    <td className="px-6 py-4">
+                      <AccountBadge student={user} />
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-20 overflow-hidden rounded-full bg-black/30">
@@ -281,10 +309,13 @@ export default function UserPage() {
       </div>
 
       {showAddModal && <AddStudentModal onClose={() => setShowAddModal(false)} />}
-      {viewingStudent && (
+      {showProvisionModal && (
+        <ProvisionAccountsModal onClose={() => setShowProvisionModal(false)} />
+      )}
+      {viewingStudentId && (
         <StudentIdCardModal
-          student={viewingStudent}
-          onClose={() => setViewingStudent(null)}
+          studentId={viewingStudentId}
+          onClose={() => setViewingStudentId(null)}
         />
       )}
     </div>

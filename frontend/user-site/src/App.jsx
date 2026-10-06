@@ -1,6 +1,7 @@
 import PageBackground from "./components/PageBackground";
 import AuthPage from "./Login/AuthPage";
 import Shell from "./Shell";
+import ForcePasswordChange from "./Login/ForcePasswordChange";
 import { ThemeProvider } from "./context/ThemeContext";
 import { NotificationPrefProvider } from "./context/NotificationPrefContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -26,6 +27,10 @@ function AppContent() {
 
   if (!student) {
     return <AuthPage />;
+  }
+
+  if (student.mustChangePassword) {
+    return <ForcePasswordChange />;
   }
 
   return <Shell onLogout={signOut} />;

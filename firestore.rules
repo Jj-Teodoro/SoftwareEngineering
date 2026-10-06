@@ -25,13 +25,16 @@ service cloud.firestore {
     match /students/{studentId} {
       allow read: if isSignedIn();
       allow create, delete: if isAdmin();
+      // Admins manage everything on a student record. A student may only change
+      // their own photo, bio, talent and hobbies, and may clear the
+      // mustChangePassword flag after setting a new password.
       allow update: if isAdmin() ||
         (isOwnStudent(studentId) &&
          request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(['bio', 'hobbies', 'talent', 'authUid'])) ||
-        (isSignedIn() && resource.data.authUid == null &&
-         request.resource.data.authUid == request.auth.uid &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['authUid', 'email']));
+           .hasOnly(['bio', 'hobbies', 'talent', 'photo', 'mustChangePassword']) &&
+         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['mustChangePassword']) ||
+          request.resource.data.mustChangePassword == false) &&
+         (!('photo' in request.resource.data) || request.resource.data.photo.size() < 200000));
 
       match /notificationReads/{notifId} {
         allow read, write: if isOwnStudent(studentId);

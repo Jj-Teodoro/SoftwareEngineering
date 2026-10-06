@@ -1,74 +1,17 @@
 import { createContext, useContext } from "react";
 import {
-  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
-  deleteUser,
 } from "firebase/auth";
-import { collection, doc, getDoc, getDocs, query, updateDoc, where } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { auth, db } from "@oasis/shared/firebaseClient.js";
 
 const AuthContext = createContext(null);
 
+// Student accounts are created by an admin (with a temporary password), so
+// there is no self sign-up here.
 export function AuthProvider({ children }) {
-  const signUp = async (studentId, email, password) => {
-    const id = studentId.trim();
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!id || !trimmedEmail || !password) {
-      return { ok: false, message: "All fields are required." };
-    }
-
-    let cred;
-    try {
-      cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
-    } catch (err) {
-      if (err.code === "auth/email-already-in-use") {
-        return {
-          ok: false,
-          message: "An account with this email already exists. Try logging in.",
-        };
-      }
-      return { ok: false, message: "Could not create account. Check your email and password." };
-    }
-
-    const studentRef = doc(db, "students", id);
-
-    try {
-      const studentSnap = await getDoc(studentRef);
-
-      if (!studentSnap.exists()) {
-        await deleteUser(cred.user).catch(() => {});
-        return {
-          ok: false,
-          message: "Student ID not found. Ask an officer to add you to the roster first.",
-        };
-      }
-      if (studentSnap.data().authUid) {
-        await deleteUser(cred.user).catch(() => {});
-        return {
-          ok: false,
-          message: "This Student ID has already been registered. Try logging in instead.",
-        };
-      }
-
-      await updateDoc(studentRef, { authUid: cred.user.uid, email: trimmedEmail });
-
-      return {
-        ok: true,
-        student: {
-          studentId: id,
-          ...studentSnap.data(),
-          authUid: cred.user.uid,
-          email: trimmedEmail,
-        },
-      };
-    } catch {
-      await deleteUser(cred.user).catch(() => {});
-      return { ok: false, message: "Could not link your account. Please try again." };
-    }
-  };
-
   const login = async (email, password) => {
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail || !password) {
@@ -104,7 +47,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ signUp, login, signOut, forgotPassword }}>
+    <AuthContext.Provider value={{ login, signOut, forgotPassword }}>
       {children}
     </AuthContext.Provider>
   );

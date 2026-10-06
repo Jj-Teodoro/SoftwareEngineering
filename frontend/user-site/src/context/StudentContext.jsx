@@ -40,13 +40,20 @@ export function StudentProvider({ children }) {
     };
   }, []);
 
-  const updateProfile = async ({ bio, hobbies, talent }) => {
+  // Students may only change their own photo, bio, talent and hobbies;
+  // everything else on their record is managed by an admin.
+  const updateProfile = async ({ bio, hobbies, talent, photo }) => {
     if (!student) return;
-    await updateDoc(doc(db, "students", student.studentId), { bio, hobbies, talent });
+    await updateDoc(doc(db, "students", student.studentId), { bio, hobbies, talent, photo });
+  };
+
+  const completePasswordChange = async () => {
+    if (!student) return;
+    await updateDoc(doc(db, "students", student.studentId), { mustChangePassword: false });
   };
 
   return (
-    <StudentContext.Provider value={{ student, loading, updateProfile }}>
+    <StudentContext.Provider value={{ student, loading, updateProfile, completePasswordChange }}>
       {children}
     </StudentContext.Provider>
   );
