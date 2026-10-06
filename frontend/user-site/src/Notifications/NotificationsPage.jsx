@@ -55,7 +55,11 @@ export default function NotificationsPage() {
                     {event ? (
                       <>
                         <p className="text-[10px] font-bold uppercase tracking-[2px] text-[var(--gold)]">
-                          New event
+                          {n.kind === "reminder"
+                            ? "Reminder"
+                            : n.kind === "update"
+                            ? "Event updated"
+                            : "New event"}
                         </p>
                         <p className="mt-0.5 text-sm font-bold text-[var(--text-primary)]">
                           {event.title}
