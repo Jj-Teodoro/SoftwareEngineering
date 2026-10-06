@@ -28,7 +28,7 @@ function AppContent() {
     return <AuthPage />;
   }
 
-  return <Shell currentUser={student} onLogout={signOut} />;
+  return <Shell onLogout={signOut} />;
 }
 
 export default function App() {

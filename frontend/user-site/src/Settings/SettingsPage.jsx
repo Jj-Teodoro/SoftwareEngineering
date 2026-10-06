@@ -4,25 +4,30 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from "firebase/auth";
-import { FiMoon, FiSun } from "react-icons/fi";
+import { FiLogOut, FiMoon, FiSun } from "react-icons/fi";
 import { auth } from "@oasis/shared/firebaseClient.js";
+import Panel from "../components/Panel";
 import { useTheme } from "../context/ThemeContext";
 import { useNotificationPref } from "../context/NotificationPrefContext";
 import { useStudent } from "../context/StudentContext";
 
-function Toggle({ checked, onChange }) {
+const inputClass =
+  "h-11 w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface-2)] px-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-faint)] outline-none focus:border-[var(--gold)]";
+
+function Toggle({ checked, onChange, label }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={label}
       onClick={onChange}
-      className={`relative h-7 w-12 rounded-full transition-colors ${
-        checked ? "bg-[#97191d]" : "bg-[var(--surface-2)]"
+      className={`relative h-7 w-12 shrink-0 rounded-full border border-[var(--surface-border)] transition-colors ${
+        checked ? "bg-[var(--gold)]" : "bg-[var(--surface-2)]"
       }`}
     >
       <span
-        className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${
+        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
           checked ? "translate-x-6" : "translate-x-1"
         }`}
       />
@@ -30,7 +35,7 @@ function Toggle({ checked, onChange }) {
   );
 }
 
-export default function SettingsPage() {
+export default function SettingsPage({ onLogout }) {
   const { theme, toggleTheme } = useTheme();
   const { showBadge, toggleShowBadge } = useNotificationPref();
   const { student } = useStudent();
@@ -51,10 +56,7 @@ export default function SettingsPage() {
 
     setIsSubmitting(true);
     try {
-      const credential = EmailAuthProvider.credential(
-        auth.currentUser.email,
-        currentPassword
-      );
+      const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
       await reauthenticateWithCredential(auth.currentUser, credential);
       await updatePassword(auth.currentUser, newPassword);
       setStatus({ type: "success", message: "Password updated." });
@@ -67,17 +69,9 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      <h2 className="text-lg font-bold uppercase tracking-[2px] text-[var(--text-primary)]">
-        Settings
-      </h2>
-
-      <div className="rounded-[24px] border border-[var(--surface-border)] bg-[var(--surface)] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-md">
-        <h3 className="mb-4 text-xs font-bold uppercase tracking-[2px] text-[var(--text-muted)]">
-          Preferences
-        </h3>
-
-        <div className="flex items-center justify-between border-b border-[var(--surface-border)] py-3">
+    <div className="flex flex-col gap-6">
+      <Panel title="Preferences">
+        <div className="flex items-center justify-between gap-4 border-b border-[var(--surface-border)] pb-4">
           <div className="flex items-center gap-3">
             {theme === "light" ? <FiSun size={18} /> : <FiMoon size={18} />}
             <div>
@@ -87,26 +81,21 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
-          <Toggle checked={theme === "dark"} onChange={toggleTheme} />
+          <Toggle checked={theme === "dark"} onChange={toggleTheme} label="Dark mode" />
         </div>
 
-        <div className="flex items-center justify-between py-3">
+        <div className="flex items-center justify-between gap-4 pt-4">
           <div>
-            <p className="text-sm font-semibold text-[var(--text-primary)]">
-              Notification Badge
-            </p>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Notification Badge</p>
             <p className="text-xs text-[var(--text-muted)]">
-              Show an unread count badge on the Notifications tab.
+              Show an unread count on the bell icon.
             </p>
           </div>
-          <Toggle checked={showBadge} onChange={toggleShowBadge} />
+          <Toggle checked={showBadge} onChange={toggleShowBadge} label="Notification badge" />
         </div>
-      </div>
+      </Panel>
 
-      <div className="rounded-[24px] border border-[var(--surface-border)] bg-[var(--surface)] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-md">
-        <h3 className="mb-4 text-xs font-bold uppercase tracking-[2px] text-[var(--text-muted)]">
-          Account
-        </h3>
+      <Panel title="Account">
         <p className="mb-4 text-sm text-[var(--text-primary)]">
           {student?.name} · {student?.email}
         </p>
@@ -118,7 +107,7 @@ export default function SettingsPage() {
             onChange={(e) => setCurrentPassword(e.target.value)}
             placeholder="Current password"
             required
-            className="h-11 w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface-2)] px-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-faint)] outline-none focus:border-[#97191d]"
+            className={inputClass}
           />
           <input
             type="password"
@@ -126,12 +115,12 @@ export default function SettingsPage() {
             onChange={(e) => setNewPassword(e.target.value)}
             placeholder="New password"
             required
-            className="h-11 w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface-2)] px-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-faint)] outline-none focus:border-[#97191d]"
+            className={inputClass}
           />
           {status && (
             <p
               className={`text-xs font-semibold ${
-                status.type === "success" ? "text-green-400" : "text-red-400"
+                status.type === "success" ? "text-green-500" : "text-red-400"
               }`}
             >
               {status.message}
@@ -140,12 +129,20 @@ export default function SettingsPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="h-11 w-full rounded-full bg-[#97191d] text-sm font-bold uppercase tracking-[2px] text-white transition-all hover:bg-[#b81f25] disabled:opacity-50"
+            className="h-11 w-full rounded-lg bg-[var(--gold)] text-sm font-bold uppercase tracking-[2px] text-[#2b0a0c] transition-all hover:brightness-110 disabled:opacity-50"
           >
             {isSubmitting ? "Updating..." : "Update Password"}
           </button>
         </form>
-      </div>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-[var(--surface-border)] text-sm font-bold uppercase tracking-[2px] text-[var(--text-primary)] transition-all hover:bg-[var(--surface-strong)]"
+        >
+          <FiLogOut size={16} /> Log Out
+        </button>
+      </Panel>
     </div>
   );
 }

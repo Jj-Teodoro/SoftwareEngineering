@@ -1,4 +1,5 @@
-import { FiAward, FiCalendar, FiCheckCircle } from "react-icons/fi";
+import { FiAward, FiCheckCircle } from "react-icons/fi";
+import Panel from "../components/Panel";
 import { useEvents } from "../context/EventsContext";
 
 function EventCard({ event, attended }) {
@@ -7,7 +8,7 @@ function EventCard({ event, attended }) {
     <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--surface-2)] px-4 py-3">
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-bold text-[var(--text-primary)]">{event.title}</p>
-        <span className="flex shrink-0 items-center gap-1 rounded-full bg-[#97191d]/30 px-2 py-0.5 text-[10px] font-bold text-[var(--text-primary)]">
+        <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--gold)] px-2 py-0.5 text-[10px] font-bold text-[#2b0a0c]">
           <FiAward size={10} /> {event.pointValue} pts
         </span>
       </div>
@@ -19,7 +20,7 @@ function EventCard({ event, attended }) {
         {isRestricted ? event.programFilter : "All Programs"}
       </p>
       {attended && (
-        <p className="mt-2 flex items-center gap-1 text-xs font-bold text-green-400">
+        <p className="mt-2 flex items-center gap-1 text-xs font-bold text-green-500">
           <FiCheckCircle size={12} /> Attended
         </p>
       )}
@@ -31,17 +32,12 @@ export default function EventsPage() {
   const { upcoming, attended } = useEvents();
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      <h2 className="text-lg font-bold uppercase tracking-[2px] text-[var(--text-primary)]">
-        Events
-      </h2>
-
-      <div className="rounded-[24px] border border-[var(--surface-border)] bg-[var(--surface)] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-md">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-[2px] text-[var(--text-primary)]">
-          <FiCalendar size={16} /> Upcoming
-        </h3>
+    <div className="flex flex-col gap-6">
+      <Panel title="Upcoming Events">
         {upcoming.length === 0 ? (
-          <p className="text-sm text-[var(--text-muted)]">No upcoming events for you right now.</p>
+          <p className="text-sm text-[var(--text-muted)]">
+            No upcoming events for you right now.
+          </p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {upcoming.map((event) => (
@@ -49,12 +45,9 @@ export default function EventsPage() {
             ))}
           </div>
         )}
-      </div>
+      </Panel>
 
-      <div className="rounded-[24px] border border-[var(--surface-border)] bg-[var(--surface)] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-md">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-[2px] text-[var(--text-primary)]">
-          <FiCheckCircle size={16} /> Attended
-        </h3>
+      <Panel title="Attended">
         {attended.length === 0 ? (
           <p className="text-sm text-[var(--text-muted)]">You haven't attended any events yet.</p>
         ) : (
@@ -64,7 +57,7 @@ export default function EventsPage() {
             ))}
           </div>
         )}
-      </div>
+      </Panel>
     </div>
   );
 }
