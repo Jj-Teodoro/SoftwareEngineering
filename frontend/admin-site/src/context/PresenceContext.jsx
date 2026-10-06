@@ -31,16 +31,12 @@ export function PresenceProvider({ children }) {
 
   useEffect(() => {
     let unsubscribeSnapshot = null;
+    let retryTimer = null;
+    let signedIn = false;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (unsubscribeSnapshot) {
-        unsubscribeSnapshot();
-        unsubscribeSnapshot = null;
-      }
-      if (!user) {
-        setPresence({});
-        return;
-      }
+    // A Firestore listener that fails (for example while rules are still
+    // propagating) never recovers by itself, so resubscribe after a pause.
+    const subscribe = () => {
       unsubscribeSnapshot = onSnapshot(
         collection(db, "presence"),
         (snapshot) => {
@@ -54,11 +50,31 @@ export function PresenceProvider({ children }) {
           });
           setPresence(next);
         },
-        () => setPresence({})
+        () => {
+          setPresence({});
+          unsubscribeSnapshot = null;
+          if (signedIn) retryTimer = setTimeout(subscribe, 10000);
+        }
       );
+    };
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      clearTimeout(retryTimer);
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
+      signedIn = Boolean(user);
+      if (!user) {
+        setPresence({});
+        return;
+      }
+      subscribe();
     });
 
     return () => {
+      signedIn = false;
+      clearTimeout(retryTimer);
       unsubscribeAuth();
       if (unsubscribeSnapshot) unsubscribeSnapshot();
     };
