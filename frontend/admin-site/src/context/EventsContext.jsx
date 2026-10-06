@@ -16,6 +16,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, db } from "@oasis/shared/firebaseClient.js";
+import { formatEventDate, getEventPhase } from "@oasis/shared/utils/events.js";
 
 const EventsContext = createContext(null);
 
@@ -70,29 +71,71 @@ export function EventsProvider({ children }) {
     };
   }, []);
 
-  const createEvent = async ({ title, date, description, pointValue, programFilter }) => {
-    const trimmedTitle = title.trim();
+  // An event needs a description or a background picture because that is what
+  // students receive in their notification. Creating it also notifies the
+  // students in its program (events dated in the past are not announced).
+  const createEvent = async ({
+    title,
+    date,
+    description,
+    image,
+    pointValue,
+    programFilter,
+  }) => {
+    const trimmedTitle = (title || "").trim();
+    const trimmedDescription = (description || "").trim();
     if (!trimmedTitle) {
       return { ok: false, message: "Event name is required." };
     }
-    const ref = await addDoc(collection(db, "events"), {
+    if (!date) {
+      return { ok: false, message: "Date is required." };
+    }
+    if (!trimmedDescription && !image) {
+      return {
+        ok: false,
+        message: "Add a description or a background picture. Students receive it in their notification.",
+      };
+    }
+
+    const eventData = {
       title: trimmedTitle,
       date,
-      description: description?.trim() || "",
+      description: trimmedDescription,
+      image: image || "",
       pointValue: Number(pointValue) || 0,
       programFilter: programFilter || "ALL",
       createdBy: auth.currentUser?.uid || null,
       createdAt: serverTimestamp(),
-    });
-    return { ok: true, event: { id: ref.id } };
+    };
+    const ref = await addDoc(collection(db, "events"), eventData);
+
+    let notified = true;
+    if (getEventPhase(eventData) !== "done") {
+      try {
+        await addDoc(collection(db, "notifications"), {
+          type: "event",
+          eventId: ref.id,
+          title: trimmedTitle,
+          message: `New event on ${formatEventDate(date)}`,
+          eventDate: date,
+          targetProgram: eventData.programFilter,
+          createdAt: serverTimestamp(),
+        });
+      } catch {
+        notified = false;
+      }
+    }
+    return { ok: true, event: { id: ref.id }, notified };
   };
 
   const deleteEvent = async (eventId) => {
-    const attendanceSnap = await getDocs(
-      query(collection(db, "attendance"), where("eventId", "==", eventId))
-    );
+    const [attendanceSnap, notificationSnap] = await Promise.all([
+      getDocs(query(collection(db, "attendance"), where("eventId", "==", eventId))),
+      getDocs(query(collection(db, "notifications"), where("eventId", "==", eventId))),
+    ]);
     const batch = writeBatch(db);
     attendanceSnap.forEach((d) => batch.delete(d.ref));
+    notificationSnap.forEach((d) => batch.delete(d.ref));
     batch.delete(doc(db, "events", eventId));
     await batch.commit();
   };
