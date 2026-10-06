@@ -7,6 +7,7 @@ import { StudentsProvider } from "./context/StudentsContext";
 import { EventsProvider } from "./context/EventsContext";
 import { RequirementsProvider } from "./context/RequirementsContext";
 import { PointsProvider } from "./context/PointsContext";
+import { PresenceProvider } from "./context/PresenceContext";
 
 function AppContent() {
   const { signOut } = useAdmin();
@@ -48,7 +49,9 @@ export default function App() {
         <EventsProvider>
           <RequirementsProvider>
             <PointsProvider>
-              <AppContent />
+              <PresenceProvider>
+                <AppContent />
+              </PresenceProvider>
             </PointsProvider>
           </RequirementsProvider>
         </EventsProvider>

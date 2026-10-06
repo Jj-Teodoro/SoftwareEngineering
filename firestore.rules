@@ -48,6 +48,16 @@ service cloud.firestore {
       allow delete: if isAdmin() || isOwnStudent(studentId);
     }
 
+    // Live "using the website" status: each student writes only their own
+    // heartbeat; only admins can read it.
+    match /presence/{studentId} {
+      allow read, delete: if isAdmin();
+      allow create, update: if isOwnStudent(studentId) &&
+        request.resource.data.keys().hasOnly(['lastSeen', 'online']) &&
+        request.resource.data.lastSeen is timestamp &&
+        request.resource.data.online is bool;
+    }
+
     match /hobbiesCatalog/{id} {
       allow read: if isSignedIn();
       allow write: if isAdmin();

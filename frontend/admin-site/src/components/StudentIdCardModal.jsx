@@ -8,6 +8,7 @@ import { useStudents } from "../context/StudentsContext";
 import { useRequirements } from "../context/RequirementsContext";
 import { useEvents } from "../context/EventsContext";
 import { usePoints } from "../context/PointsContext";
+import { formatAgo, usePresence } from "../context/PresenceContext";
 
 const TABS = [
   { id: "id", label: "ID" },
@@ -79,7 +80,6 @@ function StudentInfoTab({ student }) {
       course: student.course || "",
       yearLevel: student.yearLevel || "",
       section: student.section || "",
-      status: student.status || "ACTIVE",
       email: student.email || "",
       contactNumber: student.contactNumber || "",
       address: student.address || "",
@@ -109,7 +109,6 @@ function StudentInfoTab({ student }) {
         <DetailRow label="Course" value={student.course} />
         <DetailRow label="Year Level" value={student.yearLevel} />
         <DetailRow label="Section" value={student.section} />
-        <DetailRow label="Status" value={student.status} />
         <DetailRow label="Email" value={student.email} />
         <DetailRow label="Contact No." value={student.contactNumber} />
         <DetailRow label="Address" value={student.address} />
@@ -151,15 +150,6 @@ function StudentInfoTab({ student }) {
       </FormRow>
       <FormRow label="Section">
         <input value={form.section} onChange={set("section")} className={inputClass} />
-      </FormRow>
-      <FormRow label="Status">
-        <select value={form.status} onChange={set("status")} className={inputClass}>
-          {["ACTIVE", "INACTIVE"].map((st) => (
-            <option key={st} value={st} className="text-black">
-              {st}
-            </option>
-          ))}
-        </select>
       </FormRow>
       <FormRow label="Email">
         <input
@@ -213,6 +203,8 @@ function FormRow({ label, children }) {
 
 function StudentAccountTab({ student }) {
   const { provisionAccount, regenerateTempPassword } = useStudents();
+  const { getActivity, now } = usePresence();
+  const activity = getActivity(student.studentId);
   const [busy, setBusy] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [result, setResult] = useState(null);
@@ -278,6 +270,16 @@ function StudentAccountTab({ student }) {
           <p className="text-xs text-white/60">
             Login email: {student.email || "— none on file —"}
           </p>
+          {hasAccount && (
+            <p className="mt-1 text-xs text-white/60">
+              {activity.online
+                ? "Using the website right now"
+                : activity.lastSeen
+                ? `Last on the website ${formatAgo(activity.lastSeen, now)}`
+                : "Has not logged in yet"}
+              {activity.atEvent ? ` · scanned in at ${activity.eventTitle || "an event"}` : ""}
+            </p>
+          )}
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import PageBackground from "./components/PageBackground";
 import AuthPage from "./Login/AuthPage";
 import Shell from "./Shell";
 import ForcePasswordChange from "./Login/ForcePasswordChange";
+import PresenceTracker, { markOffline } from "./components/PresenceTracker";
 import { ThemeProvider } from "./context/ThemeContext";
 import { NotificationPrefProvider } from "./context/NotificationPrefContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -29,11 +30,21 @@ function AppContent() {
     return <AuthPage />;
   }
 
-  if (student.mustChangePassword) {
-    return <ForcePasswordChange />;
-  }
+  const handleLogout = async () => {
+    await markOffline(student.studentId);
+    await signOut();
+  };
 
-  return <Shell onLogout={signOut} />;
+  return (
+    <>
+      <PresenceTracker />
+      {student.mustChangePassword ? (
+        <ForcePasswordChange onLogout={handleLogout} />
+      ) : (
+        <Shell onLogout={handleLogout} />
+      )}
+    </>
+  );
 }
 
 export default function App() {

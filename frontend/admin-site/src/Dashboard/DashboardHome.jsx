@@ -12,6 +12,7 @@ import {
 import { useStudents } from "../context/StudentsContext";
 import { useEvents } from "../context/EventsContext";
 import { usePoints } from "../context/PointsContext";
+import { usePresence } from "../context/PresenceContext";
 
 function StatCard({ icon, label, value, accent }) {
   return (
@@ -54,9 +55,10 @@ export default function DashboardHome({ onNavigate }) {
   const { students } = useStudents();
   const { events, presentCounts } = useEvents();
   const { getTotalPoints, getClearance, targetPoints } = usePoints();
+  const { getActivity } = usePresence();
 
   const totalStudents = students.length;
-  const activeCount = students.filter((s) => s.status === "ACTIVE").length;
+  const activeCount = students.filter((s) => getActivity(s.studentId).active).length;
   const clearedCount = students.filter((s) => getClearance(s.studentId).cleared).length;
   const pendingCount = totalStudents - clearedCount;
 
@@ -120,7 +122,7 @@ export default function DashboardHome({ onNavigate }) {
         />
         <StatCard
           icon={<FiUserCheck className="text-white" size={20} />}
-          label="Active Students"
+          label="Active Now"
           value={activeCount}
           accent="bg-green-600"
         />

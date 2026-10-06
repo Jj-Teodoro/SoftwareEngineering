@@ -99,7 +99,7 @@ export default function AddStudentModal({ onClose }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4">
           <div>
             <label className={labelClass}>Section</label>
             <input
@@ -114,13 +114,6 @@ export default function AddStudentModal({ onClose }) {
             )}
           </div>
 
-          <div>
-            <label className={labelClass}>Status</label>
-            <select className={inputClass} {...register("status")}>
-              <option className="text-black">ACTIVE</option>
-              <option className="text-black">INACTIVE</option>
-            </select>
-          </div>
         </div>
 
         <div>
