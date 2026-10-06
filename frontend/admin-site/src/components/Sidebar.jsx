@@ -16,7 +16,7 @@ export default function Sidebar({ active, onNavigate, currentUser, onLogout }) {
           <p className="truncate text-xs font-bold uppercase tracking-[1px] text-white">
             {currentUser.name}
           </p>
-          <p className="mt-1 text-[11px] text-white/60">{currentUser.studentId}</p>
+          <p className="mt-1 text-[11px] text-white/60">{currentUser.username}</p>
         </div>
       )}
 

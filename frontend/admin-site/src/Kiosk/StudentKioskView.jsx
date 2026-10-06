@@ -103,12 +103,12 @@ export default function StudentKioskView({ eventId, currentAdmin, onExit }) {
   };
 
   const handleExitSubmit = async () => {
-    if (!currentAdmin?.studentId) {
+    if (!currentAdmin?.username) {
       setExitError("No admin session found.");
       return;
     }
     setIsExiting(true);
-    const authResult = await authenticate(currentAdmin.studentId, exitPassword);
+    const authResult = await authenticate(currentAdmin.username, exitPassword);
     setIsExiting(false);
     if (!authResult.ok) {
       setExitError("Incorrect password.");

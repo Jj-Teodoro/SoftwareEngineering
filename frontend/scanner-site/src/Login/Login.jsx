@@ -74,17 +74,18 @@ export default function LoginPage({ onLoginSuccess }) {
                     htmlFor="studentId"
                     className="absolute left-4 top-3 text-[14px] font-bold uppercase tracking-[3px] text-white"
                   >
-                    Staff ID
+                    Username
                   </label>
 
                   <input
                     id="studentId"
                     type="text"
+                    autoComplete="username"
                     {...register("studentId", {
-                      required: "Staff ID is required",
+                      required: "Username is required",
                       minLength: {
                         value: 4,
-                        message: "Staff ID must be at least 4 characters",
+                        message: "Username must be at least 4 characters",
                       },
                     })}
                     className="h-full w-full bg-transparent px-4 pb-2 pt-8 text-base text-white placeholder-gray-300 outline-none"

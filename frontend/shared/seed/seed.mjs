@@ -52,9 +52,16 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-const ADMIN_STUDENT_ID = "2024-02333";
-const ADMIN_PASSWORD = "aces2024";
-const ADMIN_EMAIL = `${ADMIN_STUDENT_ID}@oasis.local`;
+// The admin is a staff account with its own username, separate from the student
+// roster. Set ADMIN_USERNAME / ADMIN_PASSWORD in the environment, or a random
+// password is generated and printed once.
+const ADMIN_USERNAME = (process.env.ADMIN_USERNAME || "admin").toLowerCase();
+const ADMIN_PASSWORD =
+  process.env.ADMIN_PASSWORD ||
+  Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) =>
+    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"[b % 54]
+  ).join("");
+const ADMIN_EMAIL = `${ADMIN_USERNAME}@oasis.local`;
 
 const DEFAULT_STUDENTS = [
   {
@@ -161,11 +168,12 @@ async function main() {
   const adminUid = await ensureAdminAuthUser();
 
   await setDoc(doc(db, "staff", adminUid), {
-    name: "NIEVES, RAFAEL JOSEPH G.",
-    studentId: ADMIN_STUDENT_ID,
+    username: ADMIN_USERNAME,
+    name: "ACES Administrator",
     role: "admin",
   });
   console.log("Seeded staff/%s (role: admin)", adminUid);
+  console.log("Admin login -> username: %s  password: %s", ADMIN_USERNAME, ADMIN_PASSWORD);
 
   for (const student of DEFAULT_STUDENTS) {
     await setDoc(doc(db, "students", student.studentId), {

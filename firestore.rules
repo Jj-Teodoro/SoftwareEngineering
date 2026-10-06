@@ -78,9 +78,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Staff (admin / scanner) accounts are separate from students. Only an admin
+    // can create one, and its username can never be a student ID.
     match /staff/{uid} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow create: if isAdmin() &&
+        request.resource.data.keys().hasOnly(['username', 'name', 'role']) &&
+        request.resource.data.role in ['admin', 'scanner'] &&
+        !exists(/databases/$(database)/documents/students/$(request.resource.data.username));
+      allow update, delete: if isAdmin();
     }
 
     match /requirements/{id} {

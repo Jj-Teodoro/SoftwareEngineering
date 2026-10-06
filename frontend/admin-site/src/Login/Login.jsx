@@ -1,6 +1,5 @@
 import React from "react";
 import { useForm } from "react-hook-form";
-import { FcGoogle } from "react-icons/fc";
 import PageBackground from "../components/PageBackground";
 import aces_logo from "../assets/aceslogo.png";
 import oasis_logo from "../assets/oasislogo.gif"; // Imported the OASIS GIF logo
@@ -77,17 +76,18 @@ export default function LoginPage({ onLoginSuccess }) {
                     htmlFor="studentId"
                     className="absolute left-4 top-3 text-[14px] font-bold uppercase tracking-[3px] text-white"
                   >
-                    Student ID
+                    Username
                   </label>
 
                   <input
                     id="studentId"
                     type="text"
+                    autoComplete="username"
                     {...register("studentId", {
-                      required: "Student ID is required",
+                      required: "Username is required",
                       minLength: {
                         value: 4,
-                        message: "Student ID must be at least 4 characters",
+                        message: "Username must be at least 4 characters",
                       },
                     })}
                     className="h-full w-full bg-transparent px-4 pb-2 pt-8 text-base text-white placeholder-gray-300 outline-none"
@@ -163,19 +163,6 @@ export default function LoginPage({ onLoginSuccess }) {
                 className="cursor-pointer text-sm tracking-[2px] text-gray-200 transition-colors hover:text-white"
               >
                 Forgot Password
-              </button>
-            </div>
-
-            {/* Google Login */}
-            <div className="mt-10 flex justify-center">
-              <button
-                type="button"
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/30 bg-black/20 px-8 py-3 transition-all hover:bg-white/20"
-              >
-                <FcGoogle size={28} />
-                <span className="text-sm tracking-[2px] text-white">
-                  Sign in with Google
-                </span>
               </button>
             </div>
           </div>
