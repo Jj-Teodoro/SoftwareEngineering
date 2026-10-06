@@ -45,6 +45,13 @@ function EventCard({ event, today, eligibleCount, presentCount, onOpen, onDelete
       }`}
     >
       <div>
+        {event.image && (
+          <img
+            src={event.image}
+            alt=""
+            className="-mx-5 -mt-5 mb-4 h-32 w-[calc(100%+2.5rem)] max-w-none rounded-t-[20px] object-cover"
+          />
+        )}
         <div className="mb-3 flex items-center justify-between gap-2">
           <PhaseChip event={event} today={today} />
           <span className="flex shrink-0 items-center gap-1 rounded-full bg-[#97191d]/30 px-3 py-1 text-xs font-bold text-white">

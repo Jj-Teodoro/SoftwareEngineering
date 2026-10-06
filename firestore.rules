@@ -80,7 +80,9 @@ service cloud.firestore {
 
     match /events/{eventId} {
       allow read: if isSignedIn();
-      allow write: if isScanner();
+      allow create, update: if isScanner() &&
+        (!('image' in request.resource.data) || request.resource.data.image.size() < 400000);
+      allow delete: if isScanner();
     }
 
     match /attendance/{id} {
@@ -88,9 +90,10 @@ service cloud.firestore {
       allow write: if isScanner();
     }
 
+    // Event announcements are created by whoever creates the event (admin or scanner).
     match /notifications/{id} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if isScanner();
     }
 
     match /settings/{id} {
