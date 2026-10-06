@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FiSearch, FiFilter, FiTrash2, FiKey } from "react-icons/fi";
 import { useStudents } from "../context/StudentsContext";
 import { usePoints } from "../context/PointsContext";
+import { formatAgo, usePresence } from "../context/PresenceContext";
 import AddStudentModal from "../components/AddStudentModal";
 import StudentIdCardModal from "../components/StudentIdCardModal";
 import ProvisionAccountsModal from "../components/ProvisionAccountsModal";
@@ -17,19 +18,44 @@ const PILL_TONES = {
   red: "bg-red-500/15 text-red-300 ring-red-400/30",
 };
 
-function Pill({ tone, children }) {
+function Pill({ tone, pulse = false, children }) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[1px] ring-1 ${PILL_TONES[tone]}`}
     >
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      <span className={`h-1.5 w-1.5 rounded-full bg-current ${pulse ? "animate-pulse" : ""}`} />
       {children}
     </span>
   );
 }
 
-function StatusBadge({ status }) {
-  return <Pill tone={status === "ACTIVE" ? "green" : "red"}>{status}</Pill>;
+// Active while the student is using the website or is scanned in at an event;
+// Inactive once they leave the site and scan out.
+function StatusBadge({ student }) {
+  const { getActivity, now } = usePresence();
+  const a = getActivity(student.studentId);
+
+  let detail;
+  if (a.active) {
+    detail = [a.online && "Online now", a.atEvent && `At ${a.eventTitle || "an event"}`]
+      .filter(Boolean)
+      .join(" · ");
+  } else if (!student.authUid) {
+    detail = "No account";
+  } else {
+    detail = a.lastSeen ? `Last seen ${formatAgo(a.lastSeen, now)}` : "Never logged in";
+  }
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <Pill tone={a.active ? "green" : "red"} pulse={a.online}>
+        {a.active ? "Active" : "Inactive"}
+      </Pill>
+      <span className="max-w-[160px] truncate text-[10px] text-white/45" title={detail}>
+        {detail}
+      </span>
+    </div>
+  );
 }
 
 function AccountBadge({ student }) {
@@ -44,7 +70,7 @@ function AccountBadge({ student }) {
 const COLUMNS = [
   { label: "Student", className: "" },
   { label: "Section", className: "w-[120px]" },
-  { label: "Status", className: "w-[130px]" },
+  { label: "Status", className: "w-[190px]" },
   { label: "Account", className: "w-[150px]" },
   { label: "Points", className: "w-[210px]" },
 ];
@@ -52,6 +78,7 @@ const COLUMNS = [
 export default function UserPage() {
   const { students, deleteStudents } = useStudents();
   const { getTotalPoints, getClearance, targetPoints } = usePoints();
+  const { getActivity } = usePresence();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -84,10 +111,11 @@ export default function UserPage() {
         !query ||
         s.studentId.toLowerCase().includes(query) ||
         s.name.toLowerCase().includes(query);
-      const matchesStatus = statusFilter === "ALL" || s.status === statusFilter;
+      const live = getActivity(s.studentId).active ? "ACTIVE" : "INACTIVE";
+      const matchesStatus = statusFilter === "ALL" || live === statusFilter;
       return matchesQuery && matchesStatus;
     });
-  }, [students, search, statusFilter]);
+  }, [students, search, statusFilter, getActivity]);
 
   const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
 
@@ -302,7 +330,7 @@ export default function UserPage() {
                       {user.section}
                     </td>
                     <td className="px-5 py-3.5">
-                      <StatusBadge status={user.status} />
+                      <StatusBadge student={user} />
                     </td>
                     <td className="px-5 py-3.5">
                       <AccountBadge student={user} />

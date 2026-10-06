@@ -3,7 +3,6 @@ import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 
 import { auth } from "@oasis/shared/firebaseClient.js";
 import PageBackground from "../components/PageBackground";
 import oasis_logo from "../assets/oasislogo.gif";
-import { useAuth } from "../context/AuthContext";
 import { useStudent } from "../context/StudentContext";
 
 const MIN_LENGTH = 8;
@@ -11,8 +10,7 @@ const MIN_LENGTH = 8;
 const inputClass =
   "h-12 w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface-2)] px-4 text-sm text-[var(--text-primary)] placeholder-[var(--text-faint)] outline-none focus:border-[var(--gold)]";
 
-export default function ForcePasswordChange() {
-  const { signOut } = useAuth();
+export default function ForcePasswordChange({ onLogout }) {
   const { student, completePasswordChange } = useStudent();
   const [tempPassword, setTempPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -141,7 +139,7 @@ export default function ForcePasswordChange() {
 
           <button
             type="button"
-            onClick={signOut}
+            onClick={onLogout}
             className="mt-4 block w-full text-center text-xs uppercase tracking-[2px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
           >
             Log out
