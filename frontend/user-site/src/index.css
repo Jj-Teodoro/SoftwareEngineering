@@ -3,23 +3,34 @@
 @tailwind utilities;
 
 :root {
-  --bg-gradient: linear-gradient(to bottom right, #4a080b, #230405, #000000);
+  --bg-gradient: linear-gradient(to bottom, #6e1a1c 0%, #3d0b0d 48%, #150404 100%);
+  --header-bg: #4a0d10;
+  --panel-bg: #3a0c0e;
+  --panel-title: #ffffff;
+  --gold: #f2b400;
+  --nav-active-bg: #7a1317;
+  --nav-active-text: #ffffff;
+  --nav-idle-bg: #ffffff;
+  --nav-idle-text: #7a1317;
   --surface: rgba(255, 255, 255, 0.1);
   --surface-strong: rgba(255, 255, 255, 0.15);
   --surface-border: rgba(255, 255, 255, 0.2);
   --surface-2: rgba(0, 0, 0, 0.2);
   --text-primary: #ffffff;
-  --text-muted: rgba(255, 255, 255, 0.6);
+  --text-muted: rgba(255, 255, 255, 0.65);
   --text-faint: rgba(255, 255, 255, 0.4);
 }
 
 html.light {
-  --bg-gradient: linear-gradient(to bottom right, #fdf3ec, #f6e4d6, #efd5bf);
+  --bg-gradient: linear-gradient(to bottom, #fdf3ec, #f6e4d6 60%, #efd5bf);
+  --panel-bg: #fffaf4;
+  --panel-title: #4a0d10;
+  --gold: #d9a000;
   --surface: rgba(0, 0, 0, 0.04);
   --surface-strong: rgba(0, 0, 0, 0.08);
   --surface-border: rgba(0, 0, 0, 0.12);
   --surface-2: rgba(0, 0, 0, 0.06);
   --text-primary: #2a0507;
-  --text-muted: rgba(42, 5, 7, 0.6);
+  --text-muted: rgba(42, 5, 7, 0.65);
   --text-faint: rgba(42, 5, 7, 0.4);
 }

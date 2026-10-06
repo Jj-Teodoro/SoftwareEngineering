@@ -2,7 +2,11 @@
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx}", "../shared/**/*.{js,jsx}"],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        display: ['"Krona One"', "Montserrat", "sans-serif"],
+      },
+    },
   },
   plugins: [],
 };

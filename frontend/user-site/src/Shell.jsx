@@ -1,29 +1,23 @@
 import { useState } from "react";
 import PageBackground from "./components/PageBackground";
-import Sidebar from "./components/Sidebar";
+import Header from "./components/Header";
 import ActivityPage from "./Activity/ActivityPage";
 import EventsPage from "./Events/EventsPage";
 import NotificationsPage from "./Notifications/NotificationsPage";
 import SettingsPage from "./Settings/SettingsPage";
 
-export default function Shell({ currentUser, onLogout }) {
+export default function Shell({ onLogout }) {
   const [activeTab, setActiveTab] = useState("Activity");
 
   return (
     <PageBackground>
-      <div className="flex min-h-screen flex-col gap-8 px-6 py-10 lg:flex-row lg:px-12">
-        <Sidebar
-          active={activeTab}
-          onNavigate={setActiveTab}
-          currentUser={currentUser}
-          onLogout={onLogout}
-        />
-
-        <main className="flex-1">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1040px] flex-col gap-6 px-4 py-6 sm:px-6">
+        <Header active={activeTab} onNavigate={setActiveTab} />
+        <main>
           {activeTab === "Activity" && <ActivityPage />}
           {activeTab === "Events" && <EventsPage />}
           {activeTab === "Notifications" && <NotificationsPage />}
-          {activeTab === "Settings" && <SettingsPage />}
+          {activeTab === "Settings" && <SettingsPage onLogout={onLogout} />}
         </main>
       </div>
     </PageBackground>
