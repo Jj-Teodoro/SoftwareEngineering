@@ -8,15 +8,17 @@ import { auth, db } from "@oasis/shared/firebaseClient.js";
 
 const AuthContext = createContext(null);
 
-function staffEmailFor(studentId) {
-  return `${studentId.trim().toLowerCase()}@oasis.local`;
+// Staff accounts are separate from students: they sign in with a username
+// (e.g. "admin"), never a student ID.
+function staffEmailFor(username) {
+  return `${username.trim().toLowerCase()}@oasis.local`;
 }
 
 export function AuthProvider({ children }) {
-  const authenticate = async (studentId, password) => {
-    const id = studentId.trim();
+  const authenticate = async (username, password) => {
+    const id = username.trim();
     if (!id || !password) {
-      return { ok: false, message: "Invalid student ID or password." };
+      return { ok: false, message: "Invalid username or password." };
     }
 
     let userCredential;
@@ -27,7 +29,7 @@ export function AuthProvider({ children }) {
         password
       );
     } catch {
-      return { ok: false, message: "Invalid student ID or password." };
+      return { ok: false, message: "Invalid username or password." };
     }
 
     const staffSnap = await getDoc(doc(db, "staff", userCredential.user.uid));
@@ -41,7 +43,7 @@ export function AuthProvider({ children }) {
       ok: true,
       staff: {
         uid: userCredential.user.uid,
-        studentId: staff.studentId,
+        username: staff.username,
         name: staff.name,
         role: staff.role,
       },

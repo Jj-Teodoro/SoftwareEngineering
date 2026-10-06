@@ -126,12 +126,12 @@ export default function StudentKioskView({ eventId, currentStaff, onExit }) {
   };
 
   const handleExitSubmit = async () => {
-    if (!currentStaff?.studentId) {
+    if (!currentStaff?.username) {
       setExitError("No staff session found.");
       return;
     }
     setIsExiting(true);
-    const authResult = await authenticate(currentStaff.studentId, exitPassword);
+    const authResult = await authenticate(currentStaff.username, exitPassword);
     setIsExiting(false);
     if (!authResult.ok) {
       setExitError("Incorrect password.");

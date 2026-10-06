@@ -46,7 +46,7 @@ export default function SettingsPage({ currentUser }) {
         <p className="text-xs font-bold uppercase tracking-[2px] text-white/70">Signed in as</p>
         <p className="mt-2 text-base font-bold text-white">{currentUser?.name}</p>
         <p className="text-xs text-white/60">
-          {currentUser?.studentId} · {currentUser?.role}
+          {currentUser?.username} · {currentUser?.role}
         </p>
       </div>
 
