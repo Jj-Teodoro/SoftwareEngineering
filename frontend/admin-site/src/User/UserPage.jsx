@@ -5,6 +5,7 @@ import { usePoints } from "../context/PointsContext";
 import AddStudentModal from "../components/AddStudentModal";
 import StudentIdCardModal from "../components/StudentIdCardModal";
 import ProvisionAccountsModal from "../components/ProvisionAccountsModal";
+import StudentAvatar from "../components/StudentAvatar";
 
 const PAGE_SIZE = 6;
 const FILTER_OPTIONS = ["ALL", "ACTIVE", "INACTIVE"];
@@ -253,12 +254,13 @@ export default function UserPage() {
                     <td className="px-6 py-4 text-sm font-semibold text-white">
                       {user.studentId}
                     </td>
-                    <td className="px-6 py-4 text-sm text-white/90">
+                    <td className="px-6 py-3 text-sm text-white/90">
                       <button
                         type="button"
                         onClick={() => setViewingStudentId(user.studentId)}
-                        className="text-left underline-offset-4 hover:text-white hover:underline"
+                        className="flex items-center gap-3 text-left underline-offset-4 hover:text-white hover:underline"
                       >
+                        <StudentAvatar student={user} />
                         {user.name}
                       </button>
                     </td>

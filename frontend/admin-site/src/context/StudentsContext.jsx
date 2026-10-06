@@ -9,9 +9,11 @@ import {
 } from "firebase/auth";
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
+  serverTimestamp,
   setDoc,
   updateDoc,
   writeBatch,
@@ -134,12 +136,20 @@ export function StudentsProvider({ children }) {
         return { ok: false, message: "Could not create the account." };
       }
 
+      // The temporary password is kept in an admin-only collection (never on the
+      // student record, which every signed-in user can read) until the student
+      // replaces it; the student's own client deletes it after that.
       try {
+        await setDoc(doc(db, "accountCredentials", studentId), {
+          tempPassword,
+          createdAt: serverTimestamp(),
+        });
         await updateDoc(doc(db, "students", studentId), {
           authUid: cred.user.uid,
           mustChangePassword: true,
         });
       } catch {
+        await deleteDoc(doc(db, "accountCredentials", studentId)).catch(() => {});
         await deleteUser(cred.user).catch(() => {});
         return { ok: false, message: "Could not link the account to the student record." };
       }
@@ -164,7 +174,10 @@ export function StudentsProvider({ children }) {
 
   const deleteStudents = async (studentIds) => {
     const batch = writeBatch(db);
-    studentIds.forEach((id) => batch.delete(doc(db, "students", id)));
+    studentIds.forEach((id) => {
+      batch.delete(doc(db, "students", id));
+      batch.delete(doc(db, "accountCredentials", id));
+    });
     await batch.commit();
   };
 

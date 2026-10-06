@@ -5,9 +5,13 @@ import {
   doc,
   addDoc,
   deleteDoc,
+  getDocs,
+  query,
   setDoc,
   onSnapshot,
   serverTimestamp,
+  where,
+  writeBatch,
 } from "firebase/firestore";
 import { auth, db } from "@oasis/shared/firebaseClient.js";
 
@@ -78,6 +82,17 @@ export function RequirementsProvider({ children }) {
     return { ok: true };
   };
 
+  // Removing a requirement also removes every student's completion record for it.
+  const deleteItem = async (requirementId) => {
+    const completionsSnap = await getDocs(
+      query(collection(db, "studentRequirements"), where("requirementId", "==", requirementId))
+    );
+    const batch = writeBatch(db);
+    completionsSnap.forEach((d) => batch.delete(d.ref));
+    batch.delete(doc(db, "requirements", requirementId));
+    await batch.commit();
+  };
+
   const isCompleted = (studentId, requirementId) =>
     Boolean(completions[studentId]?.has(requirementId));
 
@@ -106,6 +121,7 @@ export function RequirementsProvider({ children }) {
       value={{
         items,
         addItem,
+        deleteItem,
         isCompleted,
         toggleCompleted,
         getRequirementPoints,

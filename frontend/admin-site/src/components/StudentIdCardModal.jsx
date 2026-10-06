@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiPlus, FiXCircle } from "react-icons/fi";
+import { useEffect, useState } from "react";
+import { doc, onSnapshot } from "firebase/firestore";
+import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiPlus, FiTrash2, FiXCircle } from "react-icons/fi";
+import { db } from "@oasis/shared/firebaseClient.js";
 import StudentIdCard from "@oasis/shared/components/StudentIdCard.jsx";
 import Modal from "./Modal";
 import { useStudents } from "../context/StudentsContext";
@@ -214,6 +216,23 @@ function StudentAccountTab({ student }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [stored, setStored] = useState(undefined);
+
+  const pending = Boolean(student.authUid) && Boolean(student.mustChangePassword);
+
+  useEffect(() => {
+    if (!pending) {
+      setStored(undefined);
+      return undefined;
+    }
+    return onSnapshot(
+      doc(db, "accountCredentials", student.studentId),
+      (snap) => setStored(snap.exists() ? snap.data().tempPassword : null),
+      () => setStored(null)
+    );
+  }, [pending, student.studentId]);
+
+  const tempPassword = result?.ok ? result.tempPassword : stored;
 
   const handleCreate = async () => {
     setBusy(true);
@@ -223,7 +242,7 @@ function StudentAccountTab({ student }) {
 
   const copyPassword = async () => {
     try {
-      await navigator.clipboard.writeText(result.tempPassword);
+      await navigator.clipboard.writeText(tempPassword);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -251,29 +270,37 @@ function StudentAccountTab({ student }) {
         </div>
       </div>
 
-      {result?.ok && (
+      {pending && (
         <div className="space-y-2 rounded-xl border border-[#f2b400]/60 bg-[#f2b400]/10 px-4 py-3">
           <p className="text-[11px] font-bold uppercase tracking-[1px] text-[#f2b400]">
-            Give these to the student — the password is shown only once
+            Give these to the student — visible until they set their own password
           </p>
           <p className="text-sm text-white">
-            Email: <span className="font-semibold">{result.email}</span>
+            Email: <span className="font-semibold">{student.email}</span>
           </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="text-sm text-white">
-              Temporary password:{" "}
-              <span className="select-all font-mono text-base font-bold tracking-[2px]">
-                {result.tempPassword}
-              </span>
+          {tempPassword ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm text-white">
+                Temporary password:{" "}
+                <span className="select-all font-mono text-base font-bold tracking-[2px]">
+                  {tempPassword}
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={copyPassword}
+                className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-white hover:bg-white/10"
+              >
+                <FiCopy size={12} /> {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-white/70">
+              {stored === undefined
+                ? "Loading..."
+                : "The temporary password isn't available (this account was created before passwords were kept). The student can use Forgot password to set one."}
             </p>
-            <button
-              type="button"
-              onClick={copyPassword}
-              className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-white hover:bg-white/10"
-            >
-              <FiCopy size={12} /> {copied ? "Copied" : "Copy"}
-            </button>
-          </div>
+          )}
         </div>
       )}
       {result && !result.ok && (
@@ -292,7 +319,7 @@ function StudentAccountTab({ student }) {
       ) : (
         <p className="text-xs leading-relaxed text-white/60">
           {student.mustChangePassword
-            ? "The student will be asked to choose their own password the first time they log in."
+            ? "The student will be asked to choose their own password the first time they log in. Once they do, the temporary password disappears from here."
             : "The student chose their own password."}{" "}
           Admins can never view or change a student's password; if they forget it, they use
           "Forgot password" on the User site to get a reset email.
@@ -303,7 +330,7 @@ function StudentAccountTab({ student }) {
 }
 
 function StudentStatusTab({ student }) {
-  const { items, addItem, isCompleted, toggleCompleted } = useRequirements();
+  const { items, addItem, deleteItem, isCompleted, toggleCompleted } = useRequirements();
   const { events } = useEvents();
   const { getTotalPoints, getClearance, getAttendanceRecords } = usePoints();
 
@@ -323,6 +350,13 @@ function StudentStatusTab({ student }) {
     setNewTitle("");
     setNewPoints("10");
     setAddError("");
+  };
+
+  const handleRemoveItem = async (item) => {
+    const confirmed = window.confirm(
+      `Remove "${item.title}" for ALL students? Anyone who completed it will lose its ${item.pointValue} points.`
+    );
+    if (confirmed) await deleteItem(item.id);
   };
 
   return (
@@ -355,21 +389,31 @@ function StudentStatusTab({ student }) {
           {items.map((item) => {
             const completed = isCompleted(student.studentId, item.id);
             return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => toggleCompleted(student.studentId, item.id)}
-                className={`flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-all ${
-                  completed
-                    ? "border-green-400/40 bg-green-500/10 text-green-200"
-                    : "border-white/20 bg-black/20 text-white/80 hover:bg-white/10"
-                }`}
-              >
-                <span>{item.title}</span>
-                <span className="text-xs font-bold uppercase tracking-[1px]">
-                  {completed ? `+${item.pointValue} pts` : `${item.pointValue} pts`}
-                </span>
-              </button>
+              <div key={item.id} className="flex items-stretch gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleCompleted(student.studentId, item.id)}
+                  className={`flex min-w-0 flex-1 items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-all ${
+                    completed
+                      ? "border-green-400/40 bg-green-500/10 text-green-200"
+                      : "border-white/20 bg-black/20 text-white/80 hover:bg-white/10"
+                  }`}
+                >
+                  <span className="truncate">{item.title}</span>
+                  <span className="ml-3 shrink-0 text-xs font-bold uppercase tracking-[1px]">
+                    {completed ? `+${item.pointValue} pts` : `${item.pointValue} pts`}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveItem(item)}
+                  className="flex w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-black/20 text-white/60 transition-all hover:border-red-400/60 hover:bg-red-500/15 hover:text-red-300"
+                  aria-label={`Remove ${item.title}`}
+                  title="Remove requirement"
+                >
+                  <FiTrash2 size={15} />
+                </button>
+              </div>
             );
           })}
         </div>

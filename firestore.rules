@@ -41,6 +41,13 @@ service cloud.firestore {
       }
     }
 
+    // Temporary first-login passwords: visible to admins only, and removed by the
+    // student's own client as soon as they choose a new password.
+    match /accountCredentials/{studentId} {
+      allow read, create, update: if isAdmin();
+      allow delete: if isAdmin() || isOwnStudent(studentId);
+    }
+
     match /hobbiesCatalog/{id} {
       allow read: if isSignedIn();
       allow write: if isAdmin();

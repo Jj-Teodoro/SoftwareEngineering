@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
 import { auth, db } from "@oasis/shared/firebaseClient.js";
 
 const StudentContext = createContext(null);
@@ -50,6 +50,8 @@ export function StudentProvider({ children }) {
   const completePasswordChange = async () => {
     if (!student) return;
     await updateDoc(doc(db, "students", student.studentId), { mustChangePassword: false });
+    // The temporary password is no longer valid; remove the admin-visible copy.
+    await deleteDoc(doc(db, "accountCredentials", student.studentId)).catch(() => {});
   };
 
   return (
