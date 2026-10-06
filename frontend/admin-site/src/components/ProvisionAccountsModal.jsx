@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { FiCopy, FiDownload } from "react-icons/fi";
-import Modal from "./Modal";
+import Modal from "@oasis/shared/components/Modal.jsx";
 import { useStudents } from "../context/StudentsContext";
 
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
@@ -67,7 +67,7 @@ export default function ProvisionAccountsModal({ onClose }) {
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-3xl">
-      <h2 className="mb-2 text-lg font-bold uppercase tracking-[2px] text-white">
+      <h2 className="page-title pr-8 mb-2">
         Create Student Accounts
       </h2>
 
@@ -77,7 +77,7 @@ export default function ProvisionAccountsModal({ onClose }) {
             Each student gets a login using the email on their record and a random temporary
             password. They'll be asked to choose their own password the first time they log in.
           </p>
-          <div className="mt-4 space-y-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white">
+          <div className="surface-inset p-4 mt-4 space-y-1">
             <p>
               <span className="font-bold">{ready.length}</span> student(s) ready for an account
             </p>
@@ -88,7 +88,7 @@ export default function ProvisionAccountsModal({ onClose }) {
               </p>
             )}
           </div>
-          <p className="mt-3 text-xs text-[#f2b400]">
+          <p className="mt-3 text-xs text-gold">
             Temporary passwords are shown once, right after creation. Save or hand them out
             before closing this window — admins can't view them again.
           </p>
@@ -96,7 +96,7 @@ export default function ProvisionAccountsModal({ onClose }) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full border border-white/30 px-6 py-2.5 text-xs font-bold uppercase tracking-[1px] text-white hover:bg-white/10"
+              className="btn-ghost"
             >
               Cancel
             </button>
@@ -104,7 +104,7 @@ export default function ProvisionAccountsModal({ onClose }) {
               type="button"
               onClick={handleCreate}
               disabled={ready.length === 0 || Boolean(progress)}
-              className="rounded-full bg-[#97191d] px-6 py-2.5 text-xs font-bold uppercase tracking-[1px] text-white hover:bg-[#b81f25] disabled:opacity-50"
+              className="btn-primary"
             >
               {progress
                 ? `Creating ${progress.done}/${progress.total}...`
@@ -123,10 +123,10 @@ export default function ProvisionAccountsModal({ onClose }) {
             )}
             . Save these passwords now — they won't be shown again.
           </p>
-          <div className="mt-4 max-h-[50vh] overflow-auto rounded-xl border border-white/10 bg-black/20">
+          <div className="surface-inset p-4 mt-4 max-h-[50vh] overflow-auto">
             <table className="w-full text-left text-xs text-white">
               <thead>
-                <tr className="bg-[#7a1317]/70 uppercase tracking-[1px]">
+                <tr className="bg-white/[0.04] font-mono uppercase tracking-wider text-white/60">
                   <th className="px-3 py-2">Student ID</th>
                   <th className="px-3 py-2">Name</th>
                   <th className="px-3 py-2">Email</th>
@@ -158,7 +158,7 @@ export default function ProvisionAccountsModal({ onClose }) {
               type="button"
               onClick={copyAll}
               disabled={created === 0}
-              className="flex items-center gap-2 rounded-full border border-white/30 px-5 py-2.5 text-xs font-bold uppercase tracking-[1px] text-white hover:bg-white/10 disabled:opacity-50"
+              className="btn-ghost"
             >
               <FiCopy size={13} /> {copied ? "Copied" : "Copy all"}
             </button>
@@ -166,14 +166,14 @@ export default function ProvisionAccountsModal({ onClose }) {
               type="button"
               onClick={downloadCsv}
               disabled={created === 0}
-              className="flex items-center gap-2 rounded-full border border-white/30 px-5 py-2.5 text-xs font-bold uppercase tracking-[1px] text-white hover:bg-white/10 disabled:opacity-50"
+              className="btn-ghost"
             >
               <FiDownload size={13} /> Download CSV
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full bg-[#97191d] px-6 py-2.5 text-xs font-bold uppercase tracking-[1px] text-white hover:bg-[#b81f25]"
+              className="btn-primary"
             >
               Done
             </button>

@@ -30,18 +30,18 @@ export function ConfirmProvider({ children }) {
     <Modal onClose={() => settle(false)} maxWidth="max-w-md">
       <div className="flex items-start gap-4">
         <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
-            state.danger ? "bg-red-600/25 text-red-300" : "bg-[#f2b400]/20 text-[#f2b400]"
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${
+            state.danger ? "bg-red-600/20 text-red-300" : "bg-gold/15 text-gold"
           }`}
         >
           <FiAlertTriangle size={20} />
         </div>
         <div className="min-w-0 pr-6">
-          <h2 className="text-base font-bold uppercase tracking-[2px] text-white">
+          <h2 className="page-title pr-6">
             {state.title || "Are you sure?"}
           </h2>
           {state.message && (
-            <p className="mt-2 text-sm leading-relaxed text-white/75">{state.message}</p>
+            <p className="mt-2 text-sm leading-relaxed muted">{state.message}</p>
           )}
         </div>
       </div>
@@ -50,16 +50,14 @@ export function ConfirmProvider({ children }) {
           type="button"
           onClick={() => settle(false)}
           autoFocus
-          className="h-11 rounded-full border border-white/40 bg-white/5 px-6 text-xs font-bold uppercase tracking-[2px] text-white transition-all hover:bg-white/15"
+          className="btn-ghost"
         >
           Cancel
         </button>
         <button
           type="button"
           onClick={() => settle(true)}
-          className={`h-11 rounded-full px-6 text-xs font-bold uppercase tracking-[2px] text-white transition-all ${
-            state.danger ? "bg-red-600 hover:bg-red-700" : "bg-[#97191d] hover:bg-[#b81f25]"
-          }`}
+          className={state.danger ? "btn border-transparent bg-red-600 text-white hover:bg-red-700" : "btn-primary"}
         >
           {state.confirmLabel || "Confirm"}
         </button>

@@ -5,6 +5,7 @@ import {
   updatePassword,
 } from "firebase/auth";
 import { auth } from "@oasis/shared/firebaseClient.js";
+import { PageHeader, Section } from "@oasis/shared/components/ui.jsx";
 
 export default function SettingsPage({ currentUser }) {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -39,56 +40,44 @@ export default function SettingsPage({ currentUser }) {
   };
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      <h2 className="text-lg font-bold uppercase tracking-[2px] text-white">Settings</h2>
+    <div className="flex max-w-xl flex-col gap-5">
+      <PageHeader title="Settings" />
 
-      <div className="rounded-[24px] border border-white/20 bg-white/10 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md">
-        <p className="text-xs font-bold uppercase tracking-[2px] text-white/70">Signed in as</p>
-        <p className="mt-2 text-base font-bold text-white">{currentUser?.name}</p>
-        <p className="text-xs text-white/60">
-          {currentUser?.username} · {currentUser?.role}
-        </p>
-      </div>
+      <Section title="Signed in as">
+        <p className="text-base font-semibold">{currentUser?.name}</p>
+        <p className="font-mono text-xs muted">{currentUser?.username} · {currentUser?.role}</p>
+      </Section>
 
-      <div className="rounded-[24px] border border-white/20 bg-white/10 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md">
-        <p className="mb-4 text-xs font-bold uppercase tracking-[2px] text-white/70">
-          Change Password
-        </p>
-        <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
+      <Section title="Change password">
+        <form onSubmit={handleChangePassword} className="flex flex-col gap-3">
           <input
             type="password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             placeholder="Current password"
+            autoComplete="current-password"
             required
-            className="h-11 w-full rounded-lg border border-white/30 bg-black/20 px-3 text-sm text-white placeholder-white/40 outline-none focus:border-white/60"
+            className="input h-11"
           />
           <input
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             placeholder="New password"
+            autoComplete="new-password"
             required
-            className="h-11 w-full rounded-lg border border-white/30 bg-black/20 px-3 text-sm text-white placeholder-white/40 outline-none focus:border-white/60"
+            className="input h-11"
           />
           {status && (
-            <p
-              className={`text-xs font-semibold ${
-                status.type === "success" ? "text-green-300" : "text-red-300"
-              }`}
-            >
+            <p className={`text-sm ${status.type === "success" ? "text-green-300" : "text-neon-pink"}`}>
               {status.message}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="h-11 w-full rounded-full bg-[#97191d] text-sm font-bold uppercase tracking-[2px] text-white transition-all hover:bg-[#b81f25] disabled:opacity-50"
-          >
-            {isSubmitting ? "Updating..." : "Update Password"}
+          <button type="submit" disabled={isSubmitting} className="btn-primary h-11">
+            {isSubmitting ? "Updating..." : "Update password"}
           </button>
         </form>
-      </div>
+      </Section>
     </div>
   );
 }

@@ -12,20 +12,20 @@ export default function Modal({ onClose, children, maxWidth = "max-w-lg" }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:px-4"
       onClick={onClose}
     >
       <div
-        className={`relative max-h-[92vh] w-full overflow-y-auto ${maxWidth} rounded-[24px] border border-white/20 bg-gradient-to-br from-[#4a080b] via-[#2a0507] to-[#160203] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.6)] sm:p-8`}
+        className={`surface-accent relative max-h-[92vh] w-full overflow-y-auto rounded-b-none bg-[#150b0c] p-5 shadow-2xl sm:rounded-b-xl sm:p-7 ${maxWidth}`}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+          className="btn-icon absolute right-3 top-3 border-transparent bg-transparent"
           aria-label="Close"
         >
-          <FiX size={20} />
+          <FiX size={18} />
         </button>
         {children}
       </div>

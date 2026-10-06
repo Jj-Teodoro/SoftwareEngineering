@@ -1,12 +1,10 @@
 import { useForm } from "react-hook-form";
-import Modal from "./Modal";
+import Modal from "@oasis/shared/components/Modal.jsx";
 import { useStudents } from "../context/StudentsContext";
 
-const inputClass =
-  "h-11 w-full rounded-lg border border-white/30 bg-black/20 px-3 text-sm text-white placeholder-white/40 outline-none focus:border-white/60";
+const inputClass = "input";
 
-const labelClass =
-  "mb-1 block text-[11px] font-bold uppercase tracking-[1px] text-white/70";
+const labelClass = "label mb-1.5 block";
 
 export default function AddStudentModal({ onClose }) {
   const { addStudent } = useStudents();
@@ -40,7 +38,7 @@ export default function AddStudentModal({ onClose }) {
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-xl">
-      <h2 className="mb-6 text-lg font-bold uppercase tracking-[2px] text-white">
+      <h2 className="page-title pr-8 mb-6">
         Add Student Record
       </h2>
 
@@ -152,14 +150,14 @@ export default function AddStudentModal({ onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="h-11 rounded-full border border-white/30 px-6 text-sm font-bold uppercase tracking-[2px] text-white transition-all hover:bg-white/10"
+            className="btn-ghost h-11"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="h-11 rounded-full bg-[#97191d] px-8 text-sm font-bold uppercase tracking-[2px] text-white transition-all hover:bg-[#b81f25] disabled:opacity-50"
+            className="btn-primary h-11"
           >
             {isSubmitting ? "Adding..." : "Add Student"}
           </button>
