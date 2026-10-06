@@ -1,7 +1,7 @@
 // One-time seed script: creates the first admin auth account + seeds
 // starter data (students, requirements, hobbies, settings, one sample event).
 // Run with: node frontend/shared/seed/seed.mjs
-// Requires Firestore rules to be temporarily permissive (see firestore.rules.seed-temp)
+// Requires Firestore rules to be temporarily permissive
 // while this runs, then switch to the real firestore.rules afterward.
 
 import { readFileSync } from "node:fs";
