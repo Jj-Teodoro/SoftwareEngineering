@@ -1,111 +1,355 @@
-import { useState } from "react";
-import { FiCheckCircle, FiPlus, FiXCircle } from "react-icons/fi";
+import { useEffect, useState } from "react";
+import { doc, onSnapshot } from "firebase/firestore";
+import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiPlus, FiRefreshCw, FiTrash2, FiXCircle } from "react-icons/fi";
+import { db } from "@oasis/shared/firebaseClient.js";
+import StudentIdCard from "@oasis/shared/components/StudentIdCard.jsx";
 import Modal from "./Modal";
-import aces_logo from "../assets/aceslogo.png";
+import { useStudents } from "../context/StudentsContext";
 import { useRequirements } from "../context/RequirementsContext";
 import { useEvents } from "../context/EventsContext";
 import { usePoints } from "../context/PointsContext";
 
-function initialsOf(name) {
-  const letters = name
-    .replace(/[.,]/g, "")
-    .split(/[\s,]+/)
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("");
-  return letters.slice(0, 2).toUpperCase();
-}
+const TABS = [
+  { id: "id", label: "ID" },
+  { id: "info", label: "Info" },
+  { id: "status", label: "Status" },
+  { id: "account", label: "Account" },
+];
 
-export default function StudentIdCardModal({ student, onClose }) {
-  const [tab, setTab] = useState("info");
+const inputClass =
+  "h-10 w-full rounded-lg border border-white/20 bg-black/20 px-3 text-sm text-white placeholder-white/40 outline-none focus:border-white/50 disabled:opacity-50";
 
+export default function StudentIdCardModal({ studentId, onClose }) {
+  const { students } = useStudents();
+  const { getClearance } = usePoints();
+  const [tab, setTab] = useState("id");
+
+  const student = students.find((s) => s.studentId === studentId);
   if (!student) return null;
 
-  const isActive = student.status === "ACTIVE";
+  const { totalPoints, targetPoints, cleared } = getClearance(student.studentId);
 
   return (
-    <Modal onClose={onClose} maxWidth="max-w-md">
-      <div className="overflow-hidden rounded-[20px] border border-white/20 bg-white/10 backdrop-blur-md">
-        {/* Header */}
-        <div className="flex items-center gap-3 bg-[#7a1317] px-5 py-4">
-          <img src={aces_logo} alt="ACES Logo" className="h-10 w-10 object-contain" />
-          <div className="leading-tight">
-            <p className="text-[11px] font-bold uppercase tracking-[2px] text-white">
-              Dr. Yanga's Colleges, Inc.
-            </p>
-            <p className="text-[10px] uppercase tracking-[1px] text-white/80">
-              College of Computer Studies
-            </p>
-          </div>
-        </div>
-
-        {/* Photo + name */}
-        <div className="flex flex-col items-center px-6 py-6">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white/30 bg-[#97191d] text-xl font-bold text-white shadow-[0_0_20px_rgba(184,31,37,0.5)]">
-            {initialsOf(student.name)}
-          </div>
-          <h3 className="mt-3 text-center text-base font-bold uppercase tracking-[2px] text-white">
-            {student.name}
-          </h3>
-          <span
-            className={`mt-2 rounded-full px-4 py-1 text-[11px] font-bold uppercase tracking-[2px] ${
-              isActive
-                ? "bg-green-500/20 text-green-300"
-                : "bg-red-500/20 text-red-300"
-            }`}
-          >
-            {student.status}
-          </span>
-        </div>
-
-        {/* Tabs */}
-        <div className="mx-6 mb-4 flex rounded-full border border-white/20 bg-black/20 p-1">
+    <Modal onClose={onClose} maxWidth="max-w-2xl">
+      <div className="mb-4 flex rounded-full border border-white/20 bg-black/20 p-1">
+        {TABS.map((t) => (
           <button
+            key={t.id}
             type="button"
-            onClick={() => setTab("info")}
+            onClick={() => setTab(t.id)}
             className={`flex-1 rounded-full py-2 text-xs font-bold uppercase tracking-[1px] transition-all ${
-              tab === "info" ? "bg-[#97191d] text-white" : "text-white/60 hover:text-white"
+              tab === t.id ? "bg-[#97191d] text-white" : "text-white/60 hover:text-white"
             }`}
           >
-            Info
+            {t.label}
           </button>
-          <button
-            type="button"
-            onClick={() => setTab("status")}
-            className={`flex-1 rounded-full py-2 text-xs font-bold uppercase tracking-[1px] transition-all ${
-              tab === "status" ? "bg-[#97191d] text-white" : "text-white/60 hover:text-white"
-            }`}
-          >
-            Status
-          </button>
-        </div>
-
-        {tab === "info" ? (
-          <div className="mx-6 mb-6 space-y-3 rounded-2xl border border-white/10 bg-black/20 px-5 py-4">
-            <DetailRow label="Student No." value={student.studentId} />
-            <DetailRow label="Course" value={student.course} />
-            <DetailRow label="Year Level" value={student.yearLevel} />
-            <DetailRow label="Section" value={student.section} />
-            <DetailRow label="Email" value={student.email} />
-            <DetailRow label="Contact No." value={student.contactNumber} />
-            <DetailRow label="Address" value={student.address} />
-          </div>
-        ) : (
-          <StudentStatusTab student={student} />
-        )}
-
-        <div className="border-t border-white/10 px-6 py-3 text-center">
-          <p className="text-[10px] uppercase tracking-[2px] text-white/50">
-            This ID remains the property of DYCI-CCS ACES
-          </p>
-        </div>
+        ))}
       </div>
+
+      {tab === "id" && (
+        <StudentIdCard
+          student={student}
+          totalPoints={totalPoints}
+          targetPoints={targetPoints}
+          cleared={cleared}
+        />
+      )}
+      {tab === "info" && <StudentInfoTab student={student} />}
+      {tab === "status" && (
+        <div className="-mx-6 sm:-mx-8">
+          <StudentStatusTab student={student} />
+        </div>
+      )}
+      {tab === "account" && <StudentAccountTab student={student} />}
     </Modal>
   );
 }
 
+function StudentInfoTab({ student }) {
+  const { updateStudent } = useStudents();
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({});
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const hasAccount = Boolean(student.authUid);
+
+  const startEditing = () => {
+    setForm({
+      name: student.name || "",
+      course: student.course || "",
+      yearLevel: student.yearLevel || "",
+      section: student.section || "",
+      status: student.status || "ACTIVE",
+      email: student.email || "",
+      contactNumber: student.contactNumber || "",
+      address: student.address || "",
+    });
+    setError("");
+    setEditing(true);
+  };
+
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    const result = await updateStudent(student.studentId, form);
+    setSaving(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    setEditing(false);
+  };
+
+  if (!editing) {
+    return (
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 px-5 py-4">
+        <DetailRow label="Student No." value={student.studentId} />
+        <DetailRow label="Name" value={student.name} />
+        <DetailRow label="Course" value={student.course} />
+        <DetailRow label="Year Level" value={student.yearLevel} />
+        <DetailRow label="Section" value={student.section} />
+        <DetailRow label="Status" value={student.status} />
+        <DetailRow label="Email" value={student.email} />
+        <DetailRow label="Contact No." value={student.contactNumber} />
+        <DetailRow label="Address" value={student.address} />
+        <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3">
+          <p className="text-[11px] text-white/50">
+            Photo, bio, talent and hobbies are edited by the student.
+          </p>
+          <button
+            type="button"
+            onClick={startEditing}
+            className="flex shrink-0 items-center gap-2 rounded-full border border-white/30 px-4 py-2 text-xs font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/10"
+          >
+            <FiEdit2 size={13} /> Edit info
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 px-5 py-4">
+      <FormRow label="Student No.">
+        <input value={student.studentId} disabled className={inputClass} />
+      </FormRow>
+      <FormRow label="Name">
+        <input value={form.name} onChange={set("name")} className={inputClass} />
+      </FormRow>
+      <FormRow label="Course">
+        <input value={form.course} onChange={set("course")} className={inputClass} />
+      </FormRow>
+      <FormRow label="Year Level">
+        <select value={form.yearLevel} onChange={set("yearLevel")} className={inputClass}>
+          {["1st Year", "2nd Year", "3rd Year", "4th Year"].map((y) => (
+            <option key={y} value={y} className="text-black">
+              {y}
+            </option>
+          ))}
+        </select>
+      </FormRow>
+      <FormRow label="Section">
+        <input value={form.section} onChange={set("section")} className={inputClass} />
+      </FormRow>
+      <FormRow label="Status">
+        <select value={form.status} onChange={set("status")} className={inputClass}>
+          {["ACTIVE", "INACTIVE"].map((st) => (
+            <option key={st} value={st} className="text-black">
+              {st}
+            </option>
+          ))}
+        </select>
+      </FormRow>
+      <FormRow label="Email">
+        <input
+          value={form.email}
+          onChange={set("email")}
+          disabled={hasAccount}
+          className={inputClass}
+        />
+      </FormRow>
+      <FormRow label="Contact No.">
+        <input value={form.contactNumber} onChange={set("contactNumber")} className={inputClass} />
+      </FormRow>
+      <FormRow label="Address">
+        <input value={form.address} onChange={set("address")} className={inputClass} />
+      </FormRow>
+      {hasAccount && (
+        <p className="text-[11px] text-white/50">
+          The email is locked because it is this student's login.
+        </p>
+      )}
+      {error && <p className="text-xs font-semibold text-red-300">{error}</p>}
+      <div className="flex justify-end gap-3 pt-1">
+        <button
+          type="button"
+          onClick={() => setEditing(false)}
+          className="rounded-full border border-white/30 px-5 py-2 text-xs font-bold uppercase tracking-[1px] text-white hover:bg-white/10"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="rounded-full bg-[#97191d] px-5 py-2 text-xs font-bold uppercase tracking-[1px] text-white hover:bg-[#b81f25] disabled:opacity-50"
+        >
+          {saving ? "Saving..." : "Save"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FormRow({ label, children }) {
+  return (
+    <div className="grid items-center gap-1 sm:grid-cols-[110px_1fr] sm:gap-3">
+      <span className="text-[11px] font-bold uppercase tracking-[1px] text-white/50">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function StudentAccountTab({ student }) {
+  const { provisionAccount, regenerateTempPassword } = useStudents();
+  const [busy, setBusy] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [result, setResult] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [stored, setStored] = useState(undefined);
+
+  const pending = Boolean(student.authUid) && Boolean(student.mustChangePassword);
+
+  useEffect(() => {
+    if (!pending) {
+      setStored(undefined);
+      return undefined;
+    }
+    return onSnapshot(
+      doc(db, "accountCredentials", student.studentId),
+      (snap) => setStored(snap.exists() ? snap.data().tempPassword : null),
+      () => setStored(null)
+    );
+  }, [pending, student.studentId]);
+
+  const tempPassword = result?.ok ? result.tempPassword : stored;
+
+  const handleCreate = async () => {
+    setBusy(true);
+    setResult(await provisionAccount(student.studentId));
+    setBusy(false);
+  };
+
+  const handleRegenerate = async () => {
+    const confirmed = window.confirm(
+      "Generate a new temporary password? The current one will stop working."
+    );
+    if (!confirmed) return;
+    setRegenerating(true);
+    setResult(await regenerateTempPassword(student.studentId));
+    setRegenerating(false);
+  };
+
+  const copyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(tempPassword);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard unavailable; the password stays visible to copy by hand
+    }
+  };
+
+  const hasAccount = Boolean(student.authUid);
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-white/10 bg-black/20 px-5 py-5">
+      <div className="flex items-center gap-3">
+        <FiKey className="text-white/70" size={18} />
+        <div>
+          <p className="text-sm font-bold uppercase tracking-[1px] text-white">
+            {!hasAccount
+              ? "No account yet"
+              : student.mustChangePassword
+              ? "Account created — waiting for first login"
+              : "Account active"}
+          </p>
+          <p className="text-xs text-white/60">
+            Login email: {student.email || "— none on file —"}
+          </p>
+        </div>
+      </div>
+
+      {pending && (
+        <div className="space-y-2 rounded-xl border border-[#f2b400]/60 bg-[#f2b400]/10 px-4 py-3">
+          <p className="text-[11px] font-bold uppercase tracking-[1px] text-[#f2b400]">
+            Give these to the student — visible until they set their own password
+          </p>
+          <p className="text-sm text-white">
+            Email: <span className="font-semibold">{student.email}</span>
+          </p>
+          {tempPassword ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm text-white">
+                Temporary password:{" "}
+                <span className="select-all font-mono text-base font-bold tracking-[2px]">
+                  {tempPassword}
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={copyPassword}
+                className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-white hover:bg-white/10"
+              >
+                <FiCopy size={12} /> {copied ? "Copied" : "Copy"}
+              </button>
+              <button
+                type="button"
+                onClick={handleRegenerate}
+                disabled={regenerating}
+                className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-white hover:bg-white/10 disabled:opacity-50"
+              >
+                <FiRefreshCw size={12} /> {regenerating ? "Generating..." : "New password"}
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-white/70">
+              {stored === undefined
+                ? "Loading..."
+                : "The temporary password isn't available (this account was created before passwords were kept). The student can use Forgot password to set one."}
+            </p>
+          )}
+        </div>
+      )}
+      {result && !result.ok && (
+        <p className="text-xs font-semibold text-red-300">{result.message}</p>
+      )}
+
+      {!hasAccount ? (
+        <button
+          type="button"
+          onClick={handleCreate}
+          disabled={busy}
+          className="rounded-full bg-[#97191d] px-6 py-2.5 text-xs font-bold uppercase tracking-[1px] text-white transition-all hover:bg-[#b81f25] disabled:opacity-50"
+        >
+          {busy ? "Creating..." : "Create account"}
+        </button>
+      ) : (
+        <p className="text-xs leading-relaxed text-white/60">
+          {student.mustChangePassword
+            ? "The student will be asked to choose their own password the first time they log in. If they lose it, generate a new one. Once they set their own, the temporary password disappears from here."
+            : "The student chose their own password."}{" "}
+          Admins can never view or change a student's password; if they forget it, they use
+          "Forgot password" on the User site to get a reset email.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function StudentStatusTab({ student }) {
-  const { items, addItem, isCompleted, toggleCompleted } = useRequirements();
+  const { items, addItem, deleteItem, isCompleted, toggleCompleted } = useRequirements();
   const { events } = useEvents();
   const { getTotalPoints, getClearance, getAttendanceRecords } = usePoints();
 
@@ -125,6 +369,13 @@ function StudentStatusTab({ student }) {
     setNewTitle("");
     setNewPoints("10");
     setAddError("");
+  };
+
+  const handleRemoveItem = async (item) => {
+    const confirmed = window.confirm(
+      `Remove "${item.title}" for ALL students? Anyone who completed it will lose its ${item.pointValue} points.`
+    );
+    if (confirmed) await deleteItem(item.id);
   };
 
   return (
@@ -157,21 +408,31 @@ function StudentStatusTab({ student }) {
           {items.map((item) => {
             const completed = isCompleted(student.studentId, item.id);
             return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => toggleCompleted(student.studentId, item.id)}
-                className={`flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-all ${
-                  completed
-                    ? "border-green-400/40 bg-green-500/10 text-green-200"
-                    : "border-white/20 bg-black/20 text-white/80 hover:bg-white/10"
-                }`}
-              >
-                <span>{item.title}</span>
-                <span className="text-xs font-bold uppercase tracking-[1px]">
-                  {completed ? `+${item.pointValue} pts` : `${item.pointValue} pts`}
-                </span>
-              </button>
+              <div key={item.id} className="flex items-stretch gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleCompleted(student.studentId, item.id)}
+                  className={`flex min-w-0 flex-1 items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-all ${
+                    completed
+                      ? "border-green-400/40 bg-green-500/10 text-green-200"
+                      : "border-white/20 bg-black/20 text-white/80 hover:bg-white/10"
+                  }`}
+                >
+                  <span className="truncate">{item.title}</span>
+                  <span className="ml-3 shrink-0 text-xs font-bold uppercase tracking-[1px]">
+                    {completed ? `+${item.pointValue} pts` : `${item.pointValue} pts`}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveItem(item)}
+                  className="flex w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-black/20 text-white/60 transition-all hover:border-red-400/60 hover:bg-red-500/15 hover:text-red-300"
+                  aria-label={`Remove ${item.title}`}
+                  title="Remove requirement"
+                >
+                  <FiTrash2 size={15} />
+                </button>
+              </div>
             );
           })}
         </div>

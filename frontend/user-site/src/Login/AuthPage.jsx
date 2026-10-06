@@ -15,7 +15,7 @@ const inputClass =
 export default function AuthPage({ onAuthSuccess }) {
   const [mode, setMode] = useState("login");
   const [resetSent, setResetSent] = useState(false);
-  const { login, signUp, forgotPassword } = useAuth();
+  const { login, forgotPassword } = useAuth();
   const {
     register,
     handleSubmit,
@@ -23,7 +23,7 @@ export default function AuthPage({ onAuthSuccess }) {
     setError,
     formState: { errors, isSubmitting },
   } = useForm({
-    defaultValues: { studentId: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: { email: "", password: "" },
   });
 
   const switchMode = (next) => {
@@ -35,20 +35,6 @@ export default function AuthPage({ onAuthSuccess }) {
   const onSubmit = async (data) => {
     if (mode === "login") {
       const result = await login(data.email, data.password);
-      if (!result.ok) {
-        setError("root", { type: "manual", message: result.message });
-        return;
-      }
-      onAuthSuccess?.(result.student);
-      return;
-    }
-
-    if (mode === "signup") {
-      if (data.password !== data.confirmPassword) {
-        setError("confirmPassword", { type: "manual", message: "Passwords do not match." });
-        return;
-      }
-      const result = await signUp(data.studentId, data.email, data.password);
       if (!result.ok) {
         setError("root", { type: "manual", message: result.message });
         return;
@@ -97,7 +83,6 @@ export default function AuthPage({ onAuthSuccess }) {
               />
               <p className="text-xs font-bold uppercase tracking-[3px] text-[var(--text-muted)]">
                 {mode === "login" && "Student Login"}
-                {mode === "signup" && "Create Your Account"}
                 {mode === "forgot" && "Reset Password"}
               </p>
             </div>
@@ -118,31 +103,6 @@ export default function AuthPage({ onAuthSuccess }) {
               </div>
             ) : (
               <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-                {mode === "signup" && (
-                  <div>
-                    <div
-                      className={`${inputWrapClass} ${
-                        errors.studentId ? "border-red-400" : "border-[var(--surface-border)]"
-                      }`}
-                    >
-                      <label htmlFor="studentId" className={labelClass}>
-                        Student ID
-                      </label>
-                      <input
-                        id="studentId"
-                        type="text"
-                        {...register("studentId", { required: "Student ID is required" })}
-                        className={inputClass}
-                      />
-                    </div>
-                    {errors.studentId && (
-                      <p className="mt-1 pl-2 text-xs font-semibold text-red-400">
-                        {errors.studentId.message}
-                      </p>
-                    )}
-                  </div>
-                )}
-
                 <div>
                   <div
                     className={`${inputWrapClass} ${
@@ -194,31 +154,6 @@ export default function AuthPage({ onAuthSuccess }) {
                   </div>
                 )}
 
-                {mode === "signup" && (
-                  <div>
-                    <div
-                      className={`${inputWrapClass} ${
-                        errors.confirmPassword ? "border-red-400" : "border-[var(--surface-border)]"
-                      }`}
-                    >
-                      <label htmlFor="confirmPassword" className={labelClass}>
-                        Confirm Password
-                      </label>
-                      <input
-                        id="confirmPassword"
-                        type="password"
-                        {...register("confirmPassword", { required: "Please confirm your password" })}
-                        className={inputClass}
-                      />
-                    </div>
-                    {errors.confirmPassword && (
-                      <p className="mt-1 pl-2 text-xs font-semibold text-red-400">
-                        {errors.confirmPassword.message}
-                      </p>
-                    )}
-                  </div>
-                )}
-
                 {errors.root && (
                   <p className="text-center text-xs font-semibold text-red-400">
                     {errors.root.message}
@@ -235,12 +170,17 @@ export default function AuthPage({ onAuthSuccess }) {
                       ? "PLEASE WAIT..."
                       : mode === "login"
                       ? "LOG IN"
-                      : mode === "signup"
-                      ? "SIGN UP"
                       : "SEND RESET LINK"}
                   </button>
                 </div>
               </form>
+            )}
+
+            {mode === "login" && (
+              <p className="mt-6 text-center text-xs leading-relaxed text-[var(--text-muted)]">
+                First time here? Log in with the email and temporary password your admin gave
+                you. You'll be asked to set your own password.
+              </p>
             )}
 
             {!(mode === "forgot" && resetSent) && (
@@ -256,23 +196,7 @@ export default function AuthPage({ onAuthSuccess }) {
                       >
                         Forgot Password
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => switchMode("signup")}
-                        className="hover:text-[var(--text-primary)]"
-                      >
-                        Need an account? Sign Up
-                      </button>
                     </>
-                  )}
-                  {mode === "signup" && (
-                    <button
-                      type="button"
-                      onClick={() => switchMode("login")}
-                      className="hover:text-[var(--text-primary)]"
-                    >
-                      Already have an account? Log In
-                    </button>
                   )}
                   {mode === "forgot" && (
                     <button

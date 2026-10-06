@@ -49,8 +49,8 @@ export default function SettingsPage({ onLogout }) {
     e.preventDefault();
     setStatus(null);
 
-    if (newPassword.length < 6) {
-      setStatus({ type: "error", message: "New password must be at least 6 characters." });
+    if (newPassword.length < 8) {
+      setStatus({ type: "error", message: "New password must be at least 8 characters." });
       return;
     }
 

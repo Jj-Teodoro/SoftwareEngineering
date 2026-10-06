@@ -4,7 +4,6 @@ import { useStudent } from "../context/StudentContext";
 import ActivityCard from "./ActivityCard";
 import RecentActivities from "./RecentActivities";
 import RequirementsPanel from "./RequirementsPanel";
-import AboutMe from "./AboutMe";
 
 export default function ActivityPage() {
   const { student } = useStudent();
@@ -19,7 +18,6 @@ export default function ActivityPage() {
         <RecentActivities onShowBreakdown={() => setShowBreakdown(true)} />
       </div>
       <RequirementsPanel />
-      <AboutMe />
       {showBreakdown && <PointsBreakdownModal onClose={() => setShowBreakdown(false)} />}
     </div>
   );
