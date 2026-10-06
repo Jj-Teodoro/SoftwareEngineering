@@ -10,20 +10,44 @@ import StudentAvatar from "../components/StudentAvatar";
 const PAGE_SIZE = 6;
 const FILTER_OPTIONS = ["ALL", "ACTIVE", "INACTIVE"];
 
-function AccountBadge({ student }) {
-  if (!student.authUid) {
-    return <span className="text-xs font-semibold uppercase tracking-[1px] text-white/40">None</span>;
-  }
-  return student.mustChangePassword ? (
-    <span className="rounded-full bg-yellow-500/20 px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-yellow-300">
-      Pending
-    </span>
-  ) : (
-    <span className="rounded-full bg-green-500/20 px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-green-300">
-      Active
+const PILL_TONES = {
+  green: "bg-green-500/15 text-green-300 ring-green-400/30",
+  amber: "bg-yellow-500/15 text-yellow-300 ring-yellow-400/30",
+  gray: "bg-white/5 text-white/45 ring-white/15",
+  red: "bg-red-500/15 text-red-300 ring-red-400/30",
+};
+
+function Pill({ tone, children }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[1px] ring-1 ${PILL_TONES[tone]}`}
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {children}
     </span>
   );
 }
+
+function StatusBadge({ status }) {
+  return <Pill tone={status === "ACTIVE" ? "green" : "red"}>{status}</Pill>;
+}
+
+function AccountBadge({ student }) {
+  if (!student.authUid) return <Pill tone="gray">No account</Pill>;
+  return student.mustChangePassword ? (
+    <Pill tone="amber">Pending</Pill>
+  ) : (
+    <Pill tone="green">Active</Pill>
+  );
+}
+
+const COLUMNS = [
+  { label: "Student", className: "" },
+  { label: "Section", className: "w-[120px]" },
+  { label: "Status", className: "w-[130px]" },
+  { label: "Account", className: "w-[150px]" },
+  { label: "Points", className: "w-[210px]" },
+];
 
 export default function UserPage() {
   const { students, deleteStudents } = useStudents();
@@ -197,18 +221,18 @@ export default function UserPage() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-[24px] border border-white/20 bg-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md">
+      <div className="overflow-hidden rounded-[20px] border border-white/15 bg-white/[0.06] shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-md">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-left">
+          <table className="w-full min-w-[800px] border-collapse text-left">
             <thead>
-              <tr className="bg-[#7a1317]/70">
-                {selectMode && <th className="w-12 px-4 py-4" />}
-                {["Student ID", "Name", "Section", "Status", "Account", "Points"].map((col) => (
+              <tr className="bg-gradient-to-r from-[#7a1317] to-[#5a0e12]">
+                {selectMode && <th className="w-12 px-4 py-3.5" />}
+                {COLUMNS.map((col) => (
                   <th
-                    key={col}
-                    className="px-6 py-4 text-sm font-bold uppercase tracking-[2px] text-white"
+                    key={col.label}
+                    className={`px-5 py-3.5 text-[11px] font-bold uppercase tracking-[2px] text-white/90 ${col.className}`}
                   >
-                    {col}
+                    {col.label}
                   </th>
                 ))}
               </tr>
@@ -217,14 +241,14 @@ export default function UserPage() {
               {pageStudents.length === 0 && (
                 <tr>
                   <td
-                    colSpan={selectMode ? 7 : 6}
-                    className="px-6 py-10 text-center text-sm text-white/60"
+                    colSpan={selectMode ? 6 : 5}
+                    className="px-6 py-12 text-center text-sm text-white/60"
                   >
                     No students found.
                   </td>
                 </tr>
               )}
-              {pageStudents.map((user, i) => {
+              {pageStudents.map((user) => {
                 const isSelected = selectedIds.has(user.studentId);
                 const points = getTotalPoints(user.studentId);
                 const cleared = getClearance(user.studentId).cleared;
@@ -233,53 +257,67 @@ export default function UserPage() {
                 return (
                   <tr
                     key={user.studentId}
-                    className={`border-b border-dashed border-white/20 last:border-none ${
-                      isSelected
-                        ? "bg-[#97191d]/30"
-                        : i % 2 === 0
-                        ? "bg-white/10"
-                        : "bg-white/5"
+                    onClick={() =>
+                      selectMode ? toggleSelected(user.studentId) : setViewingStudentId(user.studentId)
+                    }
+                    className={`group cursor-pointer border-b border-white/10 transition-colors last:border-none ${
+                      isSelected ? "bg-[#97191d]/30" : "hover:bg-white/[0.08]"
                     }`}
                   >
                     {selectMode && (
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3.5">
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelected(user.studentId)}
+                          onClick={(e) => e.stopPropagation()}
                           className="h-4 w-4 cursor-pointer accent-[#97191d]"
                         />
                       </td>
                     )}
-                    <td className="px-6 py-4 text-sm font-semibold text-white">
-                      {user.studentId}
-                    </td>
-                    <td className="px-6 py-3 text-sm text-white/90">
+                    <td className="px-5 py-3.5">
                       <button
                         type="button"
-                        onClick={() => setViewingStudentId(user.studentId)}
-                        className="flex items-center gap-3 text-left underline-offset-4 hover:text-white hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!selectMode) setViewingStudentId(user.studentId);
+                        }}
+                        className="flex items-center gap-3.5 text-left"
                       >
-                        <StudentAvatar student={user} />
-                        {user.name}
+                        <StudentAvatar student={user} size={42} />
+                        <span className="min-w-0">
+                          <span
+                            className="block max-w-[320px] truncate text-sm font-semibold text-white underline-offset-4 group-hover:underline"
+                            title={user.name}
+                          >
+                            {user.name}
+                          </span>
+                          <span className="mt-0.5 block font-mono text-[11px] tracking-[1px] text-white/50">
+                            {user.studentId}
+                          </span>
+                        </span>
                       </button>
                     </td>
-                    <td className="px-6 py-4 text-sm text-white/90">{user.section}</td>
-                    <td className="px-6 py-4 text-sm text-white/90">{user.status}</td>
-                    <td className="px-6 py-4">
+                    <td className="whitespace-nowrap px-5 py-3.5 text-sm text-white/80">
+                      {user.section}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <StatusBadge status={user.status} />
+                    </td>
+                    <td className="px-5 py-3.5">
                       <AccountBadge student={user} />
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-20 overflow-hidden rounded-full bg-black/30">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="h-2 w-28 overflow-hidden rounded-full bg-black/40">
                           <div
                             className={`h-full rounded-full transition-all ${
-                              cleared ? "bg-green-500" : "bg-[#97191d]"
+                              cleared ? "bg-green-500" : "bg-[#c4262c]"
                             }`}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
-                        <span className="text-xs font-semibold text-white/80">
+                        <span className="w-12 text-right text-xs font-semibold tabular-nums text-white/80">
                           {points}/{targetPoints}
                         </span>
                       </div>
