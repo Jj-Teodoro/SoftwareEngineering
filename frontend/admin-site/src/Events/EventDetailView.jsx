@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useConfirm } from "@oasis/shared/components/ConfirmDialog.jsx";
 import {
   FiArrowLeft,
   FiCheck,
@@ -28,6 +29,7 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
   const { students } = useStudents();
   const { records, markPresent, markOut, unmarkPresent } = useEventAttendance(event.id);
   const { notifyEvent } = useEvents();
+  const confirm = useConfirm();
   const [showEdit, setShowEdit] = useState(false);
   const [notifying, setNotifying] = useState(false);
   const [notice, setNotice] = useState(null);
@@ -93,7 +95,11 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
     const who = isRestricted
       ? `${count} ${event.programFilter} student${count === 1 ? "" : "s"}`
       : `all ${count} student${count === 1 ? "" : "s"}`;
-    const confirmed = window.confirm(`Send a reminder about "${event.title}" to ${who}?`);
+    const confirmed = await confirm({
+      title: "Send reminder",
+      message: `Send a reminder about "${event.title}" to ${who}?`,
+      confirmLabel: "Send",
+    });
     if (!confirmed) return;
     setNotifying(true);
     const result = await notifyEvent(event.id, "reminder");

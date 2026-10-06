@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useConfirm } from "@oasis/shared/components/ConfirmDialog.jsx";
 import { FiAward, FiCalendar, FiCheckCircle, FiLock, FiPlus, FiTrash2, FiUsers, FiZap } from "react-icons/fi";
 import {
   daysUntil,
@@ -95,6 +96,7 @@ function EventCard({ event, today, eligibleCount, presentCount, onOpen, onDelete
 
 export default function EventsPage({ onStartKiosk }) {
   const { events, presentCounts, deleteEvent } = useEvents();
+  const confirm = useConfirm();
   const { students } = useStudents();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState(null);
@@ -139,7 +141,12 @@ export default function EventsPage({ onStartKiosk }) {
   }
 
   const handleDelete = async (event) => {
-    const confirmed = window.confirm(`Delete event "${event.title}"? This cannot be undone.`);
+    const confirmed = await confirm({
+      title: "Delete event",
+      message: `Delete "${event.title}"? Its attendance records go with it. This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
     if (!confirmed) return;
     await deleteEvent(event.id);
   };

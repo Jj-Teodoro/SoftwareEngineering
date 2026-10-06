@@ -13,10 +13,13 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
 import { auth, db, firebaseConfig } from "@oasis/shared/firebaseClient.js";
@@ -385,13 +388,62 @@ export function StudentsProvider({ children }) {
     return results;
   };
 
+  // A login that was never used (still on its temporary password) can be removed
+  // from Authentication so the email is free to reuse. Logins the student has
+  // already taken over can't be deleted from a browser and are simply unlinked.
+  const removePendingLogin = async (student) => {
+    if (!student?.authUid || !student.mustChangePassword) return;
+    const stored = await getDoc(doc(db, "accountCredentials", student.studentId)).catch(() => null);
+    const tempPassword = stored?.exists() ? stored.data().tempPassword : null;
+    if (!tempPassword) return;
+
+    const secondaryApp = initializeApp(
+      firebaseConfig,
+      `remove-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
+    const secondaryAuth = getAuth(secondaryApp);
+    try {
+      const loginEmail = (student.loginEmail || student.email || "").trim().toLowerCase();
+      const cred = await signInWithEmailAndPassword(secondaryAuth, loginEmail, tempPassword);
+      await deleteUser(cred.user);
+    } catch {
+      // best effort: the student record is removed either way
+    } finally {
+      await signOutAuth(secondaryAuth).catch(() => {});
+      await deleteApp(secondaryApp).catch(() => {});
+    }
+  };
+
+  // Removes the student and everything keyed to them, so a student re-added later
+  // with the same ID does not inherit old attendance or requirement progress.
   const deleteStudents = async (studentIds) => {
-    const batch = writeBatch(db);
-    studentIds.forEach((id) => {
-      batch.delete(doc(db, "students", id));
-      batch.delete(doc(db, "accountCredentials", id));
-    });
-    await batch.commit();
+    const refs = [];
+    for (const id of studentIds) {
+      const student = students.find((s) => s.studentId === id);
+      await removePendingLogin(student);
+
+      refs.push(
+        doc(db, "students", id),
+        doc(db, "accountCredentials", id),
+        doc(db, "presence", id),
+        doc(db, "passwordRequests", id)
+      );
+      if (student?.email) {
+        refs.push(doc(db, "loginAliases", await sha256Hex(student.email.trim().toLowerCase())));
+      }
+      const [attendance, progress] = await Promise.all([
+        getDocs(query(collection(db, "attendance"), where("studentId", "==", id))),
+        getDocs(query(collection(db, "studentRequirements"), where("studentId", "==", id))),
+      ]);
+      attendance.forEach((d) => refs.push(d.ref));
+      progress.forEach((d) => refs.push(d.ref));
+    }
+
+    for (let i = 0; i < refs.length; i += 400) {
+      const batch = writeBatch(db);
+      refs.slice(i, i + 400).forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
   };
 
   const importStudents = async (rows) => {
