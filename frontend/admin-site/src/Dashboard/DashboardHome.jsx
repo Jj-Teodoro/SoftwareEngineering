@@ -13,6 +13,7 @@ import { useStudents } from "../context/StudentsContext";
 import { useEvents } from "../context/EventsContext";
 import { usePoints } from "../context/PointsContext";
 import { usePresence } from "../context/PresenceContext";
+import { todayLocal } from "@oasis/shared/utils/events.js";
 
 function StatCard({ icon, label, value, accent }) {
   return (
@@ -62,7 +63,7 @@ export default function DashboardHome({ onNavigate }) {
   const clearedCount = students.filter((s) => getClearance(s.studentId).cleared).length;
   const pendingCount = totalStudents - clearedCount;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocal();
   const upcomingEvents = [...events]
     .filter((e) => e.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date));

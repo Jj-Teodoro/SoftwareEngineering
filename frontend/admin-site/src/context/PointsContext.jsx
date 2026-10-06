@@ -3,6 +3,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@oasis/shared/firebaseClient.js";
 import { useRequirements } from "./RequirementsContext";
+import { useStudents } from "./StudentsContext";
 
 const PointsContext = createContext(null);
 
@@ -10,6 +11,7 @@ export function PointsProvider({ children }) {
   const [eventPoints, setEventPoints] = useState({});
   const [attendanceByStudent, setAttendanceByStudent] = useState({});
   const { getRequirementPoints, targetPoints } = useRequirements();
+  const { students } = useStudents();
 
   useEffect(() => {
     let unsubscribeSnapshot = null;
@@ -44,7 +46,8 @@ export function PointsProvider({ children }) {
   }, []);
 
   const getTotalPoints = (studentId) =>
-    (eventPoints[studentId] || 0) + getRequirementPoints(studentId);
+    (eventPoints[studentId] || 0) +
+    getRequirementPoints(studentId, students.find((s) => s.studentId === studentId)?.course);
 
   const getClearance = (studentId) => {
     const totalPoints = getTotalPoints(studentId);

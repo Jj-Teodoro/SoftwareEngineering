@@ -1,6 +1,6 @@
 import oasis_logo from "../assets/oasislogo.gif";
 
-const NAV_ITEMS = ["Dashboard", "User", "Event", "Scan", "Import"];
+const NAV_ITEMS = ["Dashboard", "User", "Requirements", "Event", "Scan", "Import"];
 
 export default function Sidebar({ active, onNavigate, currentUser, onLogout }) {
   return (

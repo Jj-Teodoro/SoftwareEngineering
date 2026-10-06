@@ -8,6 +8,12 @@ import {
 } from "react-icons/fi";
 import { useStudents } from "../context/StudentsContext";
 import { useEventAttendance, scanEventAttendance } from "../context/EventsContext";
+import {
+  formatEventDate,
+  getEventPhase,
+  scanLockMessage,
+} from "@oasis/shared/utils/events.js";
+import { FiLock } from "react-icons/fi";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -29,9 +35,16 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
 
   const isRestricted = event.programFilter && event.programFilter !== "ALL";
 
+  // Scanning only works on the event's own date; manual corrections stay
+  // available afterwards but not before the event has started.
+  const phase = getEventPhase(event);
+  const scanLocked = phase !== "today";
+  const manualLocked = phase === "upcoming";
+  const lockMessage = scanLockMessage(event);
+
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    if (!scanLocked) inputRef.current?.focus();
+  }, [scanLocked]);
 
   useEffect(() => {
     if (!feedback) return;
@@ -66,7 +79,7 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
 
   const handleCheckIn = async (rawId) => {
     const id = rawId.trim();
-    if (!id) return;
+    if (!id || scanLocked) return;
 
     const student = students.find(
       (s) => s.studentId.toLowerCase() === id.toLowerCase()
@@ -134,7 +147,7 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
               {event.title}
             </h2>
             <p className="text-xs text-white/60">
-              {event.date} {event.description ? `· ${event.description}` : ""} ·{" "}
+              {formatEventDate(event.date)} {event.description ? `· ${event.description}` : ""} ·{" "}
               {event.pointValue} pts · {isRestricted ? event.programFilter : "All Programs"}
             </p>
           </div>
@@ -143,12 +156,21 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
         <button
           type="button"
           onClick={() => onStartKiosk?.(event.id)}
-          className="flex h-11 items-center gap-2 rounded-full bg-white/90 px-6 text-sm font-bold uppercase tracking-[1px] text-[#7a1317] transition-all hover:bg-white"
+          disabled={scanLocked}
+          title={scanLocked ? lockMessage : undefined}
+          className="flex h-11 items-center gap-2 rounded-full bg-white/90 px-6 text-sm font-bold uppercase tracking-[1px] text-[#7a1317] transition-all hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/90"
         >
           <FiMonitor size={16} />
           Launch Kiosk Mode
         </button>
       </div>
+
+      {scanLocked && (
+        <div className="flex items-center gap-3 rounded-2xl border border-yellow-400/40 bg-yellow-500/10 px-5 py-3 text-sm font-semibold text-yellow-200">
+          <FiLock size={16} className="shrink-0" />
+          {lockMessage}
+        </div>
+      )}
 
       <p className="text-xs text-white/50">
         Kiosk Mode opens a private, student-facing check-in screen that only shows the
@@ -169,8 +191,9 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
           onKeyDown={(e) => {
             if (e.key === "Enter") handleCheckIn(scanValue);
           }}
-          placeholder="Enter student ID and press Enter"
-          className="h-14 w-full rounded-xl border border-white/30 bg-black/30 px-5 text-lg text-white placeholder-white/40 outline-none focus:border-white/60"
+          disabled={scanLocked}
+          placeholder={scanLocked ? "Scanning is locked" : "Enter student ID and press Enter"}
+          className="h-14 w-full rounded-xl border border-white/30 bg-black/30 px-5 text-lg text-white placeholder-white/40 outline-none focus:border-white/60 disabled:cursor-not-allowed disabled:opacity-40"
         />
         {feedback && (
           <div
@@ -286,7 +309,8 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
                           <button
                             type="button"
                             onClick={() => markPresent(student.studentId)}
-                            className="flex items-center gap-1 rounded-full border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[1px] text-green-300 transition-all hover:bg-green-500/20"
+                            disabled={manualLocked}
+                            className="flex items-center gap-1 disabled:pointer-events-none disabled:opacity-40 rounded-full border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[1px] text-green-300 transition-all hover:bg-green-500/20"
                           >
                             <FiUserCheck size={14} /> In
                           </button>
@@ -295,7 +319,8 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
                           <button
                             type="button"
                             onClick={() => markOut(student.studentId)}
-                            className="flex items-center gap-1 rounded-full border border-blue-400/40 bg-blue-500/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[1px] text-blue-300 transition-all hover:bg-blue-500/20"
+                            disabled={manualLocked}
+                            className="flex items-center gap-1 disabled:pointer-events-none disabled:opacity-40 rounded-full border border-blue-400/40 bg-blue-500/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[1px] text-blue-300 transition-all hover:bg-blue-500/20"
                           >
                             <FiUserCheck size={14} /> Out
                           </button>
@@ -304,7 +329,8 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
                           <button
                             type="button"
                             onClick={() => unmarkPresent(student.studentId)}
-                            className="flex items-center gap-1 rounded-full border border-white/30 bg-white/5 px-3 py-1.5 text-xs font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15"
+                            disabled={manualLocked}
+                            className="flex items-center gap-1 disabled:pointer-events-none disabled:opacity-40 rounded-full border border-white/30 bg-white/5 px-3 py-1.5 text-xs font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15"
                           >
                             <FiUserX size={14} /> Reset
                           </button>
