@@ -13,16 +13,25 @@ const labelClass = "mb-1 block text-[11px] font-bold uppercase tracking-[1px] te
  * description or a background picture (or both) because that is what students
  * receive in their notification.
  */
-export default function CreateEventModal({ programs, createEvent, onClose, onCreated }) {
+export default function CreateEventModal({
+  programs,
+  createEvent,
+  updateEvent,
+  event,
+  onClose,
+  onCreated,
+}) {
+  const editing = Boolean(event);
   const fileRef = useRef(null);
   const [form, setForm] = useState({
-    title: "",
-    date: todayLocal(),
-    pointValue: 10,
-    programFilter: "ALL",
-    description: "",
+    title: event?.title ?? "",
+    date: event?.date ?? todayLocal(),
+    pointValue: event?.pointValue ?? 10,
+    programFilter: event?.programFilter ?? "ALL",
+    description: event?.description ?? "",
   });
-  const [image, setImage] = useState("");
+  const [image, setImage] = useState(event?.image ?? "");
+  const [notify, setNotify] = useState(true);
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -55,12 +64,18 @@ export default function CreateEventModal({ programs, createEvent, onClose, onCre
     }
 
     setSubmitting(true);
-    const result = await createEvent({ ...form, image });
+    const result = editing
+      ? await updateEvent(event.id, { ...form, image, notify })
+      : await createEvent({ ...form, image });
     setSubmitting(false);
 
     if (!result.ok) return setError(result.message);
     if (!result.notified) {
-      setWarning("The event was created, but students could not be notified.");
+      setWarning(
+        editing
+          ? "The changes were saved, but students could not be notified."
+          : "The event was created, but students could not be notified."
+      );
       return;
     }
     onCreated?.(result.event);
@@ -69,9 +84,13 @@ export default function CreateEventModal({ programs, createEvent, onClose, onCre
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-lg">
-      <h2 className="mb-1 text-lg font-bold uppercase tracking-[2px] text-white">New Event</h2>
+      <h2 className="mb-1 text-lg font-bold uppercase tracking-[2px] text-white">
+        {editing ? "Edit Event" : "New Event"}
+      </h2>
       <p className="mb-5 text-xs text-white/55">
-        Students in the chosen program are notified as soon as the event is created.
+        {editing
+          ? "Update the details, and choose whether to tell students about the change."
+          : "Students in the chosen program are notified as soon as the event is created."}
       </p>
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
@@ -158,6 +177,24 @@ export default function CreateEventModal({ programs, createEvent, onClose, onCre
           )}
         </div>
 
+        {editing && (
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/15 bg-black/20 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={notify}
+              onChange={(e) => setNotify(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#97191d]"
+            />
+            <span className="text-xs text-white/80">
+              <span className="font-bold uppercase tracking-[1px] text-white">
+                Notify students about this update
+              </span>
+              <br />
+              Sends a new notification to the students in the event's program.
+            </span>
+          </label>
+        )}
+
         {error && <p className="text-xs font-semibold text-red-300">{error}</p>}
         {warning && <p className="text-xs font-semibold text-yellow-300">{warning}</p>}
 
@@ -175,7 +212,7 @@ export default function CreateEventModal({ programs, createEvent, onClose, onCre
               disabled={submitting}
               className="h-11 rounded-full bg-[#97191d] px-8 text-sm font-bold uppercase tracking-[2px] text-white transition-all hover:bg-[#b81f25] disabled:opacity-50"
             >
-              {submitting ? "Creating..." : "Create Event"}
+              {submitting ? "Saving..." : editing ? "Save Changes" : "Create Event"}
             </button>
           )}
         </div>

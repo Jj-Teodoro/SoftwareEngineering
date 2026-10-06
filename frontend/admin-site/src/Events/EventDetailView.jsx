@@ -7,13 +7,14 @@ import {
   FiMonitor,
 } from "react-icons/fi";
 import { useStudents } from "../context/StudentsContext";
-import { useEventAttendance, scanEventAttendance } from "../context/EventsContext";
+import { useEvents, useEventAttendance, scanEventAttendance } from "../context/EventsContext";
+import CreateEventModal from "../components/CreateEventModal";
 import {
   formatEventDate,
   getEventPhase,
   scanLockMessage,
 } from "@oasis/shared/utils/events.js";
-import { FiLock } from "react-icons/fi";
+import { FiBell, FiEdit2, FiLock } from "react-icons/fi";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -26,6 +27,10 @@ function formatTime(iso) {
 export default function EventDetailView({ event, onBack, onStartKiosk }) {
   const { students } = useStudents();
   const { records, markPresent, markOut, unmarkPresent } = useEventAttendance(event.id);
+  const { notifyEvent } = useEvents();
+  const [showEdit, setShowEdit] = useState(false);
+  const [notifying, setNotifying] = useState(false);
+  const [notice, setNotice] = useState(null);
 
   const [scanValue, setScanValue] = useState("");
   const [feedback, setFeedback] = useState(null);
@@ -45,6 +50,12 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
   useEffect(() => {
     if (!scanLocked) inputRef.current?.focus();
   }, [scanLocked]);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   useEffect(() => {
     if (!feedback) return;
@@ -76,6 +87,23 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
   }, [eligibleStudents, section, search]);
 
   const presentCount = Object.keys(records).length;
+
+  const handleNotify = async () => {
+    const count = eligibleStudents.length;
+    const who = isRestricted
+      ? `${count} ${event.programFilter} student${count === 1 ? "" : "s"}`
+      : `all ${count} student${count === 1 ? "" : "s"}`;
+    const confirmed = window.confirm(`Send a reminder about "${event.title}" to ${who}?`);
+    if (!confirmed) return;
+    setNotifying(true);
+    const result = await notifyEvent(event.id, "reminder");
+    setNotifying(false);
+    setNotice(
+      result.ok
+        ? { type: "success", text: `Reminder sent to ${who}.` }
+        : { type: "error", text: result.message }
+    );
+  };
 
   const handleCheckIn = async (rawId) => {
     const id = rawId.trim();
@@ -153,17 +181,62 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onStartKiosk?.(event.id)}
-          disabled={scanLocked}
-          title={scanLocked ? lockMessage : undefined}
-          className="flex h-11 items-center gap-2 rounded-full bg-white/90 px-6 text-sm font-bold uppercase tracking-[1px] text-[#7a1317] transition-all hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/90"
-        >
-          <FiMonitor size={16} />
-          Launch Kiosk Mode
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowEdit(true)}
+            className="flex h-11 items-center gap-2 rounded-full border border-white/40 bg-white/5 px-5 text-sm font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15"
+          >
+            <FiEdit2 size={15} />
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={handleNotify}
+            disabled={notifying || phase === "done"}
+            title={phase === "done" ? "This event is over" : "Remind the students required to attend"}
+            className="flex h-11 items-center gap-2 rounded-full border border-white/40 bg-white/5 px-5 text-sm font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <FiBell size={15} />
+            {notifying ? "Sending..." : "Notify students"}
+          </button>
+          <button
+            type="button"
+            onClick={() => onStartKiosk?.(event.id)}
+            disabled={scanLocked}
+            title={scanLocked ? lockMessage : undefined}
+            className="flex h-11 items-center gap-2 rounded-full bg-white/90 px-6 text-sm font-bold uppercase tracking-[1px] text-[#7a1317] transition-all hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/90"
+          >
+            <FiMonitor size={16} />
+            Launch Kiosk Mode
+          </button>
+        </div>
       </div>
+
+      {notice && (
+        <div
+          className={`rounded-2xl border px-5 py-3 text-sm font-semibold ${
+            notice.type === "success"
+              ? "border-green-400/40 bg-green-500/10 text-green-200"
+              : "border-red-400/40 bg-red-500/10 text-red-200"
+          }`}
+        >
+          {notice.text}
+        </div>
+      )}
+
+      {event.lastNotifiedAt?.toDate && (
+        <p className="-mt-3 text-xs text-white/45">
+          Students last notified{" "}
+          {event.lastNotifiedAt.toDate().toLocaleString([], {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+          .
+        </p>
+      )}
 
       {scanLocked && (
         <div className="flex items-center gap-3 rounded-2xl border border-yellow-400/40 bg-yellow-500/10 px-5 py-3 text-sm font-semibold text-yellow-200">
@@ -344,6 +417,10 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
           </table>
         </div>
       </div>
+
+      {showEdit && (
+        <CreateEventModal event={event} onClose={() => setShowEdit(false)} onCreated={() => setShowEdit(false)} />
+      )}
     </div>
   );
 }
