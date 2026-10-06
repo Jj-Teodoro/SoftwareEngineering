@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
-import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiPlus, FiTrash2, FiXCircle } from "react-icons/fi";
+import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiPlus, FiRefreshCw, FiTrash2, FiXCircle } from "react-icons/fi";
 import { db } from "@oasis/shared/firebaseClient.js";
 import StudentIdCard from "@oasis/shared/components/StudentIdCard.jsx";
 import Modal from "./Modal";
@@ -212,8 +212,9 @@ function FormRow({ label, children }) {
 }
 
 function StudentAccountTab({ student }) {
-  const { provisionAccount } = useStudents();
+  const { provisionAccount, regenerateTempPassword } = useStudents();
   const [busy, setBusy] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [result, setResult] = useState(null);
   const [copied, setCopied] = useState(false);
   const [stored, setStored] = useState(undefined);
@@ -238,6 +239,16 @@ function StudentAccountTab({ student }) {
     setBusy(true);
     setResult(await provisionAccount(student.studentId));
     setBusy(false);
+  };
+
+  const handleRegenerate = async () => {
+    const confirmed = window.confirm(
+      "Generate a new temporary password? The current one will stop working."
+    );
+    if (!confirmed) return;
+    setRegenerating(true);
+    setResult(await regenerateTempPassword(student.studentId));
+    setRegenerating(false);
   };
 
   const copyPassword = async () => {
@@ -293,6 +304,14 @@ function StudentAccountTab({ student }) {
               >
                 <FiCopy size={12} /> {copied ? "Copied" : "Copy"}
               </button>
+              <button
+                type="button"
+                onClick={handleRegenerate}
+                disabled={regenerating}
+                className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-white hover:bg-white/10 disabled:opacity-50"
+              >
+                <FiRefreshCw size={12} /> {regenerating ? "Generating..." : "New password"}
+              </button>
             </div>
           ) : (
             <p className="text-xs text-white/70">
@@ -319,7 +338,7 @@ function StudentAccountTab({ student }) {
       ) : (
         <p className="text-xs leading-relaxed text-white/60">
           {student.mustChangePassword
-            ? "The student will be asked to choose their own password the first time they log in. Once they do, the temporary password disappears from here."
+            ? "The student will be asked to choose their own password the first time they log in. If they lose it, generate a new one. Once they set their own, the temporary password disappears from here."
             : "The student chose their own password."}{" "}
           Admins can never view or change a student's password; if they forget it, they use
           "Forgot password" on the User site to get a reset email.

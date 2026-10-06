@@ -5,6 +5,7 @@ import {
   deleteUser,
   getAuth,
   onAuthStateChanged,
+  signInWithEmailAndPassword,
   signOut as signOutAuth,
 } from "firebase/auth";
 import {
@@ -161,6 +162,95 @@ export function StudentsProvider({ children }) {
     }
   };
 
+  // While an account is still pending (the student hasn't replaced the temporary
+  // password), the admin can issue a new one. Firebase doesn't let a browser
+  // change someone else's password, so this signs in as the pending login with
+  // the stored temporary password, deletes it, and creates a fresh login.
+  // Once the student sets their own password the stored copy is gone, so this
+  // can no longer be done.
+  const regenerateTempPassword = async (studentId) => {
+    const student = students.find((s) => s.studentId === studentId);
+    if (!student?.authUid || !student.mustChangePassword) {
+      return { ok: false, message: "Only accounts waiting for a first login can get a new password." };
+    }
+
+    let oldPassword;
+    try {
+      const credSnap = await getDoc(doc(db, "accountCredentials", studentId));
+      oldPassword = credSnap.exists() ? credSnap.data().tempPassword : null;
+    } catch {
+      return { ok: false, message: "Could not read the current temporary password." };
+    }
+    if (!oldPassword) {
+      return {
+        ok: false,
+        message: "The current temporary password isn't on file. The student can use Forgot password.",
+      };
+    }
+
+    const email = (student.email || "").trim().toLowerCase();
+    const newPassword = generateTempPassword();
+    const secondaryApp = initializeApp(
+      firebaseConfig,
+      `regen-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
+    const secondaryAuth = getAuth(secondaryApp);
+
+    try {
+      try {
+        const old = await signInWithEmailAndPassword(secondaryAuth, email, oldPassword);
+        await deleteUser(old.user);
+      } catch {
+        return {
+          ok: false,
+          message: "Couldn't replace the password. The student may have just changed it.",
+        };
+      }
+
+      const resetLink = async () => {
+        await updateDoc(doc(db, "students", studentId), {
+          authUid: null,
+          mustChangePassword: false,
+        }).catch(() => {});
+        await deleteDoc(doc(db, "accountCredentials", studentId)).catch(() => {});
+      };
+
+      let cred;
+      try {
+        cred = await createUserWithEmailAndPassword(secondaryAuth, email, newPassword);
+      } catch {
+        await resetLink();
+        return {
+          ok: false,
+          message: "The old login was removed but a new one couldn't be created. Use Create account to try again.",
+        };
+      }
+
+      try {
+        await setDoc(doc(db, "accountCredentials", studentId), {
+          tempPassword: newPassword,
+          createdAt: serverTimestamp(),
+        });
+        await updateDoc(doc(db, "students", studentId), {
+          authUid: cred.user.uid,
+          mustChangePassword: true,
+        });
+      } catch {
+        await deleteUser(cred.user).catch(() => {});
+        await resetLink();
+        return {
+          ok: false,
+          message: "Could not save the new login. Use Create account to try again.",
+        };
+      }
+
+      return { ok: true, email, tempPassword: newPassword };
+    } finally {
+      await signOutAuth(secondaryAuth).catch(() => {});
+      await deleteApp(secondaryApp).catch(() => {});
+    }
+  };
+
   const provisionAccounts = async (studentIds, onProgress) => {
     const results = [];
     for (const id of studentIds) {
@@ -228,6 +318,7 @@ export function StudentsProvider({ children }) {
         deleteStudents,
         importStudents,
         provisionAccount,
+        regenerateTempPassword,
         provisionAccounts,
       }}
     >
