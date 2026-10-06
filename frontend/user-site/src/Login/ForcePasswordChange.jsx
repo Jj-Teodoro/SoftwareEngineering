@@ -2,13 +2,22 @@ import { useState } from "react";
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 import { auth } from "@oasis/shared/firebaseClient.js";
 import PageBackground from "../components/PageBackground";
+import CyberFrame from "../components/CyberFrame";
 import oasis_logo from "../assets/oasislogo.gif";
 import { useStudent } from "../context/StudentContext";
 
 const MIN_LENGTH = 8;
 
 const inputClass =
-  "h-12 w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface-2)] px-4 text-sm text-[var(--text-primary)] placeholder-[var(--text-faint)] outline-none focus:border-[var(--gold)]";
+  "h-12 w-full bg-transparent px-4 font-mono text-sm text-[var(--text-primary)] placeholder-[var(--text-faint)] outline-none";
+
+function CpInput(props) {
+  return (
+    <div className="cp-field">
+      <input {...props} className={inputClass} />
+    </div>
+  );
+}
 
 export default function ForcePasswordChange({ onLogout }) {
   const { student, completePasswordChange } = useStudent();
@@ -72,12 +81,12 @@ export default function ForcePasswordChange({ onLogout }) {
   return (
     <PageBackground>
       <div className="flex min-h-screen items-center justify-center px-4 py-10">
-        <div className="w-full max-w-md rounded-[20px] border-2 border-[var(--gold)] bg-[var(--panel-bg)] p-8 text-[var(--text-primary)] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+        <CyberFrame className="w-full max-w-md" innerClassName="p-8" cut={26} tag="sys://new_password">
           <img src={oasis_logo} alt="OASIS" className="mx-auto mb-2 h-auto w-[180px] object-contain" />
-          <h1 className="text-center font-display text-base uppercase tracking-[3px] text-[var(--panel-title)]">
+          <h1 className="cp-glitch text-center font-display text-base uppercase tracking-[3px] text-[var(--panel-title)]">
             Set a new password
           </h1>
-          <p className="mt-3 text-center text-xs leading-relaxed text-[var(--text-muted)]">
+          <p className="mt-3 text-center font-mono text-xs leading-relaxed text-[var(--text-muted)]">
             Welcome{student?.name ? `, ${student.name.split(",")[0]}` : ""}. You signed in with a
             temporary password from your admin. Choose your own password to continue — only you
             will know it.
@@ -85,7 +94,11 @@ export default function ForcePasswordChange({ onLogout }) {
 
           {passwordSaved ? (
             <div className="mt-6 space-y-3">
-              {error && <p className="text-xs font-semibold text-red-400">{error}</p>}
+              {error && (
+                <p className="font-mono text-xs font-bold uppercase tracking-[1px] text-[var(--neon-pink)]">
+                  ! {error}
+                </p>
+              )}
               <button
                 type="button"
                 onClick={async () => {
@@ -95,42 +108,43 @@ export default function ForcePasswordChange({ onLogout }) {
                   setSubmitting(false);
                 }}
                 disabled={submitting}
-                className="h-12 w-full rounded-lg bg-[var(--gold)] text-sm font-bold uppercase tracking-[2px] text-[#2b0a0c] disabled:opacity-50"
+                className="cp-btn h-12 w-full text-sm"
               >
                 Continue
               </button>
             </div>
           ) : (
           <form onSubmit={handleSubmit} className="mt-6 space-y-3">
-            <input
+            <CpInput
               type="password"
               value={tempPassword}
               onChange={(e) => setTempPassword(e.target.value)}
               placeholder="Temporary password"
               required
-              className={inputClass}
             />
-            <input
+            <CpInput
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder={`New password (min. ${MIN_LENGTH} characters)`}
               required
-              className={inputClass}
             />
-            <input
+            <CpInput
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm new password"
               required
-              className={inputClass}
             />
-            {error && <p className="text-xs font-semibold text-red-400">{error}</p>}
+            {error && (
+                <p className="font-mono text-xs font-bold uppercase tracking-[1px] text-[var(--neon-pink)]">
+                  ! {error}
+                </p>
+              )}
             <button
               type="submit"
               disabled={submitting}
-              className="h-12 w-full rounded-lg bg-[var(--gold)] text-sm font-bold uppercase tracking-[2px] text-[#2b0a0c] transition-all hover:brightness-110 disabled:opacity-50"
+              className="cp-btn h-12 w-full text-sm"
             >
               {submitting ? "Saving..." : "Save password"}
             </button>
@@ -140,11 +154,11 @@ export default function ForcePasswordChange({ onLogout }) {
           <button
             type="button"
             onClick={onLogout}
-            className="mt-4 block w-full text-center text-xs uppercase tracking-[2px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            className="mt-4 block w-full text-center font-mono text-xs uppercase tracking-[2px] text-[var(--text-muted)] transition-colors hover:text-[var(--neon-cyan)]"
           >
-            Log out
+            [ Log out ]
           </button>
-        </div>
+        </CyberFrame>
       </div>
     </PageBackground>
   );

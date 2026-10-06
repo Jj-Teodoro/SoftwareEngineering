@@ -12,13 +12,17 @@ function Toggle({ checked, onChange, label }) {
       aria-checked={checked}
       aria-label={label}
       onClick={onChange}
-      className={`relative h-7 w-12 shrink-0 rounded-full border border-[var(--surface-border)] transition-colors ${
-        checked ? "bg-[var(--gold)]" : "bg-[var(--surface-2)]"
+      className={`relative h-7 w-12 shrink-0 border transition-all [clip-path:polygon(0_0,100%_0,100%_70%,calc(100%-7px)_100%,0_100%)] ${
+        checked
+          ? "border-[var(--neon-cyan)] bg-[rgba(5,217,232,0.25)] shadow-[0_0_10px_rgba(5,217,232,0.4)]"
+          : "border-[var(--surface-border)] bg-[var(--surface-2)]"
       }`}
     >
       <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-          checked ? "translate-x-6" : "translate-x-1"
+        className={`absolute left-0 top-0.5 h-5 w-5 transition-transform ${
+          checked
+            ? "translate-x-6 bg-[var(--neon-cyan)] shadow-[0_0_8px_var(--neon-cyan)]"
+            : "translate-x-1 bg-[var(--text-faint)]"
         }`}
       />
     </button>
@@ -58,11 +62,11 @@ export default function SettingsPage({ onLogout }) {
       </Panel>
 
       <Panel title="Account">
-        <p className="mb-4 text-sm text-[var(--text-primary)]">
+        <p className="mb-4 font-mono text-sm text-[var(--text-primary)]">
           {student?.name} · {student?.email}
         </p>
 
-        <p className="mb-4 text-xs leading-relaxed text-[var(--text-muted)]">
+        <p className="mb-4 font-mono text-xs leading-relaxed text-[var(--text-muted)]">
           Forgot your password? Log out and use "Forgot Password" on the login page to ask your
           admin for a new temporary password.
         </p>
@@ -70,7 +74,7 @@ export default function SettingsPage({ onLogout }) {
         <button
           type="button"
           onClick={onLogout}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-[var(--surface-border)] text-sm font-bold uppercase tracking-[2px] text-[var(--text-primary)] transition-all hover:bg-[var(--surface-strong)]"
+          className="cp-btn-ghost h-11 w-full text-sm"
         >
           <FiLogOut size={16} /> Log Out
         </button>

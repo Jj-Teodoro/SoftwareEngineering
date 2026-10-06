@@ -3,36 +3,60 @@
 @tailwind utilities;
 
 :root {
-  --bg-gradient: linear-gradient(to bottom, #6e1a1c 0%, #3d0b0d 48%, #150404 100%);
-  --header-bg: #4a0d10;
-  --panel-bg: #3a0c0e;
+  --bg-base: #0b0203;
+  --bg-glow-1: rgba(151, 25, 29, 0.55);
+  --bg-glow-2: rgba(5, 217, 232, 0.12);
+  --header-bg: #1a0405;
+  --panel-bg: #2a0709;
+  --frame-bg: linear-gradient(160deg, #3d0a0d 0%, #1f0506 55%, #120304 100%);
+  --grid-line: rgba(242, 180, 0, 0.07);
+  --scan: rgba(0, 0, 0, 0.35);
   --panel-title: #ffffff;
   --gold: #f2b400;
-  --nav-active-bg: #7a1317;
+  --neon-pink: #ff2a6d;
+  --neon-cyan: #05d9e8;
+  --nav-active-bg: #97191d;
   --nav-active-text: #ffffff;
-  --nav-idle-bg: #ffffff;
-  --nav-idle-text: #7a1317;
-  --surface: rgba(255, 255, 255, 0.1);
-  --surface-strong: rgba(255, 255, 255, 0.15);
-  --surface-border: rgba(255, 255, 255, 0.2);
-  --surface-2: rgba(0, 0, 0, 0.2);
+  --nav-idle-bg: rgba(255, 255, 255, 0.04);
+  --nav-idle-text: #f2b400;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-strong: rgba(255, 255, 255, 0.12);
+  --surface-border: rgba(242, 180, 0, 0.3);
+  --surface-2: rgba(0, 0, 0, 0.35);
   --text-primary: #ffffff;
-  --text-muted: rgba(255, 255, 255, 0.65);
+  --text-muted: rgba(255, 255, 255, 0.68);
   --text-faint: rgba(255, 255, 255, 0.4);
+  --glow: rgba(242, 180, 0, 0.45);
 }
 
 html.light {
-  --bg-gradient: linear-gradient(to bottom, #fdf3ec, #f6e4d6 60%, #efd5bf);
+  --bg-base: #f6e8da;
+  --bg-glow-1: rgba(217, 160, 0, 0.25);
+  --bg-glow-2: rgba(5, 217, 232, 0.12);
+  --header-bg: #fffaf4;
   --panel-bg: #fffaf4;
+  --frame-bg: linear-gradient(160deg, #fffaf4 0%, #f8e9da 100%);
+  --grid-line: rgba(122, 19, 23, 0.08);
+  --scan: rgba(122, 19, 23, 0.035);
   --panel-title: #4a0d10;
-  --gold: #d9a000;
+  --gold: #c58f00;
+  --neon-pink: #d6204f;
+  --neon-cyan: #05a9b8;
+  --nav-active-bg: #7a1317;
+  --nav-idle-bg: rgba(122, 19, 23, 0.05);
+  --nav-idle-text: #7a1317;
   --surface: rgba(0, 0, 0, 0.04);
   --surface-strong: rgba(0, 0, 0, 0.08);
-  --surface-border: rgba(0, 0, 0, 0.12);
-  --surface-2: rgba(0, 0, 0, 0.06);
+  --surface-border: rgba(122, 19, 23, 0.3);
+  --surface-2: rgba(122, 19, 23, 0.06);
   --text-primary: #2a0507;
-  --text-muted: rgba(42, 5, 7, 0.65);
-  --text-faint: rgba(42, 5, 7, 0.4);
+  --text-muted: rgba(42, 5, 7, 0.68);
+  --text-faint: rgba(42, 5, 7, 0.42);
+  --glow: rgba(197, 143, 0, 0.35);
+}
+
+body {
+  background: var(--bg-base);
 }
 
 @keyframes blink {
@@ -40,6 +64,184 @@ html.light {
   50%, 100% { opacity: 0; }
 }
 
+@keyframes sweep {
+  0% { transform: translateY(-20vh); }
+  100% { transform: translateY(120vh); }
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.55; }
+  94% { opacity: 1; }
+  96% { opacity: 0.7; }
+}
+
 .cursor-blink {
   animation: blink 1s steps(1) infinite;
+}
+
+.cp-flicker {
+  animation: flicker 6s linear infinite;
+}
+
+/* RGB-split title, the cyberpunk signature. */
+.cp-glitch {
+  text-shadow:
+    1.5px 0 rgba(255, 42, 109, 0.75),
+    -1.5px 0 rgba(5, 217, 232, 0.65),
+    0 0 12px var(--glow);
+}
+
+/* Cut-corner shape: --notch is the size of the bottom-right cut, and a thin
+   diagonal is drawn along it so bordered shapes stay closed. */
+.cp-notch {
+  --notch: 12px;
+  position: relative;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--notch)),
+    calc(100% - var(--notch)) 100%,
+    0 100%
+  );
+}
+.cp-notch::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: var(--notch);
+  height: var(--notch);
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--notch-color, var(--gold)) calc(50% - 1px) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+
+.cp-btn {
+  --notch: 12px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: "Share Tech Mono", ui-monospace, monospace;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #1a0405;
+  background: var(--gold);
+  clip-path: polygon(
+    var(--notch) 0,
+    100% 0,
+    100% calc(100% - var(--notch)),
+    calc(100% - var(--notch)) 100%,
+    0 100%,
+    0 var(--notch)
+  );
+  transition: filter 0.2s, transform 0.2s, background 0.2s;
+}
+.cp-btn:hover:not(:disabled) {
+  filter: drop-shadow(0 0 8px var(--glow)) brightness(1.1);
+  transform: translateY(-1px);
+}
+.cp-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cp-btn-ghost {
+  --notch: 10px;
+  --notch-color: var(--gold);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: "Share Tech Mono", ui-monospace, monospace;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  background: transparent;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--notch)),
+    calc(100% - var(--notch)) 100%,
+    0 100%
+  );
+  transition: background 0.2s, color 0.2s;
+}
+.cp-btn-ghost::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: var(--notch);
+  height: var(--notch);
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--gold) calc(50% - 1px) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+.cp-btn-ghost:hover:not(:disabled) {
+  background: var(--gold);
+  color: #1a0405;
+}
+
+/* Terminal-style input: mono label above, cut corner, neon focus. */
+.cp-field {
+  --notch: 12px;
+  --notch-color: var(--gold);
+  position: relative;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-2);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--notch)),
+    calc(100% - var(--notch)) 100%,
+    0 100%
+  );
+  transition: border-color 0.2s, background 0.2s;
+}
+.cp-field::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: var(--notch);
+  height: var(--notch);
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--notch-color) calc(50% - 1px) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+.cp-field:focus-within {
+  --notch-color: var(--neon-cyan);
+  border-color: var(--neon-cyan);
+  background: rgba(5, 217, 232, 0.06);
+}
+.cp-field.cp-error {
+  --notch-color: var(--neon-pink);
+  border-color: var(--neon-pink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-flicker,
+  .cp-sweep {
+    animation: none !important;
+  }
 }
