@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
-import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiRefreshCw, FiXCircle } from "react-icons/fi";
+import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiRefreshCw, FiTrash2, FiXCircle } from "react-icons/fi";
 import { db } from "@oasis/shared/firebaseClient.js";
 import StudentIdCard from "@oasis/shared/components/StudentIdCard.jsx";
+import { useConfirm } from "@oasis/shared/components/ConfirmDialog.jsx";
 import Modal from "./Modal";
 import { useStudents } from "../context/StudentsContext";
 import { useRequirements } from "../context/RequirementsContext";
@@ -21,14 +22,29 @@ const inputClass =
   "h-10 w-full rounded-lg border border-white/20 bg-black/20 px-3 text-sm text-white placeholder-white/40 outline-none focus:border-white/50 disabled:opacity-50";
 
 export default function StudentIdCardModal({ studentId, onClose }) {
-  const { students } = useStudents();
+  const { students, deleteStudents } = useStudents();
   const { getClearance } = usePoints();
+  const confirm = useConfirm();
   const [tab, setTab] = useState("id");
+  const [deleting, setDeleting] = useState(false);
 
   const student = students.find((s) => s.studentId === studentId);
   if (!student) return null;
 
   const { totalPoints, targetPoints, cleared } = getClearance(student.studentId);
+
+  const handleDelete = async () => {
+    const confirmed = await confirm({
+      title: "Delete student",
+      message: `Delete ${student.name}? Their record, attendance, requirement progress and pending login are removed. This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!confirmed) return;
+    setDeleting(true);
+    await deleteStudents([student.studentId]);
+    onClose();
+  };
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-2xl">
@@ -62,6 +78,17 @@ export default function StudentIdCardModal({ studentId, onClose }) {
         </div>
       )}
       {tab === "account" && <StudentAccountTab student={student} />}
+
+      <div className="mt-5 flex justify-end border-t border-white/10 pt-4">
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleting}
+          className="flex items-center gap-2 rounded-full border border-red-400/50 px-5 py-2 text-[11px] font-bold uppercase tracking-[1px] text-red-300 transition-all hover:bg-red-600 hover:text-white disabled:opacity-50"
+        >
+          <FiTrash2 size={13} /> {deleting ? "Deleting..." : "Delete student"}
+        </button>
+      </div>
     </Modal>
   );
 }
@@ -203,6 +230,7 @@ function FormRow({ label, children }) {
 
 function StudentAccountTab({ student }) {
   const { provisionAccount, issueTempPassword, dismissRequest, resetRequests } = useStudents();
+  const confirm = useConfirm();
   const { getActivity, now } = usePresence();
   const activity = getActivity(student.studentId);
   const [busy, setBusy] = useState(false);
@@ -234,9 +262,11 @@ function StudentAccountTab({ student }) {
   };
 
   const handleRegenerate = async () => {
-    const confirmed = window.confirm(
-      "Generate a new temporary password? The current one will stop working."
-    );
+    const confirmed = await confirm({
+      title: "New temporary password",
+      message: "Generate a new temporary password? The current one will stop working.",
+      confirmLabel: "Generate",
+    });
     if (!confirmed) return;
     setRegenerating(true);
     setResult(await issueTempPassword(student.studentId));
@@ -254,9 +284,12 @@ function StudentAccountTab({ student }) {
   };
 
   const handleIssue = async () => {
-    const confirmed = window.confirm(
-      "Issue a new temporary password? The student's current password will stop working and they will have to choose a new one."
-    );
+    const confirmed = await confirm({
+      title: "Issue temporary password",
+      message:
+        "Issue a new temporary password? The student's current password will stop working and they will have to choose a new one.",
+      confirmLabel: "Issue",
+    });
     if (!confirmed) return;
     setRegenerating(true);
     setResult(await issueTempPassword(student.studentId));

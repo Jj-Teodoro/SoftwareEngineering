@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useConfirm } from "@oasis/shared/components/ConfirmDialog.jsx";
 import { FiCheck, FiCheckCircle, FiEdit2, FiPlus, FiTrash2, FiUsers, FiX } from "react-icons/fi";
 import Modal from "../components/Modal";
 import StudentAvatar from "../components/StudentAvatar";
@@ -27,6 +28,7 @@ function ProgramSelect({ value, onChange, programs, className = inputClass }) {
 export default function RequirementsPage() {
   const { items, addItem, updateItem, deleteItem, isCompleted, appliesTo } = useRequirements();
   const { students } = useStudents();
+  const confirm = useConfirm();
 
   const programs = useMemo(
     () => [...new Set(students.map((s) => s.course).filter(Boolean))].sort(),
@@ -81,9 +83,12 @@ export default function RequirementsPage() {
   };
 
   const handleDelete = async (item) => {
-    const confirmed = window.confirm(
-      `Remove "${item.title}"? It disappears for every student, and anyone who completed it loses its ${item.pointValue} points.`
-    );
+    const confirmed = await confirm({
+      title: "Remove requirement",
+      message: `Remove "${item.title}"? It disappears for every student, and anyone who completed it loses its ${item.pointValue} points.`,
+      confirmLabel: "Remove",
+      danger: true,
+    });
     if (confirmed) await deleteItem(item.id);
   };
 

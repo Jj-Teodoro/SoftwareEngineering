@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useConfirm } from "@oasis/shared/components/ConfirmDialog.jsx";
 import {
   FiAward,
   FiCalendar,
@@ -45,6 +46,7 @@ function PhaseChip({ event, today }) {
 
 export default function EventsPage() {
   const { events, presentCounts, deleteEvent } = useEvents();
+  const confirm = useConfirm();
   const { students } = useStudents();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -60,9 +62,12 @@ export default function EventsPage() {
   }, [events, today]);
 
   const handleDelete = async (event) => {
-    const confirmed = window.confirm(
-      `Delete event "${event.title}"? This cannot be undone.`
-    );
+    const confirmed = await confirm({
+      title: "Delete event",
+      message: `Delete "${event.title}"? Its attendance records go with it. This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
     if (!confirmed) return;
     await deleteEvent(event.id);
   };

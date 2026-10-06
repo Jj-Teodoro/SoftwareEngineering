@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FiSearch, FiFilter, FiTrash2, FiKey } from "react-icons/fi";
+import { FiSearch, FiFilter, FiTrash2, FiKey, FiX } from "react-icons/fi";
+import { useConfirm } from "@oasis/shared/components/ConfirmDialog.jsx";
 import { useStudents } from "../context/StudentsContext";
 import { usePoints } from "../context/PointsContext";
 import { formatAgo, usePresence } from "../context/PresenceContext";
@@ -9,7 +10,23 @@ import ProvisionAccountsModal from "../components/ProvisionAccountsModal";
 import StudentAvatar from "../components/StudentAvatar";
 
 const PAGE_SIZE = 6;
-const FILTER_OPTIONS = ["ALL", "ACTIVE", "INACTIVE"];
+
+const uniqueSorted = (values) => [...new Set(values.filter(Boolean))].sort();
+
+// Fixed groups; Program / Year / Section are built from the roster itself.
+const FIXED_GROUPS = [
+  { key: "status", label: "Status", options: ["ACTIVE", "INACTIVE"] },
+  { key: "account", label: "Account", options: ["NO ACCOUNT", "PENDING", "ACTIVE", "RESET REQUESTED"] },
+  { key: "clearance", label: "Clearance", options: ["CLEARED", "NOT CLEARED"] },
+];
+const NO_FILTERS = {
+  status: "ALL",
+  account: "ALL",
+  clearance: "ALL",
+  program: "ALL",
+  year: "ALL",
+  section: "ALL",
+};
 
 const PILL_TONES = {
   green: "bg-green-500/15 text-green-300 ring-green-400/30",
@@ -84,12 +101,13 @@ const COLUMNS = [
 ];
 
 export default function UserPage() {
-  const { students, deleteStudents } = useStudents();
+  const { students, deleteStudents, resetRequests } = useStudents();
+  const confirm = useConfirm();
   const { getTotalPoints, getClearance, targetPoints } = usePoints();
   const { getActivity } = usePresence();
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [filters, setFilters] = useState(NO_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -112,6 +130,27 @@ export default function UserPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const accountOf = (s) =>
+    !s.authUid
+      ? "NO ACCOUNT"
+      : resetRequests[s.studentId]
+      ? "RESET REQUESTED"
+      : s.mustChangePassword
+      ? "PENDING"
+      : "ACTIVE";
+
+  const groups = useMemo(
+    () => [
+      ...FIXED_GROUPS,
+      { key: "program", label: "Program", options: uniqueSorted(students.map((s) => s.course)) },
+      { key: "year", label: "Year level", options: uniqueSorted(students.map((s) => s.yearLevel)) },
+      { key: "section", label: "Section", options: uniqueSorted(students.map((s) => s.section)) },
+    ],
+    [students]
+  );
+
+  const activeFilters = groups.filter((g) => filters[g.key] !== "ALL");
+
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
     return students.filter((s) => {
@@ -119,17 +158,26 @@ export default function UserPage() {
         !query ||
         s.studentId.toLowerCase().includes(query) ||
         s.name.toLowerCase().includes(query);
-      const live = getActivity(s.studentId).active ? "ACTIVE" : "INACTIVE";
-      const matchesStatus = statusFilter === "ALL" || live === statusFilter;
-      return matchesQuery && matchesStatus;
+      if (!matchesQuery) return false;
+
+      const values = {
+        status: getActivity(s.studentId).active ? "ACTIVE" : "INACTIVE",
+        account: accountOf(s),
+        clearance: getClearance(s.studentId).cleared ? "CLEARED" : "NOT CLEARED",
+        program: s.course,
+        year: s.yearLevel,
+        section: s.section,
+      };
+      return Object.entries(filters).every(([key, wanted]) => wanted === "ALL" || values[key] === wanted);
     });
-  }, [students, search, statusFilter, getActivity]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [students, search, filters, getActivity, getClearance, resetRequests]);
 
   const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter]);
+  }, [search, filters]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -156,9 +204,13 @@ export default function UserPage() {
 
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
-    const confirmed = window.confirm(
-      `Delete ${selectedIds.size} selected account(s)? This cannot be undone.`
-    );
+    const count = selectedIds.size;
+    const confirmed = await confirm({
+      title: "Delete students",
+      message: `Delete ${count} selected student${count === 1 ? "" : "s"}? Their records, attendance and requirement progress are removed. This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
     if (!confirmed) return;
     await deleteStudents([...selectedIds]);
     setSelectedIds(new Set());
@@ -188,28 +240,47 @@ export default function UserPage() {
               className="flex h-12 items-center gap-2 rounded-full bg-white/90 px-8 text-sm font-bold uppercase tracking-[2px] text-[#7a1317] transition-all hover:bg-white"
             >
               <FiFilter size={16} />
-              {statusFilter === "ALL" ? "Filter" : statusFilter}
+              Filter
+              {activeFilters.length > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#97191d] px-1.5 text-[11px] text-white">
+                  {activeFilters.length}
+                </span>
+              )}
             </button>
 
             {filterOpen && (
-              <div className="absolute left-0 top-14 z-20 w-40 overflow-hidden rounded-2xl border border-white/20 bg-[#2a0507] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                {FILTER_OPTIONS.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => {
-                      setStatusFilter(option);
-                      setFilterOpen(false);
-                    }}
-                    className={`block w-full px-4 py-3 text-left text-xs font-bold uppercase tracking-[1px] transition-colors ${
-                      statusFilter === option
-                        ? "bg-[#97191d] text-white"
-                        : "text-white/80 hover:bg-white/10"
-                    }`}
-                  >
-                    {option}
-                  </button>
+              <div className="absolute left-0 top-14 z-20 max-h-[70vh] w-[340px] overflow-y-auto rounded-2xl border border-white/20 bg-[#2a0507] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                {groups.map((group) => (
+                  <div key={group.key} className="mb-4">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[2px] text-white/50">
+                      {group.label}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {["ALL", ...group.options].map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => setFilters((f) => ({ ...f, [group.key]: option }))}
+                          className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] transition-colors ${
+                            filters[group.key] === option
+                              ? "border-[#97191d] bg-[#97191d] text-white"
+                              : "border-white/20 text-white/70 hover:bg-white/10"
+                          }`}
+                        >
+                          {option === "ALL" ? "All" : option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setFilters(NO_FILTERS)}
+                  disabled={activeFilters.length === 0}
+                  className="w-full rounded-full border border-white/30 py-2 text-[11px] font-bold uppercase tracking-[2px] text-white transition-all hover:bg-white/10 disabled:opacity-40"
+                >
+                  Reset filters
+                </button>
               </div>
             )}
           </div>
@@ -255,6 +326,34 @@ export default function UserPage() {
           </button>
         </div>
       </div>
+
+      {(activeFilters.length > 0 || search.trim()) && (
+        <div className="-mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-white/60">
+            Showing {filteredStudents.length} of {students.length} students
+          </span>
+          {activeFilters.map((g) => (
+            <button
+              key={g.key}
+              type="button"
+              onClick={() => setFilters((f) => ({ ...f, [g.key]: "ALL" }))}
+              className="flex items-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/20"
+              title={`Remove ${g.label} filter`}
+            >
+              {g.label}: {filters[g.key]} <FiX size={12} />
+            </button>
+          ))}
+          {activeFilters.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setFilters(NO_FILTERS)}
+              className="text-[11px] font-bold uppercase tracking-[1px] text-white/60 underline underline-offset-4 hover:text-white"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-hidden rounded-[20px] border border-white/15 bg-white/[0.06] shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-md">

@@ -2,6 +2,7 @@ import { useState } from "react";
 import LoginPage from "./Login/Login";
 import Shell from "./Shell";
 import StudentKioskView from "./Kiosk/StudentKioskView";
+import { ConfirmProvider } from "@oasis/shared/components/ConfirmDialog.jsx";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { StudentsProvider } from "./context/StudentsContext";
 import { EventsProvider } from "./context/EventsContext";
@@ -41,6 +42,7 @@ function AppContent() {
 
 export default function App() {
   return (
+    <ConfirmProvider>
     <AuthProvider>
       <StudentsProvider>
         <EventsProvider>
@@ -48,5 +50,6 @@ export default function App() {
         </EventsProvider>
       </StudentsProvider>
     </AuthProvider>
+    </ConfirmProvider>
   );
 }
