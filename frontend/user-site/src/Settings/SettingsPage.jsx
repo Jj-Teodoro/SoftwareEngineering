@@ -1,18 +1,8 @@
-import { useState } from "react";
-import {
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  updatePassword,
-} from "firebase/auth";
 import { FiLogOut, FiMoon, FiSun } from "react-icons/fi";
-import { auth } from "@oasis/shared/firebaseClient.js";
 import Panel from "../components/Panel";
 import { useTheme } from "../context/ThemeContext";
 import { useNotificationPref } from "../context/NotificationPrefContext";
 import { useStudent } from "../context/StudentContext";
-
-const inputClass =
-  "h-11 w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface-2)] px-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-faint)] outline-none focus:border-[var(--gold)]";
 
 function Toggle({ checked, onChange, label }) {
   return (
@@ -39,34 +29,6 @@ export default function SettingsPage({ onLogout }) {
   const { theme, toggleTheme } = useTheme();
   const { showBadge, toggleShowBadge } = useNotificationPref();
   const { student } = useStudent();
-
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [status, setStatus] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    setStatus(null);
-
-    if (newPassword.length < 8) {
-      setStatus({ type: "error", message: "New password must be at least 8 characters." });
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
-      await reauthenticateWithCredential(auth.currentUser, credential);
-      await updatePassword(auth.currentUser, newPassword);
-      setStatus({ type: "success", message: "Password updated." });
-      setCurrentPassword("");
-      setNewPassword("");
-    } catch {
-      setStatus({ type: "error", message: "Current password is incorrect." });
-    }
-    setIsSubmitting(false);
-  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -100,45 +62,15 @@ export default function SettingsPage({ onLogout }) {
           {student?.name} · {student?.email}
         </p>
 
-        <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
-          <input
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            placeholder="Current password"
-            required
-            className={inputClass}
-          />
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="New password"
-            required
-            className={inputClass}
-          />
-          {status && (
-            <p
-              className={`text-xs font-semibold ${
-                status.type === "success" ? "text-green-500" : "text-red-400"
-              }`}
-            >
-              {status.message}
-            </p>
-          )}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="h-11 w-full rounded-lg bg-[var(--gold)] text-sm font-bold uppercase tracking-[2px] text-[#2b0a0c] transition-all hover:brightness-110 disabled:opacity-50"
-          >
-            {isSubmitting ? "Updating..." : "Update Password"}
-          </button>
-        </form>
+        <p className="mb-4 text-xs leading-relaxed text-[var(--text-muted)]">
+          Forgot your password? Log out and use "Forgot Password" on the login page to ask your
+          admin for a new temporary password.
+        </p>
 
         <button
           type="button"
           onClick={onLogout}
-          className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-[var(--surface-border)] text-sm font-bold uppercase tracking-[2px] text-[var(--text-primary)] transition-all hover:bg-[var(--surface-strong)]"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-[var(--surface-border)] text-sm font-bold uppercase tracking-[2px] text-[var(--text-primary)] transition-all hover:bg-[var(--surface-strong)]"
         >
           <FiLogOut size={16} /> Log Out
         </button>

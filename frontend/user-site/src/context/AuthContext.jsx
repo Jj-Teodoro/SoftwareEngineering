@@ -1,26 +1,39 @@
 import { createContext, useContext } from "react";
-import {
-  signInWithEmailAndPassword,
-  signOut as firebaseSignOut,
-  sendPasswordResetEmail,
-} from "firebase/auth";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { signInWithEmailAndPassword, signOut as firebaseSignOut } from "firebase/auth";
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import { auth, db } from "@oasis/shared/firebaseClient.js";
 
 const AuthContext = createContext(null);
 
-// Student accounts are created by an admin (with a temporary password), so
-// there is no self sign-up here.
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Student accounts are created by an admin with a temporary password, so there
+// is no self sign-up. A forgotten password is handled by asking the admin for a
+// new temporary one (requestTempPassword); there is no email reset.
 export function AuthProvider({ children }) {
   const login = async (email, password) => {
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail || !password) {
+    const typed = email.trim().toLowerCase();
+    if (!typed || !password) {
       return { ok: false, message: "Email and password are required." };
+    }
+
+    // After an admin re-issues a login, the student still types their normal
+    // email; a small public lookup points it at their current login.
+    let authEmail = typed;
+    try {
+      const alias = await getDoc(doc(db, "loginAliases", await sha256Hex(typed)));
+      if (alias.exists()) authEmail = alias.data().authEmail;
+    } catch {
+      // no alias; use the email as typed
     }
 
     let cred;
     try {
-      cred = await signInWithEmailAndPassword(auth, trimmedEmail, password);
+      cred = await signInWithEmailAndPassword(auth, authEmail, password);
     } catch {
       return { ok: false, message: "Invalid email or password." };
     }
@@ -29,7 +42,7 @@ export function AuthProvider({ children }) {
     const snap = await getDocs(q);
     if (snap.empty) {
       await firebaseSignOut(auth);
-      return { ok: false, message: "No student profile is linked to this account." };
+      return { ok: false, message: "Invalid email or password." };
     }
     const studentDoc = snap.docs[0];
     return { ok: true, student: { studentId: studentDoc.id, ...studentDoc.data() } };
@@ -37,17 +50,20 @@ export function AuthProvider({ children }) {
 
   const signOut = () => firebaseSignOut(auth);
 
-  const forgotPassword = async (email) => {
+  // Flags the student for the admin, who then gives them a new temporary password.
+  const requestTempPassword = async (studentId) => {
+    const id = studentId.trim();
+    if (!id) return { ok: false, message: "Enter your Student ID." };
     try {
-      await sendPasswordResetEmail(auth, email.trim().toLowerCase());
+      await setDoc(doc(db, "passwordRequests", id), { requestedAt: serverTimestamp() });
       return { ok: true };
     } catch {
-      return { ok: false, message: "Could not send reset email. Check the address and try again." };
+      return { ok: false, message: "Could not send your request. Please try again." };
     }
   };
 
   return (
-    <AuthContext.Provider value={{ login, signOut, forgotPassword }}>
+    <AuthContext.Provider value={{ login, signOut, requestTempPassword }}>
       {children}
     </AuthContext.Provider>
   );

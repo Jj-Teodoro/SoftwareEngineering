@@ -202,7 +202,7 @@ function FormRow({ label, children }) {
 }
 
 function StudentAccountTab({ student }) {
-  const { provisionAccount, regenerateTempPassword } = useStudents();
+  const { provisionAccount, issueTempPassword, dismissRequest, resetRequests } = useStudents();
   const { getActivity, now } = usePresence();
   const activity = getActivity(student.studentId);
   const [busy, setBusy] = useState(false);
@@ -239,7 +239,7 @@ function StudentAccountTab({ student }) {
     );
     if (!confirmed) return;
     setRegenerating(true);
-    setResult(await regenerateTempPassword(student.studentId));
+    setResult(await issueTempPassword(student.studentId));
     setRegenerating(false);
   };
 
@@ -253,7 +253,18 @@ function StudentAccountTab({ student }) {
     }
   };
 
+  const handleIssue = async () => {
+    const confirmed = window.confirm(
+      "Issue a new temporary password? The student's current password will stop working and they will have to choose a new one."
+    );
+    if (!confirmed) return;
+    setRegenerating(true);
+    setResult(await issueTempPassword(student.studentId));
+    setRegenerating(false);
+  };
+
   const hasAccount = Boolean(student.authUid);
+  const requested = Boolean(resetRequests[student.studentId]);
 
   return (
     <div className="space-y-4 rounded-2xl border border-white/10 bg-black/20 px-5 py-5">
@@ -282,6 +293,29 @@ function StudentAccountTab({ student }) {
           )}
         </div>
       </div>
+
+      {requested && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#f2b400]/60 bg-[#f2b400]/10 px-4 py-3">
+          <p className="flex-1 text-sm font-semibold text-[#f2b400]">
+            This student requested a new temporary password.
+          </p>
+          <button
+            type="button"
+            onClick={handleIssue}
+            disabled={regenerating}
+            className="rounded-full bg-[#f2b400] px-4 py-1.5 text-[11px] font-bold uppercase tracking-[1px] text-black hover:brightness-110 disabled:opacity-50"
+          >
+            {regenerating ? "Issuing..." : "Issue password"}
+          </button>
+          <button
+            type="button"
+            onClick={() => dismissRequest(student.studentId)}
+            className="rounded-full border border-white/30 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[1px] text-white hover:bg-white/10"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {pending && (
         <div className="space-y-2 rounded-xl border border-[#f2b400]/60 bg-[#f2b400]/10 px-4 py-3">
@@ -319,7 +353,7 @@ function StudentAccountTab({ student }) {
             <p className="text-xs text-white/70">
               {stored === undefined
                 ? "Loading..."
-                : "The temporary password isn't available (this account was created before passwords were kept). The student can use Forgot password to set one."}
+                : "The temporary password isn't available. Use the button below to issue a new one."}
             </p>
           )}
         </div>
@@ -338,13 +372,23 @@ function StudentAccountTab({ student }) {
           {busy ? "Creating..." : "Create account"}
         </button>
       ) : (
-        <p className="text-xs leading-relaxed text-white/60">
-          {student.mustChangePassword
-            ? "The student will be asked to choose their own password the first time they log in. If they lose it, generate a new one. Once they set their own, the temporary password disappears from here."
-            : "The student chose their own password."}{" "}
-          Admins can never view or change a student's password; if they forget it, they use
-          "Forgot password" on the User site to get a reset email.
-        </p>
+        <div className="space-y-3">
+          <p className="text-xs leading-relaxed text-white/60">
+            {student.mustChangePassword
+              ? "The student will be asked to choose their own password the first time they log in. If they lose the temporary one, generate a new one. Once they set their own, it disappears from here."
+              : "The student chose their own password; admins can't see it. If they forget it, they request a temporary password from the login page and you issue one here."}
+          </p>
+          {!student.mustChangePassword && (
+            <button
+              type="button"
+              onClick={handleIssue}
+              disabled={regenerating}
+              className="flex items-center gap-1 rounded-full border border-white/30 px-4 py-2 text-[11px] font-bold uppercase tracking-[1px] text-white hover:bg-white/10 disabled:opacity-50"
+            >
+              <FiRefreshCw size={12} /> {regenerating ? "Issuing..." : "Issue new temporary password"}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

@@ -15,7 +15,7 @@ const inputClass =
 export default function AuthPage({ onAuthSuccess }) {
   const [mode, setMode] = useState("login");
   const [resetSent, setResetSent] = useState(false);
-  const { login, forgotPassword } = useAuth();
+  const { login, requestTempPassword } = useAuth();
   const {
     register,
     handleSubmit,
@@ -23,7 +23,7 @@ export default function AuthPage({ onAuthSuccess }) {
     setError,
     formState: { errors, isSubmitting },
   } = useForm({
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: "", password: "", studentId: "" },
   });
 
   const switchMode = (next) => {
@@ -44,7 +44,7 @@ export default function AuthPage({ onAuthSuccess }) {
     }
 
     if (mode === "forgot") {
-      const result = await forgotPassword(data.email);
+      const result = await requestTempPassword(data.studentId);
       if (!result.ok) {
         setError("root", { type: "manual", message: result.message });
         return;
@@ -83,15 +83,15 @@ export default function AuthPage({ onAuthSuccess }) {
               />
               <p className="text-xs font-bold uppercase tracking-[3px] text-[var(--text-muted)]">
                 {mode === "login" && "Student Login"}
-                {mode === "forgot" && "Reset Password"}
+                {mode === "forgot" && "Forgot Password"}
               </p>
             </div>
 
             {mode === "forgot" && resetSent ? (
               <div className="text-center">
-                <p className="text-sm text-[var(--text-primary)]">
-                  If that email is registered, a password reset link is on its way. Check your
-                  inbox.
+                <p className="text-sm leading-relaxed text-[var(--text-primary)]">
+                  Your request was sent. Your admin will give you a new temporary password.
+                  Log in with your usual email and that password, then choose a new one.
                 </p>
                 <button
                   type="button"
@@ -103,6 +103,33 @@ export default function AuthPage({ onAuthSuccess }) {
               </div>
             ) : (
               <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+                {mode === "forgot" ? (
+                  <div>
+                    <p className="mb-3 text-xs leading-relaxed text-[var(--text-muted)]">
+                      Enter your Student ID to ask your admin for a new temporary password.
+                    </p>
+                    <div
+                      className={`${inputWrapClass} ${
+                        errors.studentId ? "border-red-400" : "border-[var(--surface-border)]"
+                      }`}
+                    >
+                      <label htmlFor="studentId" className={labelClass}>
+                        Student ID
+                      </label>
+                      <input
+                        id="studentId"
+                        type="text"
+                        {...register("studentId", { required: "Student ID is required" })}
+                        className={inputClass}
+                      />
+                    </div>
+                    {errors.studentId && (
+                      <p className="mt-1 pl-2 text-xs font-semibold text-red-400">
+                        {errors.studentId.message}
+                      </p>
+                    )}
+                  </div>
+                ) : (
                 <div>
                   <div
                     className={`${inputWrapClass} ${
@@ -125,6 +152,7 @@ export default function AuthPage({ onAuthSuccess }) {
                     </p>
                   )}
                 </div>
+                )}
 
                 {mode !== "forgot" && (
                   <div>
@@ -170,7 +198,7 @@ export default function AuthPage({ onAuthSuccess }) {
                       ? "PLEASE WAIT..."
                       : mode === "login"
                       ? "LOG IN"
-                      : "SEND RESET LINK"}
+                      : "REQUEST PASSWORD"}
                   </button>
                 </div>
               </form>
