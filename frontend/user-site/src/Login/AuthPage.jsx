@@ -1,16 +1,33 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import PageBackground from "../components/PageBackground";
+import CyberFrame from "../components/CyberFrame";
 import aces_logo from "../assets/aceslogo.png";
 import oasis_logo from "../assets/oasislogo.gif";
 import { useAuth } from "../context/AuthContext";
 
-const inputWrapClass =
-  "relative h-[74px] rounded-xl border bg-[var(--surface-2)] backdrop-blur-sm transition-colors";
 const labelClass =
-  "absolute left-4 top-3 text-[13px] font-bold uppercase tracking-[2px] text-[var(--text-primary)]";
+  "absolute left-4 top-2.5 font-mono text-[11px] font-bold uppercase tracking-[3px] text-[var(--gold)]";
 const inputClass =
-  "h-full w-full bg-transparent px-4 pb-2 pt-7 text-base text-[var(--text-primary)] placeholder-[var(--text-faint)] outline-none";
+  "h-[68px] w-full bg-transparent px-4 pb-2 pt-7 font-mono text-base tracking-wide text-[var(--text-primary)] placeholder-[var(--text-faint)] outline-none";
+
+function Field({ id, label, error, type = "text", register, rules }) {
+  return (
+    <div>
+      <div className={`cp-field ${error ? "cp-error" : ""}`}>
+        <label htmlFor={id} className={labelClass}>
+          &gt; {label}
+        </label>
+        <input id={id} type={type} {...register(id, rules)} className={inputClass} />
+      </div>
+      {error && (
+        <p className="mt-1.5 pl-1 font-mono text-xs font-bold uppercase tracking-[1px] text-[var(--neon-pink)]">
+          ! {error.message}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function AuthPage({ onAuthSuccess }) {
   const [mode, setMode] = useState("login");
@@ -56,32 +73,45 @@ export default function AuthPage({ onAuthSuccess }) {
   return (
     <PageBackground>
       <div className="flex min-h-screen items-center justify-center px-6 py-10 lg:px-24">
-        <div className="flex w-full max-w-7xl flex-col items-center justify-center gap-12 lg:flex-row lg:gap-44">
+        <div className="flex w-full max-w-7xl flex-col items-center justify-center gap-12 lg:flex-row lg:gap-32">
           <div className="flex w-full max-w-[420px] flex-col items-center text-center">
             <img
               src={aces_logo}
               alt="ACES Logo"
-              className="mb-6 h-auto w-90 max-w-full object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]"
+              className="mb-6 h-auto w-90 max-w-full object-contain drop-shadow-[0_0_22px_rgba(242,180,0,0.35)]"
             />
-            <h2 className="text-base font-bold tracking-[3px] text-[var(--text-primary)]">
+            <p className="mb-3 font-mono text-[10px] uppercase tracking-[4px] text-[var(--neon-cyan)]">
+              // access terminal
+            </p>
+            <h2 className="cp-glitch font-display text-sm tracking-[3px] text-[var(--text-primary)]">
               DR. YANGA'S COLLEGES, INC.
             </h2>
-            <p className="mt-2 text-sm uppercase tracking-[3px] text-[var(--text-muted)]">
-              COLLEGE OF COMPUTER STUDIES
+            <p className="mt-3 font-mono text-xs uppercase tracking-[3px] text-[var(--text-muted)]">
+              College of Computer Studies
             </p>
-            <p className="mt-1 text-sm uppercase tracking-[3px] text-[var(--text-muted)]">
-              ASSOCIATION OF COMPUTER ENTHUSIAST STUDENTS
+            <p className="mt-1 font-mono text-xs uppercase tracking-[3px] text-[var(--text-muted)]">
+              Association of Computer Enthusiast Students
             </p>
+            <div className="mt-6 flex w-full items-center gap-2" aria-hidden="true">
+              <span className="h-[2px] w-12 bg-[var(--gold)] shadow-[0_0_8px_var(--glow)]" />
+              <span className="h-px flex-1 bg-[var(--surface-border)]" />
+              <span className="h-1.5 w-1.5 rotate-45 bg-[var(--neon-pink)] shadow-[0_0_8px_var(--neon-pink)]" />
+            </div>
           </div>
 
-          <div className="w-full max-w-[720px] rounded-[30px] border border-[var(--surface-border)] bg-[var(--surface)] px-8 py-10 shadow-[0_20px_50px_rgba(0,0,0,0.4)] backdrop-blur-md sm:px-10">
+          <CyberFrame
+            className="w-full max-w-[640px]"
+            innerClassName="px-8 pb-10 pt-8 sm:px-12"
+            cut={30}
+            tag={mode === "login" ? "sys://login" : "sys://recover"}
+          >
             <div className="mb-8 flex flex-col items-center text-center">
               <img
                 src={oasis_logo}
                 alt="OASIS Logo"
-                className="mb-[-40px] h-auto max-w-[280px] object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.4)] lg:max-w-[470px]"
+                className="mb-[-36px] h-auto max-w-[260px] object-contain drop-shadow-[0_8px_18px_rgba(0,0,0,0.5)] lg:max-w-[400px]"
               />
-              <p className="text-xs font-bold uppercase tracking-[3px] text-[var(--text-muted)]">
+              <p className="cp-glitch mt-1 font-display text-xs uppercase tracking-[4px] text-[var(--text-primary)]">
                 {mode === "login" && "Student Login"}
                 {mode === "forgot" && "Forgot Password"}
               </p>
@@ -89,14 +119,17 @@ export default function AuthPage({ onAuthSuccess }) {
 
             {mode === "forgot" && resetSent ? (
               <div className="text-center">
-                <p className="text-sm leading-relaxed text-[var(--text-primary)]">
-                  Your request was sent. Your admin will give you a new temporary password.
-                  Log in with your usual email and that password, then choose a new one.
+                <p className="font-mono text-sm leading-relaxed text-[var(--neon-cyan)]">
+                  &gt; REQUEST SENT<span className="cursor-blink">_</span>
+                </p>
+                <p className="mt-3 text-sm leading-relaxed text-[var(--text-primary)]">
+                  Your admin will give you a new temporary password. Log in with your usual email
+                  and that password, then choose a new one.
                 </p>
                 <button
                   type="button"
                   onClick={() => switchMode("login")}
-                  className="mt-6 text-sm font-bold uppercase tracking-[2px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  className="cp-btn-ghost mt-6 px-8 py-2.5 text-xs"
                 >
                   Back to Log In
                 </button>
@@ -104,95 +137,53 @@ export default function AuthPage({ onAuthSuccess }) {
             ) : (
               <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
                 {mode === "forgot" ? (
-                  <div>
-                    <p className="mb-3 text-xs leading-relaxed text-[var(--text-muted)]">
+                  <>
+                    <p className="font-mono text-xs leading-relaxed text-[var(--text-muted)]">
                       Enter your Student ID to ask your admin for a new temporary password.
                     </p>
-                    <div
-                      className={`${inputWrapClass} ${
-                        errors.studentId ? "border-red-400" : "border-[var(--surface-border)]"
-                      }`}
-                    >
-                      <label htmlFor="studentId" className={labelClass}>
-                        Student ID
-                      </label>
-                      <input
-                        id="studentId"
-                        type="text"
-                        {...register("studentId", { required: "Student ID is required" })}
-                        className={inputClass}
-                      />
-                    </div>
-                    {errors.studentId && (
-                      <p className="mt-1 pl-2 text-xs font-semibold text-red-400">
-                        {errors.studentId.message}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                <div>
-                  <div
-                    className={`${inputWrapClass} ${
-                      errors.email ? "border-red-400" : "border-[var(--surface-border)]"
-                    }`}
-                  >
-                    <label htmlFor="email" className={labelClass}>
-                      Email
-                    </label>
-                    <input
-                      id="email"
-                      type="email"
-                      {...register("email", { required: "Email is required" })}
-                      className={inputClass}
+                    <Field
+                      id="studentId"
+                      label="Student ID"
+                      error={errors.studentId}
+                      register={register}
+                      rules={{ required: "Student ID is required" }}
                     />
-                  </div>
-                  {errors.email && (
-                    <p className="mt-1 pl-2 text-xs font-semibold text-red-400">
-                      {errors.email.message}
-                    </p>
-                  )}
-                </div>
-                )}
-
-                {mode !== "forgot" && (
-                  <div>
-                    <div
-                      className={`${inputWrapClass} ${
-                        errors.password ? "border-red-400" : "border-[var(--surface-border)]"
-                      }`}
-                    >
-                      <label htmlFor="password" className={labelClass}>
-                        Password
-                      </label>
-                      <input
-                        id="password"
-                        type="password"
-                        {...register("password", {
-                          required: "Password is required",
-                          minLength: { value: 6, message: "At least 6 characters" },
-                        })}
-                        className={inputClass}
-                      />
-                    </div>
-                    {errors.password && (
-                      <p className="mt-1 pl-2 text-xs font-semibold text-red-400">
-                        {errors.password.message}
-                      </p>
-                    )}
-                  </div>
+                  </>
+                ) : (
+                  <>
+                    <Field
+                      id="email"
+                      label="Email"
+                      type="email"
+                      error={errors.email}
+                      register={register}
+                      rules={{ required: "Email is required" }}
+                    />
+                    <Field
+                      id="password"
+                      label="Password"
+                      type="password"
+                      error={errors.password}
+                      register={register}
+                      rules={{
+                        required: "Password is required",
+                        minLength: { value: 6, message: "At least 6 characters" },
+                      }}
+                    />
+                  </>
                 )}
 
                 {errors.root && (
-                  <p className="text-center text-xs font-semibold text-red-400">
-                    {errors.root.message}
+                  <p className="text-center font-mono text-xs font-bold uppercase tracking-[1px] text-[var(--neon-pink)]">
+                    ! {errors.root.message}
                   </p>
                 )}
 
-                <div className="flex justify-center pt-2">
+                <div className="flex justify-center pt-3">
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="cursor-pointer rounded-full bg-[#97191d] px-16 py-3 text-sm font-bold tracking-[3px] text-white transition-all duration-300 hover:bg-[#b81f25] hover:shadow-[0_0_20px_rgba(184,31,37,0.6)] disabled:opacity-50"
+                    className="cp-btn px-14 py-3.5 text-sm"
                   >
                     {isSubmitting
                       ? "PLEASE WAIT..."
@@ -205,7 +196,7 @@ export default function AuthPage({ onAuthSuccess }) {
             )}
 
             {mode === "login" && (
-              <p className="mt-6 text-center text-xs leading-relaxed text-[var(--text-muted)]">
+              <p className="mt-6 text-center font-mono text-[11px] leading-relaxed text-[var(--text-muted)]">
                 First time here? Log in with the email and temporary password your admin gave
                 you. You'll be asked to set your own password.
               </p>
@@ -213,32 +204,29 @@ export default function AuthPage({ onAuthSuccess }) {
 
             {!(mode === "forgot" && resetSent) && (
               <>
-                <div className="mx-auto mt-10 w-[90%] border-t border-[var(--surface-border)]" />
-                <div className="mt-4 flex flex-col items-center gap-2 text-center text-sm text-[var(--text-muted)]">
-                  {mode === "login" && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => switchMode("forgot")}
-                        className="hover:text-[var(--text-primary)]"
-                      >
-                        Forgot Password
-                      </button>
-                    </>
-                  )}
-                  {mode === "forgot" && (
+                <div className="mx-auto mt-8 h-px w-[90%] bg-[var(--surface-border)]" />
+                <div className="mt-4 flex flex-col items-center gap-2 text-center font-mono text-xs uppercase tracking-[2px]">
+                  {mode === "login" ? (
+                    <button
+                      type="button"
+                      onClick={() => switchMode("forgot")}
+                      className="text-[var(--text-muted)] transition-colors hover:text-[var(--neon-cyan)]"
+                    >
+                      [ Forgot Password ]
+                    </button>
+                  ) : (
                     <button
                       type="button"
                       onClick={() => switchMode("login")}
-                      className="hover:text-[var(--text-primary)]"
+                      className="text-[var(--text-muted)] transition-colors hover:text-[var(--neon-cyan)]"
                     >
-                      Back to Log In
+                      [ Back to Log In ]
                     </button>
                   )}
                 </div>
               </>
             )}
-          </div>
+          </CyberFrame>
         </div>
       </div>
     </PageBackground>

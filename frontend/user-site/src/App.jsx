@@ -19,8 +19,8 @@ function AppContent() {
   if (loading) {
     return (
       <PageBackground>
-        <div className="flex min-h-screen items-center justify-center text-sm text-[var(--text-muted)]">
-          Loading...
+        <div className="flex min-h-screen items-center justify-center font-mono text-sm uppercase tracking-[4px] text-[var(--gold)]">
+          &gt; Loading<span className="cursor-blink">_</span>
         </div>
       </PageBackground>
     );
