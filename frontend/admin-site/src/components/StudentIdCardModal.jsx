@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
+import { getEventPhase, formatEventDate } from "@oasis/shared/utils/events.js";
 import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiRefreshCw, FiTrash2, FiXCircle } from "react-icons/fi";
 import { db } from "@oasis/shared/firebaseClient.js";
 import StudentIdCard from "@oasis/shared/components/StudentIdCard.jsx";
@@ -53,7 +54,7 @@ export default function StudentIdCardModal({ studentId, onClose }) {
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
-            className={`flex-1 rounded-md py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${
+            className={`flex-1 rounded-md py-2 text-xs font-semibold uppercase tracking-wider outline-none transition-colors focus-visible:ring-1 focus-visible:ring-gold ${
               tab === t.id ? "bg-gold/15 text-gold" : "text-white/60 hover:text-white"
             }`}
           >
@@ -72,9 +73,7 @@ export default function StudentIdCardModal({ studentId, onClose }) {
       )}
       {tab === "info" && <StudentInfoTab student={student} />}
       {tab === "status" && (
-        <div className="-mx-5 sm:-mx-7">
-          <StudentStatusTab student={student} />
-        </div>
+        <StudentStatusTab student={student} />
       )}
       {tab === "account" && <StudentAccountTab student={student} />}
 
@@ -426,99 +425,98 @@ function StudentAccountTab({ student }) {
   );
 }
 
+function StatusRow({ done, title, detail, points }) {
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
+        done ? "border-green-400/30 bg-green-500/[0.07]" : "border-white/10 bg-black/20"
+      }`}
+    >
+      <span
+        className={`h-2 w-2 shrink-0 rotate-45 border ${done ? "border-green-300 bg-green-300" : "border-white/40"}`}
+        aria-hidden="true"
+      />
+      <div className="min-w-0 flex-1">
+        <p className={`truncate text-sm font-semibold ${done ? "text-white" : "text-white/75"}`}>{title}</p>
+        {detail && <p className="font-mono text-[11px] text-white/45">{detail}</p>}
+      </div>
+      <span className={`shrink-0 font-mono text-xs font-bold ${done ? "text-green-300" : "text-white/45"}`}>
+        {done ? "+" : ""}{points} pts
+      </span>
+    </div>
+  );
+}
+
 function StudentStatusTab({ student }) {
   const { items, appliesTo, isCompleted } = useRequirements();
   const { events } = useEvents();
   const { getClearance, getAttendanceRecords } = usePoints();
 
   const { totalPoints, targetPoints, cleared } = getClearance(student.studentId);
-  const attendanceRecords = getAttendanceRecords(student.studentId);
-  const applicable = items.filter((item) => appliesTo(item, student.course));
+  const attendance = getAttendanceRecords(student.studentId);
+  const requirements = items.filter((item) => appliesTo(item, student.course));
+  const studentEvents = events
+    .filter((e) => !e.programFilter || e.programFilter === "ALL" || e.programFilter === student.course)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const pct = targetPoints > 0 ? Math.min(100, Math.round((totalPoints / targetPoints) * 100)) : 0;
 
   return (
-    <div className="mb-2 space-y-5">
-      {/* Clearance summary */}
-      <div
-        className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${
-          cleared
-            ? "border-green-400/30 bg-green-500/10 text-green-200"
-            : "border-yellow-400/30 bg-yellow-500/10 text-yellow-200"
-        }`}
-      >
-        {cleared ? <FiCheckCircle size={20} /> : <FiXCircle size={20} />}
+    <div className="space-y-5">
+      <div className="surface-inset flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[1px]">
-            {cleared ? "Cleared" : "Pending Clearance"}
+          <span className={cleared ? "chip-green" : "chip-amber"}>{cleared ? "Cleared" : "Pending clearance"}</span>
+          <p className="mt-2 font-mono text-2xl font-bold leading-none">
+            {totalPoints}
+            <span className="text-base text-white/45"> / {targetPoints} pts</span>
           </p>
-          <p className="text-xs opacity-80">
-            {totalPoints} of {targetPoints} points earned
-          </p>
+        </div>
+        <div className="min-w-[160px] flex-1">
+          <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
+            <div className={`h-full rounded-full ${cleared ? "bg-green-400" : "bg-gold"}`} style={{ width: `${pct}%` }} />
+          </div>
+          <p className="mt-1.5 font-mono text-[11px] text-white/50">{pct}% complete</p>
         </div>
       </div>
 
-      {/* Requirements (read-only; managed in the Requirements tab) */}
       <div>
-        <p className="mb-2 text-xs font-bold uppercase tracking-[1px] text-white/70">
-          Requirements
-        </p>
-        {applicable.length === 0 ? (
+        <p className="label mb-2">Requirements</p>
+        {requirements.length === 0 ? (
           <p className="text-sm text-white/50">No requirements apply to this student.</p>
         ) : (
           <div className="space-y-2">
-            {applicable.map((item) => {
-              const completed = isCompleted(student.studentId, item.id);
-              return (
-                <div
-                  key={item.id}
-                  className={`flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5 text-sm font-semibold ${
-                    completed
-                      ? "border-green-400/40 bg-green-500/10 text-green-200"
-                      : "border-white/15 bg-black/20 text-white/70"
-                  }`}
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    {completed ? <FiCheckCircle size={15} /> : <FiXCircle size={15} className="opacity-50" />}
-                    <span className="truncate">{item.title}</span>
-                  </span>
-                  <span className="shrink-0 text-xs font-bold uppercase tracking-[1px]">
-                    {completed ? `+${item.pointValue}` : item.pointValue} pts
-                  </span>
-                </div>
-              );
-            })}
+            {requirements.map((item) => (
+              <StatusRow
+                key={item.id}
+                done={isCompleted(student.studentId, item.id)}
+                title={item.title}
+                points={item.pointValue}
+              />
+            ))}
           </div>
         )}
-        <p className="mt-2 text-[11px] text-white/45">
-          Add, edit or remove requirements, and mark who completed them, in the Requirements tab.
+        <p className="mt-2 text-[11px] text-white/40">
+          Mark who completed a requirement in the Requirements tab.
         </p>
       </div>
 
-      {/* Attendance history */}
       <div>
-        <p className="mb-2 text-xs font-bold uppercase tracking-[1px] text-white/70">
-          Attendance History
-        </p>
-        {attendanceRecords.length === 0 ? (
-          <p className="text-sm text-white/50">No attendance records yet.</p>
+        <p className="label mb-2">Events</p>
+        {studentEvents.length === 0 ? (
+          <p className="text-sm text-white/50">No events apply to this student.</p>
         ) : (
           <div className="space-y-2">
-            {attendanceRecords.map((record) => {
-              const event = events.find((e) => e.id === record.eventId);
+            {studentEvents.map((event) => {
+              const record = attendance.find((r) => r.eventId === event.id);
+              const phase = getEventPhase(event);
+              const state = record ? "Attended" : phase === "upcoming" ? "Upcoming" : phase === "today" ? "Happening today" : "Missed";
               return (
-                <div
-                  key={record.eventId}
-                  className="surface-inset p-4 flex items-center justify-between"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      {event?.title || "Unknown Event"}
-                    </p>
-                    <p className="text-xs text-white/50">{event?.date}</p>
-                  </div>
-                  <span className="text-xs font-bold uppercase tracking-[1px] text-green-300">
-                    +{record.pointValue || 0} pts
-                  </span>
-                </div>
+                <StatusRow
+                  key={event.id}
+                  done={Boolean(record)}
+                  title={event.title}
+                  detail={`${formatEventDate(event.date)} · ${state}`}
+                  points={record ? record.pointValue || 0 : event.pointValue}
+                />
               );
             })}
           </div>
