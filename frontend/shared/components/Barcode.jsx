@@ -17,7 +17,7 @@ const CODE39 = {
 const NARROW = 1.4;
 const WIDE = 3.2;
 
-export default function Barcode({ value, className = "" }) {
+export default function Barcode({ value, className = "", color = "#1a1a1a" }) {
   const chars = ["*", ...String(value).split("").filter((c) => CODE39[c]), "*"];
   if (chars.length <= 2) return null;
 
@@ -39,7 +39,7 @@ export default function Barcode({ value, className = "" }) {
       viewBox={`0 0 ${x - NARROW} 40`}
       preserveAspectRatio="none"
       className={className}
-      fill="#1a1a1a"
+      fill={color}
       role="img"
       aria-label={`Barcode for student ID ${value}`}
     >

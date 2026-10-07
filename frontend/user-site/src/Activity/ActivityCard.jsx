@@ -7,9 +7,10 @@ import { usePoints } from "../context/PointsContext";
 import { useStudent } from "../context/StudentContext";
 import { fileToPhoto } from "../utils/image";
 
+// The ID card is always dark, so these use fixed colours rather than the theme.
 const fieldClass =
-  "w-full rounded-md border border-[#cfcfcf] bg-white px-3 py-2 text-[12px] text-[#2b2b2b] placeholder-[#9a9a9a] outline-none focus:border-[#7a1317]";
-const labelClass = "mb-1 block font-display text-[9px] uppercase tracking-[2px] text-[#7a1317]";
+  "w-full border border-[#f2b400]/40 bg-black/50 px-3 py-2 text-[12px] text-white placeholder-white/35 outline-none focus:border-[#f2b400]";
+const labelClass = "mb-1 block font-mono text-[10px] uppercase tracking-[2px] text-[#e8b43a]";
 
 export default function ActivityCard({ student, onShowBreakdown }) {
   const { totalPoints, targetPoints, cleared } = usePoints();
@@ -73,14 +74,14 @@ export default function ActivityCard({ student, onShowBreakdown }) {
   };
 
   const smallButton =
-    "flex h-8 items-center gap-1.5 rounded-md border px-3 text-[10px] font-bold uppercase tracking-[1.5px] transition-all disabled:opacity-50";
+    "flex h-8 items-center gap-1.5 border px-3 font-mono text-[10px] font-bold uppercase tracking-[1.5px] transition-all disabled:opacity-50";
 
   const titleAction = editing ? (
     <div className="flex shrink-0 gap-2">
       <button
         type="button"
         onClick={() => setEditing(false)}
-        className={`${smallButton} border-[#cfcfcf] text-[#555] hover:bg-[#f0f0f0]`}
+        className={`${smallButton} border-white/30 text-white/70 hover:bg-white/10`}
       >
         <FiX size={13} /> Cancel
       </button>
@@ -88,7 +89,7 @@ export default function ActivityCard({ student, onShowBreakdown }) {
         type="button"
         onClick={handleSave}
         disabled={saving}
-        className={`${smallButton} border-[#7a1317] bg-[#7a1317] text-white hover:bg-[#5e0f13]`}
+        className={`${smallButton} border-[#f2b400] bg-[#f2b400] text-[#1a0405] hover:bg-[#ffc933]`}
       >
         <FiCheck size={13} /> {saving ? "Saving" : "Save"}
       </button>
@@ -97,7 +98,7 @@ export default function ActivityCard({ student, onShowBreakdown }) {
     <button
       type="button"
       onClick={startEditing}
-      className={`${smallButton} shrink-0 border-[#7a1317] text-[#7a1317] hover:bg-[#7a1317] hover:text-white`}
+      className={`${smallButton} shrink-0 border-[#f2b400] text-[#f2b400] hover:bg-[#f2b400] hover:text-[#1a0405]`}
     >
       <FiEdit2 size={13} /> Edit card
     </button>
@@ -159,10 +160,10 @@ export default function ActivityCard({ student, onShowBreakdown }) {
                 key={h.id}
                 type="button"
                 onClick={() => toggleHobby(h.label)}
-                className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[1px] transition-all ${
+                className={`border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[1px] transition-all ${
                   selected
-                    ? "border-[#7a1317] bg-[#7a1317] text-white"
-                    : "border-[#cfcfcf] bg-white text-[#555] hover:border-[#7a1317]"
+                    ? "border-[#f2b400] bg-[#f2b400] text-[#1a0405]"
+                    : "border-white/25 bg-black/30 text-white/70 hover:border-[#f2b400]"
                 }`}
               >
                 {h.label}
@@ -171,8 +172,8 @@ export default function ActivityCard({ student, onShowBreakdown }) {
           })}
         </div>
       </div>
-      {error && <p className="text-[11px] font-semibold text-red-700">{error}</p>}
-      <p className="text-[10px] italic text-[#888]">
+      {error && <p className="font-mono text-[11px] font-semibold text-[#ff2a6d]">{error}</p>}
+      <p className="font-mono text-[10px] text-white/40">
         Your name, student ID, program and points are managed by your admin.
       </p>
     </div>
