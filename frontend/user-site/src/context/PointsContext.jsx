@@ -5,14 +5,18 @@ import { useEvents } from "./EventsContext";
 const PointsContext = createContext(null);
 
 export function PointsProvider({ children }) {
-  const { completedPoints, targetPoints } = useRequirements();
-  const { myAttendance } = useEvents();
+  const { items, completedPoints } = useRequirements();
+  const { events, myAttendance } = useEvents();
 
   const eventPoints = Object.values(myAttendance).reduce(
     (sum, record) => sum + (record.pointValue || 0),
     0
   );
   const totalPoints = completedPoints + eventPoints;
+
+  // Everything that applies to this student's program (both lists are already filtered).
+  const sum = (list) => list.reduce((total, x) => total + (x.pointValue || 0), 0);
+  const targetPoints = sum(items) + sum(events);
   const cleared = targetPoints > 0 && totalPoints >= targetPoints;
   const pct = targetPoints > 0 ? Math.min(100, Math.round((totalPoints / targetPoints) * 100)) : 0;
 

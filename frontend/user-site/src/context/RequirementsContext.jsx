@@ -10,32 +10,24 @@ export function RequirementsProvider({ children }) {
   const { student } = useStudent();
   const [items, setItems] = useState([]);
   const [completedIds, setCompletedIds] = useState(new Set());
-  const [targetPoints, setTargetPoints] = useState(0);
 
   useEffect(() => {
     let unsubItems = null;
-    let unsubSettings = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (unsubItems) unsubItems();
-      if (unsubSettings) unsubSettings();
       if (!user) {
         setItems([]);
-        setTargetPoints(0);
         return;
       }
       unsubItems = onSnapshot(collection(db, "requirements"), (snapshot) => {
         setItems(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-      });
-      unsubSettings = onSnapshot(doc(db, "settings", "semester"), (snapshot) => {
-        setTargetPoints(snapshot.exists() ? snapshot.data().targetPoints || 0 : 0);
       });
     });
 
     return () => {
       unsubscribeAuth();
       if (unsubItems) unsubItems();
-      if (unsubSettings) unsubSettings();
     };
   }, []);
 
@@ -71,7 +63,7 @@ export function RequirementsProvider({ children }) {
 
   return (
     <RequirementsContext.Provider
-      value={{ items: myItems, isCompleted, completedPoints, targetPoints }}
+      value={{ items: myItems, isCompleted, completedPoints }}
     >
       {children}
     </RequirementsContext.Provider>
