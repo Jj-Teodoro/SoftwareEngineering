@@ -283,20 +283,18 @@ export default function StudentIdCard({
               )}
             </div>
 
-            {/* footer: barcode, QR code, chip */}
-            <div className="flex items-center gap-4 border-t border-dashed border-[#f2b400]/30 bg-black/30 px-5 py-3 sm:px-6">
-              <div className="w-[190px] max-w-[50%] shrink-0 border border-[#f2b400]/70 bg-[#f4ead0] px-2 pb-1 pt-1.5">
-                <Barcode value={student.studentId} className="h-8 w-full" />
-                <p className="mt-0.5 text-center font-mono text-[9px] tracking-[3px] text-[#2b0a0c]">
+            {/* footer: chip on the left, barcode in the middle, QR code on the right */}
+            <div className="flex items-center gap-4 border-t border-dashed border-[#f2b400]/30 bg-black/30 px-5 py-4 sm:gap-6 sm:px-6">
+              <div className="shrink-0">
+                <SmartChip />
+              </div>
+              <div className="min-w-0 flex-1 text-center">
+                <Barcode value={student.studentId} color={GOLD} className="mx-auto h-11 w-full" />
+                <p className="mt-1.5 font-mono text-[10px] tracking-[4px]" style={{ color: LABEL }}>
                   {student.studentId}
                 </p>
               </div>
-              <div className="shrink-0 border border-[#f2b400]/70 bg-[#f4ead0] p-1.5">
-                <QrCode value={student.studentId} className="h-12 w-12" />
-              </div>
-              <div className="ml-auto shrink-0">
-                <SmartChip />
-              </div>
+              <QrCode value={student.studentId} color={GOLD} className="h-14 w-14 shrink-0" />
             </div>
 
             <p className="border-t border-[#f2b400]/40 bg-[#3d0a0d] py-1.5 text-center font-mono text-[9px] uppercase tracking-[2px] text-white/70">
