@@ -1,9 +1,10 @@
 import aces_logo from "../assets/aceslogo.png";
 import Barcode from "./Barcode.jsx";
+import QrCode from "./QrCode.jsx";
 
 const GOLD = "#f2b400";
 const LABEL = "#e8b43a"; // warm gold for small captions
-const GREEN = "#19f5b0";
+const GREEN = "#19f5b0"; // only used for the CLEARED stamp
 const PINK = "#ff2a6d";
 
 // Cut-corner outline (top-left and bottom-right are the big cuts).
@@ -119,8 +120,6 @@ export default function StudentIdCard({
   const program = (student.course || "").replace(/^BS\s+/i, "Bachelor of Science in ");
   const initials = `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
   const hobbies = student.hobbies || [];
-  const remaining = Math.max(0, targetPoints - totalPoints);
-  const percent = targetPoints > 0 ? Math.min(100, Math.round((totalPoints / targetPoints) * 100)) : 0;
 
   return (
     <div style={{ filter: "drop-shadow(0 0 12px rgba(242,180,0,0.3))" }}>
@@ -284,34 +283,18 @@ export default function StudentIdCard({
               )}
             </div>
 
-            {/* footer: barcode, live clearance status, chip */}
-            <div className="flex items-stretch gap-3 border-t border-dashed border-[#f2b400]/30 bg-black/30 px-5 py-3 sm:px-6">
-              <div className="w-[190px] max-w-[55%] shrink-0 border border-[#f2b400]/70 bg-[#f4ead0] px-2 pb-1 pt-1.5">
+            {/* footer: barcode, QR code, chip */}
+            <div className="flex items-center gap-4 border-t border-dashed border-[#f2b400]/30 bg-black/30 px-5 py-3 sm:px-6">
+              <div className="w-[190px] max-w-[50%] shrink-0 border border-[#f2b400]/70 bg-[#f4ead0] px-2 pb-1 pt-1.5">
                 <Barcode value={student.studentId} className="h-8 w-full" />
                 <p className="mt-0.5 text-center font-mono text-[9px] tracking-[3px] text-[#2b0a0c]">
                   {student.studentId}
                 </p>
               </div>
-
-              <div
-                className="hidden flex-1 flex-col justify-center border border-[#f2b400]/40 bg-gradient-to-r from-[#7a1317]/60 to-transparent px-4 sm:flex"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%)" }}
-              >
-                <p className="font-mono text-[9px] uppercase tracking-[3px]" style={{ color: LABEL }}>
-                  Clearance status
-                </p>
-                <p
-                  className="font-display text-sm uppercase tracking-[2px]"
-                  style={{ color: cleared ? GREEN : "#fff" }}
-                >
-                  {cleared ? "Cleared" : targetPoints > 0 ? `${remaining} pts to clear` : "No target yet"}
-                </p>
-                <p className="font-mono text-[10px] uppercase tracking-[2px] text-white/55">
-                  {percent}% complete · {totalPoints}/{targetPoints} pts
-                </p>
+              <div className="shrink-0 border border-[#f2b400]/70 bg-[#f4ead0] p-1.5">
+                <QrCode value={student.studentId} className="h-12 w-12" />
               </div>
-
-              <div className="hidden shrink-0 items-center sm:flex">
+              <div className="ml-auto shrink-0">
                 <SmartChip />
               </div>
             </div>
