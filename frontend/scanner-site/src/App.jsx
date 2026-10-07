@@ -1,9 +1,11 @@
-import { useState } from "react";
 import LoginPage from "./Login/Login";
 import Shell from "./Shell";
 import ForcePasswordChange from "./Login/ForcePasswordChange";
 import StudentKioskView from "./Kiosk/StudentKioskView";
 import { ConfirmProvider } from "@oasis/shared/components/ConfirmDialog.jsx";
+import LoadingScreen from "@oasis/shared/components/LoadingScreen.jsx";
+import usePersistedState from "@oasis/shared/hooks/usePersistedState.js";
+import useStaffSession from "@oasis/shared/hooks/useStaffSession.js";
 import StaffPresenceTracker from "@oasis/shared/components/StaffPresenceTracker.jsx";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { StudentsProvider } from "./context/StudentsContext";
@@ -11,13 +13,17 @@ import { EventsProvider } from "./context/EventsContext";
 
 function AppContent() {
   const { signOut } = useAuth();
-  const [currentUser, setCurrentUser] = useState(null);
-  const [kioskEventId, setKioskEventId] = useState(null);
+  // The sign-in and the open page/kiosk survive a reload.
+  const { user: currentUser, setUser: setCurrentUser, loading } = useStaffSession();
+  const [kioskEventId, setKioskEventId] = usePersistedState("oasis-scanner-kiosk", null);
 
   const handleLogout = async () => {
+    setKioskEventId(null);
     await signOut();
     setCurrentUser(null);
   };
+
+  if (loading) return <LoadingScreen />;
 
   if (currentUser) {
     return (

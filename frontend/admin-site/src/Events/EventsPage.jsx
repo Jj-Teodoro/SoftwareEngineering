@@ -1,4 +1,5 @@
 import { useState } from "react";
+import usePersistedState from "@oasis/shared/hooks/usePersistedState.js";
 import EventsBoard from "@oasis/shared/components/EventsBoard.jsx";
 import { useConfirm } from "@oasis/shared/components/ConfirmDialog.jsx";
 import { useEvents } from "../context/EventsContext";
@@ -11,7 +12,7 @@ export default function EventsPage({ onStartKiosk }) {
   const { students } = useStudents();
   const confirm = useConfirm();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState(null);
+  const [selectedEventId, setSelectedEventId] = usePersistedState("oasis-admin-event", null);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
   if (selectedEvent) {
