@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getEventPhase, scanLockMessage, todayLocal } from "@oasis/shared/utils/events.js";
 import CyberKiosk, { CyberKioskNotice } from "@oasis/shared/components/CyberKiosk.jsx";
+import { useReportLocation } from "@oasis/shared/components/StaffPresenceTracker.jsx";
 import aces_logo from "../assets/aceslogo.png";
 import oasis_logo from "../assets/oasislogo.gif";
 import { useStudents } from "../context/StudentsContext";
@@ -30,6 +31,7 @@ export default function StudentKioskView({ eventId, currentAdmin, onExit }) {
 
   const event = events.find((e) => e.id === eventId);
   const isRestricted = event?.programFilter && event.programFilter !== "ALL";
+  useReportLocation("Kiosk", event?.title || "");
 
   useEffect(() => {
     if (!showExitForm) inputRef.current?.focus();

@@ -1,83 +1,79 @@
 import { useState } from "react";
-import {
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  updatePassword,
-} from "firebase/auth";
+import { FiLogOut, FiMonitor, FiSend, FiSmartphone } from "react-icons/fi";
 import { auth } from "@oasis/shared/firebaseClient.js";
 import { PageHeader, Section } from "@oasis/shared/components/ui.jsx";
+import { describeDevice } from "@oasis/shared/utils/device.js";
+import { useAuth } from "../context/AuthContext";
 
-export default function SettingsPage({ currentUser }) {
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [status, setStatus] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+function Row({ icon: Icon, label, children }) {
+  return (
+    <div className="flex items-start gap-3 border-b border-white/10 py-3 last:border-0">
+      <Icon size={15} className="mt-0.5 shrink-0 text-gold" />
+      <div className="min-w-0">
+        <p className="label">{label}</p>
+        <p className="mt-0.5 break-words text-sm">{children}</p>
+      </div>
+    </div>
+  );
+}
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    setStatus(null);
+export default function SettingsPage({ currentUser, onLogout }) {
+  const { requestPassword } = useAuth();
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-    if (newPassword.length < 6) {
-      setStatus({ type: "error", message: "New password must be at least 6 characters." });
-      return;
-    }
+  const signedInAt = auth.currentUser?.metadata?.lastSignInTime;
 
-    setIsSubmitting(true);
-    try {
-      const credential = EmailAuthProvider.credential(
-        auth.currentUser.email,
-        currentPassword
-      );
-      await reauthenticateWithCredential(auth.currentUser, credential);
-      await updatePassword(auth.currentUser, newPassword);
-      setStatus({ type: "success", message: "Password updated." });
-      setCurrentPassword("");
-      setNewPassword("");
-    } catch {
-      setStatus({ type: "error", message: "Current password is incorrect." });
-    }
-    setIsSubmitting(false);
+  const handleRequest = async () => {
+    setBusy(true);
+    setError("");
+    const result = await requestPassword(currentUser.username);
+    setBusy(false);
+    if (result.ok) setSent(true);
+    else setError(result.message);
   };
 
   return (
     <div className="flex max-w-xl flex-col gap-5">
-      <PageHeader title="Settings" />
+      <PageHeader title="Settings" subtitle="Your account and this session." />
 
-      <Section title="Signed in as">
+      <Section title="Your account">
         <p className="text-base font-semibold">{currentUser?.name}</p>
         <p className="font-mono text-xs muted">{currentUser?.username} · {currentUser?.role}</p>
       </Section>
 
-      <Section title="Change password">
-        <form onSubmit={handleChangePassword} className="flex flex-col gap-3">
-          <input
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            placeholder="Current password"
-            autoComplete="current-password"
-            required
-            className="input h-11"
-          />
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="New password"
-            autoComplete="new-password"
-            required
-            className="input h-11"
-          />
-          {status && (
-            <p className={`text-sm ${status.type === "success" ? "text-green-300" : "text-neon-pink"}`}>
-              {status.message}
-            </p>
-          )}
-          <button type="submit" disabled={isSubmitting} className="btn-primary h-11">
-            {isSubmitting ? "Updating..." : "Update password"}
-          </button>
-        </form>
+      <Section title="This session">
+        <Row icon={FiMonitor} label="Site">Scanner site</Row>
+        <Row icon={FiSmartphone} label="Device">{describeDevice()}</Row>
+        {signedInAt && (
+          <Row icon={FiMonitor} label="Signed in">
+            {new Date(signedInAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+          </Row>
+        )}
+        <p className="mt-3 text-xs leading-relaxed text-white/45">
+          Your admin can see that you're signed in, which page or event you're on, and this device.
+        </p>
       </Section>
+
+      <Section title="Password">
+        <p className="text-sm leading-relaxed muted">
+          Your password is managed by your admin. If you forgot it, or think someone else knows it, ask for a new
+          temporary password. You'll be asked to choose your own the next time you sign in.
+        </p>
+        {sent ? (
+          <p className="mt-3 text-sm text-green-300">Request sent. Your admin will give you a new temporary password.</p>
+        ) : (
+          <button type="button" onClick={handleRequest} disabled={busy} className="btn-ghost mt-4">
+            <FiSend size={14} /> {busy ? "Sending..." : "Ask admin for a new password"}
+          </button>
+        )}
+        {error && <p className="mt-2 text-sm text-neon-pink">{error}</p>}
+      </Section>
+
+      <button type="button" onClick={onLogout} className="btn-ghost h-11 w-full sm:w-auto">
+        <FiLogOut size={15} /> Log out
+      </button>
     </div>
   );
 }

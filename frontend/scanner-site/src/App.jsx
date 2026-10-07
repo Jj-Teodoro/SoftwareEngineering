@@ -1,8 +1,10 @@
 import { useState } from "react";
 import LoginPage from "./Login/Login";
 import Shell from "./Shell";
+import ForcePasswordChange from "./Login/ForcePasswordChange";
 import StudentKioskView from "./Kiosk/StudentKioskView";
 import { ConfirmProvider } from "@oasis/shared/components/ConfirmDialog.jsx";
+import StaffPresenceTracker from "@oasis/shared/components/StaffPresenceTracker.jsx";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { StudentsProvider } from "./context/StudentsContext";
 import { EventsProvider } from "./context/EventsContext";
@@ -17,23 +19,30 @@ function AppContent() {
     setCurrentUser(null);
   };
 
-  if (kioskEventId) {
-    return (
-      <StudentKioskView
-        eventId={kioskEventId}
-        currentStaff={currentUser}
-        onExit={() => setKioskEventId(null)}
-      />
-    );
-  }
-
   if (currentUser) {
     return (
-      <Shell
-        currentUser={currentUser}
-        onLogout={handleLogout}
-        onStartKiosk={setKioskEventId}
-      />
+      <>
+        <StaffPresenceTracker user={currentUser} app="scanner" />
+        {currentUser.mustChangePassword ? (
+          <ForcePasswordChange
+            staff={currentUser}
+            onDone={() => setCurrentUser({ ...currentUser, mustChangePassword: false })}
+            onLogout={handleLogout}
+          />
+        ) : kioskEventId ? (
+          <StudentKioskView
+            eventId={kioskEventId}
+            currentStaff={currentUser}
+            onExit={() => setKioskEventId(null)}
+          />
+        ) : (
+          <Shell
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            onStartKiosk={setKioskEventId}
+          />
+        )}
+      </>
     );
   }
 
