@@ -1,4 +1,4 @@
-import { useState } from "react";
+import usePersistedState from "@oasis/shared/hooks/usePersistedState.js";
 import { FiCalendar, FiCamera, FiSettings } from "react-icons/fi";
 import AppShell from "@oasis/shared/components/AppShell.jsx";
 import { useReportLocation } from "@oasis/shared/components/StaffPresenceTracker.jsx";
@@ -14,7 +14,7 @@ const NAV = [
 ];
 
 export default function Shell({ currentUser, onLogout, onStartKiosk }) {
-  const [activeTab, setActiveTab] = useState("Scan");
+  const [activeTab, setActiveTab] = usePersistedState("oasis-scanner-tab", "Scan");
   useReportLocation(NAV.find((n) => n.id === activeTab)?.label || activeTab);
 
   return (

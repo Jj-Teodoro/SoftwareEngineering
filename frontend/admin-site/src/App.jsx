@@ -1,8 +1,10 @@
-import { useState } from "react";
 import LoginPage from "./Login/Login";
 import DashboardShell from "./Dashboard/DashboardShell";
 import StudentKioskView from "./Kiosk/StudentKioskView";
 import { ConfirmProvider } from "@oasis/shared/components/ConfirmDialog.jsx";
+import LoadingScreen from "@oasis/shared/components/LoadingScreen.jsx";
+import usePersistedState from "@oasis/shared/hooks/usePersistedState.js";
+import useStaffSession from "@oasis/shared/hooks/useStaffSession.js";
 import StaffPresenceTracker from "@oasis/shared/components/StaffPresenceTracker.jsx";
 import { AdminProvider, useAdmin } from "./context/AdminContext";
 import { StaffProvider } from "./context/StaffContext";
@@ -14,13 +16,17 @@ import { PresenceProvider } from "./context/PresenceContext";
 
 function AppContent() {
   const { signOut } = useAdmin();
-  const [currentUser, setCurrentUser] = useState(null);
-  const [kioskEventId, setKioskEventId] = useState(null);
+  // The sign-in and the open page/kiosk survive a reload.
+  const { user: currentUser, setUser: setCurrentUser, loading } = useStaffSession({ adminOnly: true });
+  const [kioskEventId, setKioskEventId] = usePersistedState("oasis-admin-kiosk", null);
 
   const handleLogout = async () => {
+    setKioskEventId(null);
     await signOut();
     setCurrentUser(null);
   };
+
+  if (loading) return <LoadingScreen />;
 
   if (currentUser) {
     return (
