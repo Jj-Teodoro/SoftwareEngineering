@@ -11,6 +11,7 @@ const PointsContext = createContext(null);
 export function PointsProvider({ children }) {
   const [eventPoints, setEventPoints] = useState({});
   const [attendanceByStudent, setAttendanceByStudent] = useState({});
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
   const { items, appliesTo, getRequirementPoints } = useRequirements();
   const { events } = useEvents();
   const { students } = useStudents();
@@ -25,6 +26,7 @@ export function PointsProvider({ children }) {
       if (!user) {
         setEventPoints({});
         setAttendanceByStudent({});
+        setAttendanceRecords([]);
         return;
       }
       unsubscribeSnapshot = onSnapshot(collection(db, "attendance"), (snapshot) => {
@@ -39,6 +41,7 @@ export function PointsProvider({ children }) {
         });
         setEventPoints(totals);
         setAttendanceByStudent(byStudent);
+        setAttendanceRecords(snapshot.docs.map((d) => d.data()));
       });
     });
     return () => {
@@ -78,7 +81,7 @@ export function PointsProvider({ children }) {
 
   return (
     <PointsContext.Provider
-      value={{ getTotalPoints, getClearance, getTargetPoints, getAttendanceRecords }}
+      value={{ getTotalPoints, getClearance, getTargetPoints, getAttendanceRecords, attendanceRecords }}
     >
       {children}
     </PointsContext.Provider>

@@ -15,6 +15,7 @@ import { useStudents } from "../context/StudentsContext";
 import { useEvents } from "../context/EventsContext";
 import { usePoints } from "../context/PointsContext";
 import { usePresence } from "../context/PresenceContext";
+import ActivityFeed from "./ActivityFeed";
 
 const QUICK_ACTIONS = [
   { to: "Event", label: "New event", icon: FiPlus },
@@ -150,6 +151,8 @@ export default function DashboardHome({ onNavigate }) {
           )}
         </Section>
       </div>
+
+      <ActivityFeed />
     </div>
   );
 }
