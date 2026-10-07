@@ -2,7 +2,8 @@ import aces_logo from "../assets/aceslogo.png";
 import Barcode from "./Barcode.jsx";
 
 const GOLD = "#f2b400";
-const CYAN = "#05d9e8";
+const LABEL = "#e8b43a"; // warm gold for small captions
+const GREEN = "#19f5b0";
 const PINK = "#ff2a6d";
 
 // Cut-corner outline (top-left and bottom-right are the big cuts).
@@ -14,7 +15,7 @@ const GRID =
 
 // faint circuit traces behind the personal details
 const CIRCUIT_BG =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='220' viewBox='0 0 420 220' fill='none' stroke='%2305d9e8' stroke-opacity='0.22' stroke-width='1.2'%3E%3Cpath d='M200 20h60l20 20h80'/%3E%3Cpath d='M240 60h90l20 20h50'/%3E%3Cpath d='M280 100h50l20 20h60'/%3E%3Cpath d='M220 150h80l20-20h80'/%3E%3Cpath d='M300 190h60l20-20h40'/%3E%3Ccircle cx='260' cy='20' r='3'/%3E%3Ccircle cx='360' cy='40' r='3'/%3E%3Ccircle cx='330' cy='60' r='3'/%3E%3Ccircle cx='380' cy='120' r='3'/%3E%3Ccircle cx='320' cy='150' r='3'/%3E%3C/svg%3E\")";
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='220' viewBox='0 0 420 220' fill='none' stroke='%23f2b400' stroke-opacity='0.16' stroke-width='1.2'%3E%3Cpath d='M200 20h60l20 20h80'/%3E%3Cpath d='M240 60h90l20 20h50'/%3E%3Cpath d='M280 100h50l20 20h60'/%3E%3Cpath d='M220 150h80l20-20h80'/%3E%3Cpath d='M300 190h60l20-20h40'/%3E%3Ccircle cx='260' cy='20' r='3'/%3E%3Ccircle cx='360' cy='40' r='3'/%3E%3Ccircle cx='330' cy='60' r='3'/%3E%3Ccircle cx='380' cy='120' r='3'/%3E%3Ccircle cx='320' cy='150' r='3'/%3E%3C/svg%3E\")";
 
 export function splitName(full = "") {
   const [lastRaw, restRaw = ""] = full.split(",");
@@ -29,7 +30,7 @@ export function splitName(full = "") {
 function Field({ label, value, className = "", plain = false }) {
   return (
     <div className={className}>
-      <p className="font-mono text-[10px] uppercase tracking-[2px]" style={{ color: CYAN }}>
+      <p className="font-mono text-[10px] uppercase tracking-[2px]" style={{ color: LABEL }}>
         {label}
       </p>
       <p
@@ -86,7 +87,7 @@ function PointsBar({ total, target }) {
 
 // Four L-shaped brackets framing the photo.
 function Brackets() {
-  const corner = "pointer-events-none absolute h-3.5 w-3.5 border-[#05d9e8]";
+  const corner = "pointer-events-none absolute h-3.5 w-3.5 border-[#f2b400]";
   return (
     <>
       <span className={`${corner} -left-1.5 -top-1.5 border-l-2 border-t-2`} />
@@ -118,6 +119,8 @@ export default function StudentIdCard({
   const program = (student.course || "").replace(/^BS\s+/i, "Bachelor of Science in ");
   const initials = `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
   const hobbies = student.hobbies || [];
+  const remaining = Math.max(0, targetPoints - totalPoints);
+  const percent = targetPoints > 0 ? Math.min(100, Math.round((totalPoints / targetPoints) * 100)) : 0;
 
   return (
     <div style={{ filter: "drop-shadow(0 0 12px rgba(242,180,0,0.3))" }}>
@@ -177,7 +180,7 @@ export default function StudentIdCard({
               <div className="flex items-start justify-between gap-3">
                 <h2
                   className="font-display text-lg tracking-[3px] sm:text-2xl"
-                  style={{ textShadow: "1.5px 0 rgba(255,42,109,.7), -1.5px 0 rgba(5,217,232,.6), 0 0 12px rgba(242,180,0,.45)" }}
+                  style={{ textShadow: "1.5px 0 rgba(255,42,109,.6), 0 0 14px rgba(242,180,0,.55)" }}
                 >
                   ACTIVITY CARD POINTS
                 </h2>
@@ -186,7 +189,7 @@ export default function StudentIdCard({
               <div className="mb-5 mt-2 flex items-center gap-1" aria-hidden="true">
                 <span className="h-[2px] w-12" style={{ background: GOLD, boxShadow: `0 0 6px ${GOLD}` }} />
                 <span className="h-px flex-1 bg-[#f2b400]/30" />
-                <span className="h-1.5 w-1.5 rotate-45" style={{ background: CYAN }} />
+                <span className="h-1.5 w-1.5 rotate-45" style={{ background: GOLD }} />
               </div>
 
               <div className="flex flex-col gap-5 sm:flex-row">
@@ -203,7 +206,7 @@ export default function StudentIdCard({
                       {/* faint scan line over the photo */}
                       <span
                         className="pointer-events-none absolute inset-0"
-                        style={{ backgroundImage: "repeating-linear-gradient(0deg, rgba(5,217,232,0.07) 0, rgba(5,217,232,0.07) 1px, transparent 1px, transparent 4px)" }}
+                        style={{ backgroundImage: "repeating-linear-gradient(0deg, rgba(242,180,0,0.06) 0, rgba(242,180,0,0.06) 1px, transparent 1px, transparent 4px)" }}
                       />
                       {photoOverlay}
                     </div>
@@ -227,7 +230,7 @@ export default function StudentIdCard({
                     <Field label="Bio" value={student.bio} plain className="sm:col-span-2" />
                     <Field label="Talent" value={student.talent} plain />
                     <div>
-                      <p className="font-mono text-[10px] uppercase tracking-[2px]" style={{ color: CYAN }}>
+                      <p className="font-mono text-[10px] uppercase tracking-[2px]" style={{ color: LABEL }}>
                         Hobbies
                       </p>
                       {hobbies.length > 0 ? (
@@ -251,13 +254,13 @@ export default function StudentIdCard({
               </div>
 
               <div className="mt-5 flex items-end justify-between gap-3">
-                <p className="font-mono text-[10px] uppercase tracking-[2px]" style={{ color: CYAN }}>
+                <p className="font-mono text-[10px] uppercase tracking-[2px]" style={{ color: LABEL }}>
                   Activity Points
                 </p>
                 {cleared && (
                   <span
                     className="-rotate-3 border-2 px-2 py-0.5 font-display text-[10px] uppercase tracking-[2px]"
-                    style={{ color: "#19f5b0", borderColor: "#19f5b0", boxShadow: "0 0 8px rgba(25,245,176,0.5)" }}
+                    style={{ color: GREEN, borderColor: GREEN, boxShadow: "0 0 8px rgba(25,245,176,0.5)" }}
                   >
                     Cleared
                   </span>
@@ -274,35 +277,41 @@ export default function StudentIdCard({
                 <button
                   type="button"
                   onClick={onShowBreakdown}
-                  className="mt-3 block w-full text-center font-mono text-[10px] uppercase tracking-[2px] text-white/45 transition-colors hover:text-[#05d9e8]"
+                  className="mt-3 block w-full text-center font-mono text-[10px] uppercase tracking-[2px] text-white/45 transition-colors hover:text-[#f2b400]"
                 >
                   [ tap to view the breakdown of points ]
                 </button>
               )}
             </div>
 
-            {/* footer: barcode, holo strip, chip */}
-            <div className="flex items-center gap-4 border-t border-dashed border-[#f2b400]/30 bg-black/30 px-5 py-3 sm:px-6">
-              <div className="w-[190px] max-w-[55%] shrink-0 bg-white px-2 pb-1 pt-1.5">
+            {/* footer: barcode, live clearance status, chip */}
+            <div className="flex items-stretch gap-3 border-t border-dashed border-[#f2b400]/30 bg-black/30 px-5 py-3 sm:px-6">
+              <div className="w-[190px] max-w-[55%] shrink-0 border border-[#f2b400]/70 bg-[#f4ead0] px-2 pb-1 pt-1.5">
                 <Barcode value={student.studentId} className="h-8 w-full" />
-                <p className="mt-0.5 text-center font-mono text-[9px] tracking-[3px] text-[#1a1a1a]">
+                <p className="mt-0.5 text-center font-mono text-[9px] tracking-[3px] text-[#2b0a0c]">
                   {student.studentId}
                 </p>
               </div>
+
               <div
-                className="hidden h-9 flex-1 items-center justify-center overflow-hidden sm:flex"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(115deg, rgba(242,180,0,0.6), rgba(255,42,109,0.4), rgba(5,217,232,0.45), rgba(242,180,0,0.6))",
-                  clipPath: "polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)",
-                }}
-                aria-hidden="true"
+                className="hidden flex-1 flex-col justify-center border border-[#f2b400]/40 bg-gradient-to-r from-[#7a1317]/60 to-transparent px-4 sm:flex"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%)" }}
               >
-                <span className="whitespace-nowrap font-mono text-[8px] uppercase tracking-[3px] text-white/85">
-                  ACES ✦ OASIS ✦ ACES ✦ OASIS ✦ ACES ✦ OASIS
-                </span>
+                <p className="font-mono text-[9px] uppercase tracking-[3px]" style={{ color: LABEL }}>
+                  Clearance status
+                </p>
+                <p
+                  className="font-display text-sm uppercase tracking-[2px]"
+                  style={{ color: cleared ? GREEN : "#fff" }}
+                >
+                  {cleared ? "Cleared" : targetPoints > 0 ? `${remaining} pts to clear` : "No target yet"}
+                </p>
+                <p className="font-mono text-[10px] uppercase tracking-[2px] text-white/55">
+                  {percent}% complete · {totalPoints}/{targetPoints} pts
+                </p>
               </div>
-              <div className="hidden shrink-0 sm:block">
+
+              <div className="hidden shrink-0 items-center sm:flex">
                 <SmartChip />
               </div>
             </div>

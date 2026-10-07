@@ -9,8 +9,8 @@ import { fileToPhoto } from "../utils/image";
 
 // The ID card is always dark, so these use fixed colours rather than the theme.
 const fieldClass =
-  "w-full border border-[#f2b400]/40 bg-black/50 px-3 py-2 text-[12px] text-white placeholder-white/35 outline-none focus:border-[#05d9e8]";
-const labelClass = "mb-1 block font-mono text-[10px] uppercase tracking-[2px] text-[#05d9e8]";
+  "w-full border border-[#f2b400]/40 bg-black/50 px-3 py-2 text-[12px] text-white placeholder-white/35 outline-none focus:border-[#f2b400]";
+const labelClass = "mb-1 block font-mono text-[10px] uppercase tracking-[2px] text-[#e8b43a]";
 
 export default function ActivityCard({ student, onShowBreakdown }) {
   const { totalPoints, targetPoints, cleared } = usePoints();
