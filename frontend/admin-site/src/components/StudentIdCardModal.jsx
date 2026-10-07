@@ -4,7 +4,7 @@ import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiRefreshCw, FiTrash2, FiXCircle
 import { db } from "@oasis/shared/firebaseClient.js";
 import StudentIdCard from "@oasis/shared/components/StudentIdCard.jsx";
 import { useConfirm } from "@oasis/shared/components/ConfirmDialog.jsx";
-import Modal from "./Modal";
+import Modal from "@oasis/shared/components/Modal.jsx";
 import { useStudents } from "../context/StudentsContext";
 import { useRequirements } from "../context/RequirementsContext";
 import { useEvents } from "../context/EventsContext";
@@ -18,8 +18,7 @@ const TABS = [
   { id: "account", label: "Account" },
 ];
 
-const inputClass =
-  "h-10 w-full rounded-lg border border-white/20 bg-black/20 px-3 text-sm text-white placeholder-white/40 outline-none focus:border-white/50 disabled:opacity-50";
+const inputClass = "input";
 
 export default function StudentIdCardModal({ studentId, onClose }) {
   const { students, deleteStudents } = useStudents();
@@ -48,14 +47,14 @@ export default function StudentIdCardModal({ studentId, onClose }) {
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-2xl">
-      <div className="mb-4 flex rounded-full border border-white/20 bg-black/20 p-1">
+      <div className="mb-4 flex gap-1 rounded-lg border border-white/10 bg-black/30 p-1">
         {TABS.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
-            className={`flex-1 rounded-full py-2 text-xs font-bold uppercase tracking-[1px] transition-all ${
-              tab === t.id ? "bg-[#97191d] text-white" : "text-white/60 hover:text-white"
+            className={`flex-1 rounded-md py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${
+              tab === t.id ? "bg-gold/15 text-gold" : "text-white/60 hover:text-white"
             }`}
           >
             {t.label}
@@ -73,7 +72,7 @@ export default function StudentIdCardModal({ studentId, onClose }) {
       )}
       {tab === "info" && <StudentInfoTab student={student} />}
       {tab === "status" && (
-        <div className="-mx-6 sm:-mx-8">
+        <div className="-mx-5 sm:-mx-7">
           <StudentStatusTab student={student} />
         </div>
       )}
@@ -84,7 +83,7 @@ export default function StudentIdCardModal({ studentId, onClose }) {
           type="button"
           onClick={handleDelete}
           disabled={deleting}
-          className="flex items-center gap-2 rounded-full border border-red-400/50 px-5 py-2 text-[11px] font-bold uppercase tracking-[1px] text-red-300 transition-all hover:bg-red-600 hover:text-white disabled:opacity-50"
+          className="btn-danger"
         >
           <FiTrash2 size={13} /> {deleting ? "Deleting..." : "Delete student"}
         </button>
@@ -130,7 +129,7 @@ function StudentInfoTab({ student }) {
 
   if (!editing) {
     return (
-      <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 px-5 py-4">
+      <div className="surface-inset p-4 space-y-3">
         <DetailRow label="Student No." value={student.studentId} />
         <DetailRow label="Name" value={student.name} />
         <DetailRow label="Course" value={student.course} />
@@ -146,7 +145,7 @@ function StudentInfoTab({ student }) {
           <button
             type="button"
             onClick={startEditing}
-            className="flex shrink-0 items-center gap-2 rounded-full border border-white/30 px-4 py-2 text-xs font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/10"
+            className="btn-ghost shrink-0"
           >
             <FiEdit2 size={13} /> Edit info
           </button>
@@ -156,7 +155,7 @@ function StudentInfoTab({ student }) {
   }
 
   return (
-    <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 px-5 py-4">
+    <div className="surface-inset p-4 space-y-3">
       <FormRow label="Student No.">
         <input value={student.studentId} disabled className={inputClass} />
       </FormRow>
@@ -202,7 +201,7 @@ function StudentInfoTab({ student }) {
         <button
           type="button"
           onClick={() => setEditing(false)}
-          className="rounded-full border border-white/30 px-5 py-2 text-xs font-bold uppercase tracking-[1px] text-white hover:bg-white/10"
+          className="btn-ghost"
         >
           Cancel
         </button>
@@ -210,7 +209,7 @@ function StudentInfoTab({ student }) {
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="rounded-full bg-[#97191d] px-5 py-2 text-xs font-bold uppercase tracking-[1px] text-white hover:bg-[#b81f25] disabled:opacity-50"
+          className="btn-primary"
         >
           {saving ? "Saving..." : "Save"}
         </button>
@@ -222,7 +221,7 @@ function StudentInfoTab({ student }) {
 function FormRow({ label, children }) {
   return (
     <div className="grid items-center gap-1 sm:grid-cols-[110px_1fr] sm:gap-3">
-      <span className="text-[11px] font-bold uppercase tracking-[1px] text-white/50">{label}</span>
+      <span className="label">{label}</span>
       {children}
     </div>
   );
@@ -300,7 +299,7 @@ function StudentAccountTab({ student }) {
   const requested = Boolean(resetRequests[student.studentId]);
 
   return (
-    <div className="space-y-4 rounded-2xl border border-white/10 bg-black/20 px-5 py-5">
+    <div className="surface-inset p-4 space-y-4">
       <div className="flex items-center gap-3">
         <FiKey className="text-white/70" size={18} />
         <div>
@@ -328,22 +327,22 @@ function StudentAccountTab({ student }) {
       </div>
 
       {requested && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#f2b400]/60 bg-[#f2b400]/10 px-4 py-3">
-          <p className="flex-1 text-sm font-semibold text-[#f2b400]">
+        <div className="rounded-lg border-gold/50 bg-gold/10 flex flex-wrap items-center gap-3 border px-4 py-3">
+          <p className="flex-1 text-sm font-semibold text-gold">
             This student requested a new temporary password.
           </p>
           <button
             type="button"
             onClick={handleIssue}
             disabled={regenerating}
-            className="rounded-full bg-[#f2b400] px-4 py-1.5 text-[11px] font-bold uppercase tracking-[1px] text-black hover:brightness-110 disabled:opacity-50"
+            className="btn-primary btn-sm"
           >
             {regenerating ? "Issuing..." : "Issue password"}
           </button>
           <button
             type="button"
             onClick={() => dismissRequest(student.studentId)}
-            className="rounded-full border border-white/30 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[1px] text-white hover:bg-white/10"
+            className="btn-ghost btn-sm"
           >
             Dismiss
           </button>
@@ -351,8 +350,8 @@ function StudentAccountTab({ student }) {
       )}
 
       {pending && (
-        <div className="space-y-2 rounded-xl border border-[#f2b400]/60 bg-[#f2b400]/10 px-4 py-3">
-          <p className="text-[11px] font-bold uppercase tracking-[1px] text-[#f2b400]">
+        <div className="rounded-lg border-gold/50 bg-gold/10 space-y-2 border px-4 py-3">
+          <p className="text-[11px] font-bold uppercase tracking-[1px] text-gold">
             Give these to the student — visible until they set their own password
           </p>
           <p className="text-sm text-white">
@@ -369,7 +368,7 @@ function StudentAccountTab({ student }) {
               <button
                 type="button"
                 onClick={copyPassword}
-                className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-white hover:bg-white/10"
+                className="btn-ghost btn-sm"
               >
                 <FiCopy size={12} /> {copied ? "Copied" : "Copy"}
               </button>
@@ -377,7 +376,7 @@ function StudentAccountTab({ student }) {
                 type="button"
                 onClick={handleRegenerate}
                 disabled={regenerating}
-                className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-white hover:bg-white/10 disabled:opacity-50"
+                className="btn-ghost btn-sm"
               >
                 <FiRefreshCw size={12} /> {regenerating ? "Generating..." : "New password"}
               </button>
@@ -400,7 +399,7 @@ function StudentAccountTab({ student }) {
           type="button"
           onClick={handleCreate}
           disabled={busy}
-          className="rounded-full bg-[#97191d] px-6 py-2.5 text-xs font-bold uppercase tracking-[1px] text-white transition-all hover:bg-[#b81f25] disabled:opacity-50"
+          className="btn-primary"
         >
           {busy ? "Creating..." : "Create account"}
         </button>
@@ -416,7 +415,7 @@ function StudentAccountTab({ student }) {
               type="button"
               onClick={handleIssue}
               disabled={regenerating}
-              className="flex items-center gap-1 rounded-full border border-white/30 px-4 py-2 text-[11px] font-bold uppercase tracking-[1px] text-white hover:bg-white/10 disabled:opacity-50"
+              className="btn-ghost"
             >
               <FiRefreshCw size={12} /> {regenerating ? "Issuing..." : "Issue new temporary password"}
             </button>
@@ -437,13 +436,13 @@ function StudentStatusTab({ student }) {
   const applicable = items.filter((item) => appliesTo(item, student.course));
 
   return (
-    <div className="mx-6 mb-6 space-y-5">
+    <div className="mb-2 space-y-5">
       {/* Clearance summary */}
       <div
-        className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
+        className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${
           cleared
-            ? "border-green-400/40 bg-green-500/15 text-green-200"
-            : "border-yellow-400/40 bg-yellow-500/15 text-yellow-200"
+            ? "border-green-400/30 bg-green-500/10 text-green-200"
+            : "border-yellow-400/30 bg-yellow-500/10 text-yellow-200"
         }`}
       >
         {cleared ? <FiCheckCircle size={20} /> : <FiXCircle size={20} />}
@@ -471,7 +470,7 @@ function StudentStatusTab({ student }) {
               return (
                 <div
                   key={item.id}
-                  className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm font-semibold ${
+                  className={`flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5 text-sm font-semibold ${
                     completed
                       ? "border-green-400/40 bg-green-500/10 text-green-200"
                       : "border-white/15 bg-black/20 text-white/70"
@@ -508,7 +507,7 @@ function StudentStatusTab({ student }) {
               return (
                 <div
                   key={record.eventId}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-2.5"
+                  className="surface-inset p-4 flex items-center justify-between"
                 >
                   <div>
                     <p className="text-sm font-semibold text-white">
@@ -533,7 +532,7 @@ function DetailRow({ label, value }) {
   if (!value) return null;
   return (
     <div className="flex items-start justify-between gap-4">
-      <span className="w-24 shrink-0 text-[11px] font-bold uppercase tracking-[1px] text-white/50">
+      <span className="label w-24 shrink-0">
         {label}
       </span>
       <span className="min-w-0 flex-1 break-words text-right text-sm text-white">

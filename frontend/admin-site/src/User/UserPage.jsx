@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FiSearch, FiFilter, FiTrash2, FiKey, FiX } from "react-icons/fi";
+import { FiFilter, FiKey, FiPlus, FiSearch, FiTrash2, FiX } from "react-icons/fi";
 import { useConfirm } from "@oasis/shared/components/ConfirmDialog.jsx";
+import { EmptyState, PageHeader } from "@oasis/shared/components/ui.jsx";
 import { useStudents } from "../context/StudentsContext";
 import { usePoints } from "../context/PointsContext";
 import { formatAgo, usePresence } from "../context/PresenceContext";
@@ -9,54 +10,40 @@ import StudentIdCardModal from "../components/StudentIdCardModal";
 import ProvisionAccountsModal from "../components/ProvisionAccountsModal";
 import StudentAvatar from "../components/StudentAvatar";
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 8;
 
-const uniqueSorted = (values) => [...new Set(values.filter(Boolean))].sort();
+// One grid for header and rows: a card on phones, a table row from md up.
+const ROW =
+  "grid grid-cols-2 items-center gap-x-4 gap-y-2.5 px-4 py-3 md:grid-cols-[minmax(0,2.6fr)_78px_minmax(0,1.3fr)_128px_minmax(0,1.2fr)]";
 
-// Fixed groups; Program / Year / Section are built from the roster itself.
 const FIXED_GROUPS = [
   { key: "status", label: "Status", options: ["ACTIVE", "INACTIVE"] },
   { key: "account", label: "Account", options: ["NO ACCOUNT", "PENDING", "ACTIVE", "RESET REQUESTED"] },
   { key: "clearance", label: "Clearance", options: ["CLEARED", "NOT CLEARED"] },
 ];
-const NO_FILTERS = {
-  status: "ALL",
-  account: "ALL",
-  clearance: "ALL",
-  program: "ALL",
-  year: "ALL",
-  section: "ALL",
-};
+const NO_FILTERS = { status: "ALL", account: "ALL", clearance: "ALL", program: "ALL", year: "ALL", section: "ALL" };
+const uniqueSorted = (values) => [...new Set(values.filter(Boolean))].sort();
 
-const PILL_TONES = {
-  green: "bg-green-500/15 text-green-300 ring-green-400/30",
-  amber: "bg-yellow-500/15 text-yellow-300 ring-yellow-400/30",
-  gray: "bg-white/5 text-white/45 ring-white/15",
-  red: "bg-red-500/15 text-red-300 ring-red-400/30",
-};
+// Literal class names so Tailwind can see them.
+const CHIP = { green: "chip-green", amber: "chip-amber", red: "chip-red", gray: "chip-gray", cyan: "chip-cyan" };
 
-function Pill({ tone, pulse = false, children }) {
+function Chip({ tone, pulse = false, children }) {
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[1px] ring-1 ${PILL_TONES[tone]}`}
-    >
+    <span className={CHIP[tone]}>
       <span className={`h-1.5 w-1.5 rounded-full bg-current ${pulse ? "animate-pulse" : ""}`} />
       {children}
     </span>
   );
 }
 
-// Active while the student is using the website or is scanned in at an event;
-// Inactive once they leave the site and scan out.
-function StatusBadge({ student }) {
+// Active while the student is on the website or scanned in at an event.
+function StatusCell({ student }) {
   const { getActivity, now } = usePresence();
   const a = getActivity(student.studentId);
 
   let detail;
   if (a.active) {
-    detail = [a.online && "Online now", a.atEvent && `At ${a.eventTitle || "an event"}`]
-      .filter(Boolean)
-      .join(" · ");
+    detail = [a.online && "Online now", a.atEvent && `At ${a.eventTitle || "an event"}`].filter(Boolean).join(" · ");
   } else if (!student.authUid) {
     detail = "No account";
   } else {
@@ -64,41 +51,51 @@ function StatusBadge({ student }) {
   }
 
   return (
-    <div className="flex flex-col items-start gap-1">
-      <Pill tone={a.active ? "green" : "red"} pulse={a.online}>
+    <div className="min-w-0">
+      <Chip tone={a.active ? "green" : "red"} pulse={a.online}>
         {a.active ? "Active" : "Inactive"}
-      </Pill>
-      <span className="max-w-[160px] truncate text-[10px] text-white/45" title={detail}>
-        {detail}
-      </span>
+      </Chip>
+      <p className="mt-1 truncate text-[11px] text-white/45" title={detail}>{detail}</p>
     </div>
   );
 }
 
-function AccountBadge({ student }) {
-  const { resetRequests } = useStudents();
-  if (!student.authUid) return <Pill tone="gray">No account</Pill>;
-  if (resetRequests[student.studentId]) {
-    return (
-      <Pill tone="amber" pulse>
-        Reset requested
-      </Pill>
-    );
-  }
-  return student.mustChangePassword ? (
-    <Pill tone="amber">Pending</Pill>
-  ) : (
-    <Pill tone="green">Active</Pill>
-  );
+function AccountCell({ student, requested }) {
+  if (!student.authUid) return <Chip tone="gray">No account</Chip>;
+  if (requested) return <Chip tone="amber" pulse>Reset requested</Chip>;
+  return student.mustChangePassword ? <Chip tone="amber">Pending</Chip> : <Chip tone="green">Active</Chip>;
 }
 
-const COLUMNS = [
-  { label: "Student", className: "" },
-  { label: "Section", className: "w-[120px]" },
-  { label: "Status", className: "w-[190px]" },
-  { label: "Account", className: "w-[150px]" },
-  { label: "Points", className: "w-[210px]" },
-];
+function FilterPanel({ groups, filters, setFilters, activeCount }) {
+  return (
+    <div className="surface-accent absolute left-0 right-0 top-12 z-20 max-h-[70vh] overflow-y-auto bg-ink-panel p-4 shadow-2xl sm:right-auto sm:w-[380px]">
+      {groups.map((group) => (
+        <div key={group.key} className="mb-4">
+          <p className="label mb-2">{group.label}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {["ALL", ...group.options].map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setFilters((f) => ({ ...f, [group.key]: option }))}
+                className={`rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider transition-colors ${
+                  filters[group.key] === option
+                    ? "border-gold bg-gold/15 text-gold"
+                    : "border-white/15 text-white/65 hover:bg-white/10"
+                }`}
+              >
+                {option === "ALL" ? "All" : option}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      <button type="button" onClick={() => setFilters(NO_FILTERS)} disabled={!activeCount} className="btn-ghost w-full">
+        Reset filters
+      </button>
+    </div>
+  );
+}
 
 export default function UserPage() {
   const { students, deleteStudents, resetRequests } = useStudents();
@@ -110,34 +107,23 @@ export default function UserPage() {
   const [filters, setFilters] = useState(NO_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
-
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
-
   const [showAddModal, setShowAddModal] = useState(false);
   const [showProvisionModal, setShowProvisionModal] = useState(false);
   const [viewingStudentId, setViewingStudentId] = useState(null);
-
   const filterRef = useRef(null);
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (filterRef.current && !filterRef.current.contains(e.target)) {
-        setFilterOpen(false);
-      }
+    const close = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
   }, []);
 
   const accountOf = (s) =>
-    !s.authUid
-      ? "NO ACCOUNT"
-      : resetRequests[s.studentId]
-      ? "RESET REQUESTED"
-      : s.mustChangePassword
-      ? "PENDING"
-      : "ACTIVE";
+    !s.authUid ? "NO ACCOUNT" : resetRequests[s.studentId] ? "RESET REQUESTED" : s.mustChangePassword ? "PENDING" : "ACTIVE";
 
   const groups = useMemo(
     () => [
@@ -148,18 +134,12 @@ export default function UserPage() {
     ],
     [students]
   );
-
   const activeFilters = groups.filter((g) => filters[g.key] !== "ALL");
 
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
     return students.filter((s) => {
-      const matchesQuery =
-        !query ||
-        s.studentId.toLowerCase().includes(query) ||
-        s.name.toLowerCase().includes(query);
-      if (!matchesQuery) return false;
-
+      if (query && !s.studentId.toLowerCase().includes(query) && !s.name.toLowerCase().includes(query)) return false;
       const values = {
         status: getActivity(s.studentId).active ? "ACTIVE" : "INACTIVE",
         account: accountOf(s),
@@ -174,37 +154,27 @@ export default function UserPage() {
   }, [students, search, filters, getActivity, getClearance, resetRequests]);
 
   const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, filters]);
-
+  useEffect(() => setPage(1), [search, filters]);
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
-
-  const pageStudents = filteredStudents.slice(
-    (page - 1) * PAGE_SIZE,
-    page * PAGE_SIZE
-  );
+  const pageStudents = filteredStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const toggleSelectMode = () => {
     setSelectMode((prev) => !prev);
     setSelectedIds(new Set());
   };
-
-  const toggleSelected = (studentId) => {
+  const toggleSelected = (id) =>
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(studentId)) next.delete(studentId);
-      else next.add(studentId);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
-  };
 
   const handleDeleteSelected = async () => {
-    if (selectedIds.size === 0) return;
     const count = selectedIds.size;
+    if (count === 0) return;
     const confirmed = await confirm({
       title: "Delete students",
       message: `Delete ${count} selected student${count === 1 ? "" : "s"}? Their records, attendance and requirement progress are removed. This cannot be undone.`,
@@ -218,280 +188,137 @@ export default function UserPage() {
   };
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      {/* Search + Filter row */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 flex-wrap items-center gap-4">
-          <div className="flex h-12 w-full max-w-md items-center gap-3 rounded-full border border-white/30 bg-white/10 px-5 backdrop-blur-md">
-            <FiSearch className="text-white/70" size={18} />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search student ID or name"
-              className="w-full bg-transparent text-sm text-white placeholder-white/50 outline-none"
-            />
-          </div>
+    <div className="flex flex-col gap-4">
+      <PageHeader title="Students" subtitle={`${students.length} on the roster`}>
+        {selectMode && selectedIds.size > 0 && (
+          <button type="button" onClick={handleDeleteSelected} className="btn-danger">
+            <FiTrash2 size={14} /> Delete ({selectedIds.size})
+          </button>
+        )}
+        <button type="button" onClick={() => setShowProvisionModal(true)} className="btn-ghost">
+          <FiKey size={14} /> Accounts
+        </button>
+        <button type="button" onClick={toggleSelectMode} className="btn-ghost">
+          {selectMode ? "Cancel" : "Select"}
+        </button>
+        <button type="button" onClick={() => setShowAddModal(true)} className="btn-primary">
+          <FiPlus size={14} /> Add
+        </button>
+      </PageHeader>
 
-          <div className="relative" ref={filterRef}>
-            <button
-              type="button"
-              onClick={() => setFilterOpen((prev) => !prev)}
-              className="flex h-12 items-center gap-2 rounded-full bg-white/90 px-8 text-sm font-bold uppercase tracking-[2px] text-[#7a1317] transition-all hover:bg-white"
-            >
-              <FiFilter size={16} />
-              Filter
-              {activeFilters.length > 0 && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#97191d] px-1.5 text-[11px] text-white">
-                  {activeFilters.length}
-                </span>
-              )}
-            </button>
-
-            {filterOpen && (
-              <div className="absolute left-0 top-14 z-20 max-h-[70vh] w-[340px] overflow-y-auto rounded-2xl border border-white/20 bg-[#2a0507] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                {groups.map((group) => (
-                  <div key={group.key} className="mb-4">
-                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[2px] text-white/50">
-                      {group.label}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {["ALL", ...group.options].map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => setFilters((f) => ({ ...f, [group.key]: option }))}
-                          className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] transition-colors ${
-                            filters[group.key] === option
-                              ? "border-[#97191d] bg-[#97191d] text-white"
-                              : "border-white/20 text-white/70 hover:bg-white/10"
-                          }`}
-                        >
-                          {option === "ALL" ? "All" : option}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setFilters(NO_FILTERS)}
-                  disabled={activeFilters.length === 0}
-                  className="w-full rounded-full border border-white/30 py-2 text-[11px] font-bold uppercase tracking-[2px] text-white transition-all hover:bg-white/10 disabled:opacity-40"
-                >
-                  Reset filters
-                </button>
-              </div>
-            )}
-          </div>
+      <div className="relative flex flex-wrap items-center gap-2" ref={filterRef}>
+        <div className="relative min-w-[200px] flex-1 sm:max-w-md">
+          <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/45" size={15} />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search student ID or name"
+            className="input pl-9"
+          />
         </div>
-
-        <div className="flex items-center gap-4">
-          {selectMode && selectedIds.size > 0 && (
-            <button
-              type="button"
-              onClick={handleDeleteSelected}
-              className="flex h-12 items-center gap-2 rounded-full bg-red-600 px-6 text-sm font-bold uppercase tracking-[2px] text-white transition-all hover:bg-red-700"
-            >
-              <FiTrash2 size={16} />
-              Delete ({selectedIds.size})
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setShowProvisionModal(true)}
-            className="flex h-12 items-center gap-2 rounded-full border border-white/40 bg-white/5 px-6 text-sm font-bold uppercase tracking-[2px] text-white backdrop-blur-md transition-all hover:bg-white/15"
-          >
-            <FiKey size={16} />
-            Accounts
-          </button>
-          <button
-            type="button"
-            onClick={toggleSelectMode}
-            className={`h-12 rounded-full border px-8 text-sm font-bold uppercase tracking-[2px] backdrop-blur-md transition-all ${
-              selectMode
-                ? "border-white/60 bg-white/20 text-white"
-                : "border-white/40 bg-white/5 text-white hover:bg-white/15"
-            }`}
-          >
-            {selectMode ? "Cancel" : "Select"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            className="h-12 rounded-full border border-white/40 bg-white/5 px-8 text-sm font-bold uppercase tracking-[2px] text-white backdrop-blur-md transition-all hover:bg-white/15"
-          >
-            Add
-          </button>
-        </div>
+        <button type="button" onClick={() => setFilterOpen((o) => !o)} className="btn-ghost">
+          <FiFilter size={14} /> Filter
+          {activeFilters.length > 0 && <span className="chip-cyan px-1.5">{activeFilters.length}</span>}
+        </button>
+        {filterOpen && (
+          <FilterPanel groups={groups} filters={filters} setFilters={setFilters} activeCount={activeFilters.length} />
+        )}
       </div>
 
       {(activeFilters.length > 0 || search.trim()) && (
-        <div className="-mt-2 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-white/60">
-            Showing {filteredStudents.length} of {students.length} students
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs muted">Showing {filteredStudents.length} of {students.length}</span>
           {activeFilters.map((g) => (
             <button
               key={g.key}
               type="button"
               onClick={() => setFilters((f) => ({ ...f, [g.key]: "ALL" }))}
-              className="flex items-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/20"
+              className="chip-gray hover:bg-white/10"
               title={`Remove ${g.label} filter`}
             >
-              {g.label}: {filters[g.key]} <FiX size={12} />
+              {g.label}: {filters[g.key]} <FiX size={11} />
             </button>
           ))}
           {activeFilters.length > 1 && (
-            <button
-              type="button"
-              onClick={() => setFilters(NO_FILTERS)}
-              className="text-[11px] font-bold uppercase tracking-[1px] text-white/60 underline underline-offset-4 hover:text-white"
-            >
+            <button type="button" onClick={() => setFilters(NO_FILTERS)} className="label underline underline-offset-4 hover:text-white">
               Clear all
             </button>
           )}
         </div>
       )}
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-[20px] border border-white/15 bg-white/[0.06] shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-md">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] border-collapse text-left">
-            <thead>
-              <tr className="bg-gradient-to-r from-[#7a1317] to-[#5a0e12]">
-                {selectMode && <th className="w-12 px-4 py-3.5" />}
-                {COLUMNS.map((col) => (
-                  <th
-                    key={col.label}
-                    className={`px-5 py-3.5 text-[11px] font-bold uppercase tracking-[2px] text-white/90 ${col.className}`}
-                  >
-                    {col.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {pageStudents.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={selectMode ? 6 : 5}
-                    className="px-6 py-12 text-center text-sm text-white/60"
-                  >
-                    No students found.
-                  </td>
-                </tr>
-              )}
-              {pageStudents.map((user) => {
-                const isSelected = selectedIds.has(user.studentId);
-                const points = getTotalPoints(user.studentId);
-                const cleared = getClearance(user.studentId).cleared;
-                const pct =
-                  targetPoints > 0 ? Math.min(100, Math.round((points / targetPoints) * 100)) : 0;
-                return (
-                  <tr
-                    key={user.studentId}
-                    onClick={() =>
-                      selectMode ? toggleSelected(user.studentId) : setViewingStudentId(user.studentId)
-                    }
-                    className={`group cursor-pointer border-b border-white/10 transition-colors last:border-none ${
-                      isSelected ? "bg-[#97191d]/30" : "hover:bg-white/[0.08]"
-                    }`}
-                  >
-                    {selectMode && (
-                      <td className="px-4 py-3.5">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelected(user.studentId)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 cursor-pointer accent-[#97191d]"
-                        />
-                      </td>
-                    )}
-                    <td className="px-5 py-3.5">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!selectMode) setViewingStudentId(user.studentId);
-                        }}
-                        className="flex items-center gap-3.5 text-left"
-                      >
-                        <StudentAvatar student={user} size={42} />
-                        <span className="min-w-0">
-                          <span
-                            className="block max-w-[320px] truncate text-sm font-semibold text-white underline-offset-4 group-hover:underline"
-                            title={user.name}
-                          >
-                            {user.name}
-                          </span>
-                          <span className="mt-0.5 block font-mono text-[11px] tracking-[1px] text-white/50">
-                            {user.studentId}
-                          </span>
-                        </span>
-                      </button>
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-3.5 text-sm text-white/80">
-                      {user.section}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <StatusBadge student={user} />
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <AccountBadge student={user} />
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <div className="h-2 w-28 overflow-hidden rounded-full bg-black/40">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              cleared ? "bg-green-500" : "bg-[#c4262c]"
-                            }`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="w-12 text-right text-xs font-semibold tabular-nums text-white/80">
-                          {points}/{targetPoints}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <div className="surface overflow-hidden">
+        <div className={`${ROW} hidden border-b border-white/10 bg-white/[0.03] md:grid`}>
+          {["Student", "Section", "Status", "Account", "Points"].map((h) => (
+            <span key={h} className="label">{h}</span>
+          ))}
         </div>
+
+        {pageStudents.length === 0 && <EmptyState>No students found.</EmptyState>}
+
+        {pageStudents.map((user) => {
+          const isSelected = selectedIds.has(user.studentId);
+          const points = getTotalPoints(user.studentId);
+          const cleared = getClearance(user.studentId).cleared;
+          const pct = targetPoints > 0 ? Math.min(100, Math.round((points / targetPoints) * 100)) : 0;
+          return (
+            <div
+              key={user.studentId}
+              onClick={() => (selectMode ? toggleSelected(user.studentId) : setViewingStudentId(user.studentId))}
+              className={`${ROW} cursor-pointer border-b border-white/10 transition-colors last:border-0 ${
+                isSelected ? "bg-maroon/25" : "hover:bg-white/[0.04]"
+              }`}
+            >
+              <div className="col-span-2 flex min-w-0 items-center gap-3 md:col-span-1">
+                {selectMode && (
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSelected(user.studentId)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-4 w-4 shrink-0 cursor-pointer accent-[#f2b400]"
+                  />
+                )}
+                <StudentAvatar student={user} size={38} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold" title={user.name}>{user.name}</p>
+                  <p className="font-mono text-xs text-white/45">{user.studentId}</p>
+                </div>
+              </div>
+              <span className="text-sm muted">{user.section}</span>
+              <StatusCell student={user} />
+              <AccountCell student={user} requested={Boolean(resetRequests[user.studentId])} />
+              <div className="col-span-2 flex items-center gap-3 md:col-span-1">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <div className={`h-full rounded-full ${cleared ? "bg-green-400" : "bg-gold"}`} style={{ width: `${pct}%` }} />
+                </div>
+                <span className="w-14 text-right font-mono text-xs text-white/75">{points}/{targetPoints}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Pagination */}
-      <div className="flex flex-wrap items-center justify-center gap-3 pb-2">
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => setPage(n)}
-            className={`h-10 min-w-10 rounded-full border px-4 text-sm font-bold transition-all ${
-              page === n
-                ? "border-white/30 bg-[#97191d] text-white"
-                : "border-white/40 bg-white/5 text-white backdrop-blur-md hover:bg-white/15"
-            }`}
-          >
-            {n}
-          </button>
-        ))}
-      </div>
+      {totalPages > 1 && (
+        <div className="flex flex-wrap justify-center gap-2">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setPage(n)}
+              className={`btn-sm min-w-8 ${page === n ? "btn-primary" : "btn-ghost"}`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      )}
 
       {showAddModal && <AddStudentModal onClose={() => setShowAddModal(false)} />}
-      {showProvisionModal && (
-        <ProvisionAccountsModal onClose={() => setShowProvisionModal(false)} />
-      )}
+      {showProvisionModal && <ProvisionAccountsModal onClose={() => setShowProvisionModal(false)} />}
       {viewingStudentId && (
-        <StudentIdCardModal
-          studentId={viewingStudentId}
-          onClose={() => setViewingStudentId(null)}
-        />
+        <StudentIdCardModal studentId={viewingStudentId} onClose={() => setViewingStudentId(null)} />
       )}
     </div>
   );

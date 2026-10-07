@@ -1,6 +1,7 @@
 import { useState } from "react";
-import PageBackground from "../components/PageBackground";
-import Sidebar from "../components/Sidebar";
+import { FiCalendar, FiCamera, FiCheckSquare, FiGrid, FiUploadCloud, FiUsers } from "react-icons/fi";
+import AppShell from "@oasis/shared/components/AppShell.jsx";
+import oasis_logo from "../assets/oasislogo.gif";
 import UserPage from "../User/UserPage";
 import EventsPage from "../Events/EventsPage";
 import ImportPage from "../Import/ImportPage";
@@ -8,28 +9,34 @@ import DashboardHome from "./DashboardHome";
 import ScanPage from "../Scan/ScanPage";
 import RequirementsPage from "../Requirements/RequirementsPage";
 
+const NAV = [
+  { id: "Dashboard", label: "Dashboard", icon: FiGrid },
+  { id: "User", label: "Students", icon: FiUsers },
+  { id: "Requirements", label: "Requirements", icon: FiCheckSquare },
+  { id: "Event", label: "Events", icon: FiCalendar },
+  { id: "Scan", label: "Scan", icon: FiCamera },
+  { id: "Import", label: "Import", icon: FiUploadCloud },
+];
+
 export default function DashboardShell({ currentUser, onLogout, onStartKiosk }) {
   const [activeTab, setActiveTab] = useState("Dashboard");
 
   return (
-    <PageBackground>
-      <div className="flex min-h-screen flex-col gap-8 px-6 py-10 lg:flex-row lg:px-12">
-        <Sidebar
-          active={activeTab}
-          onNavigate={setActiveTab}
-          currentUser={currentUser}
-          onLogout={onLogout}
-        />
-
-        <main className="flex-1">
-          {activeTab === "User" && <UserPage />}
-          {activeTab === "Dashboard" && <DashboardHome onNavigate={setActiveTab} />}
-          {activeTab === "Requirements" && <RequirementsPage />}
-          {activeTab === "Event" && <EventsPage onStartKiosk={onStartKiosk} />}
-          {activeTab === "Scan" && <ScanPage onStartKiosk={onStartKiosk} />}
-          {activeTab === "Import" && <ImportPage />}
-        </main>
-      </div>
-    </PageBackground>
+    <AppShell
+      nav={NAV}
+      active={activeTab}
+      onNavigate={setActiveTab}
+      user={currentUser}
+      role="Admin console"
+      logoSrc={oasis_logo}
+      onLogout={onLogout}
+    >
+      {activeTab === "User" && <UserPage />}
+      {activeTab === "Dashboard" && <DashboardHome onNavigate={setActiveTab} />}
+      {activeTab === "Requirements" && <RequirementsPage />}
+      {activeTab === "Event" && <EventsPage onStartKiosk={onStartKiosk} />}
+      {activeTab === "Scan" && <ScanPage onStartKiosk={onStartKiosk} />}
+      {activeTab === "Import" && <ImportPage />}
+    </AppShell>
   );
 }

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { FiDownload, FiUploadCloud } from "react-icons/fi";
+import { PageHeader, Section } from "@oasis/shared/components/ui.jsx";
 import { useStudents } from "../context/StudentsContext";
 import {
   parseStudentsFile,
@@ -67,127 +68,80 @@ export default function ImportPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  return (
-    <div className="flex w-full flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-lg font-bold uppercase tracking-[2px] text-white">
-          Import Students
-        </h2>
-        <button
-          type="button"
-          onClick={downloadImportTemplate}
-          className="flex h-11 items-center gap-2 rounded-full border border-white/30 bg-white/5 px-6 text-sm font-bold uppercase tracking-[1px] text-white transition-all hover:bg-white/15"
-        >
-          <FiDownload size={16} />
-          Download Template
-        </button>
-      </div>
+  const CHIP = { new: ["chip-green", "New"], duplicate: ["chip-amber", "Duplicate"], invalid: ["chip-red", "Missing info"] };
 
-      <div className="rounded-[24px] border border-white/20 bg-white/10 p-8 text-center shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md">
-        <FiUploadCloud size={36} className="mx-auto text-white/60" />
-        <p className="mt-3 text-sm text-white/70">
-          Upload an Excel (.xlsx) or CSV file with your students. Download the template above
-          if you're not sure of the format.
-        </p>
-        <label className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#97191d] px-8 py-3 text-sm font-bold uppercase tracking-[2px] text-white transition-all hover:bg-[#b81f25]">
-          {isParsing ? "Reading file..." : "Choose File"}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-            onChange={(e) => handleFile(e.target.files?.[0])}
-          />
-        </label>
-        {fileName && <p className="mt-3 text-xs text-white/50">Selected: {fileName}</p>}
-        {parseError && (
-          <p className="mt-3 text-sm font-semibold text-red-300">{parseError}</p>
-        )}
-      </div>
+  return (
+    <div className="flex flex-col gap-5">
+      <PageHeader title="Import students" subtitle="Add many students at once from a spreadsheet.">
+        <button type="button" onClick={downloadImportTemplate} className="btn-ghost">
+          <FiDownload size={14} /> Download template
+        </button>
+      </PageHeader>
+
+      <Section>
+        <div className="py-4 text-center">
+          <FiUploadCloud size={34} className="mx-auto text-gold/80" />
+          <p className="mx-auto mt-3 max-w-md text-sm muted">
+            Upload an Excel (.xlsx) or CSV file. Not sure of the format? Download the template first.
+          </p>
+          <label className="btn-primary mt-5 cursor-pointer px-6">
+            {isParsing ? "Reading file..." : "Choose file"}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={(e) => handleFile(e.target.files?.[0])}
+            />
+          </label>
+          {fileName && <p className="mt-3 font-mono text-xs text-white/50">Selected: {fileName}</p>}
+          {parseError && <p className="mt-3 text-sm text-neon-pink">{parseError}</p>}
+        </div>
+      </Section>
 
       {result && (
-        <div className="rounded-2xl border border-green-400/40 bg-green-500/15 px-5 py-4 text-sm text-green-200">
-          <p className="font-bold uppercase tracking-[1px]">Import complete</p>
+        <div className="rounded-lg border border-green-400/30 bg-green-500/10 px-4 py-3 text-sm text-green-200">
+          <p className="label text-green-300">Import complete</p>
           <p className="mt-1">
             Added {result.added} student{result.added === 1 ? "" : "s"}.
             {result.skipped.length > 0 &&
-              ` Skipped ${result.skipped.length} row${
-                result.skipped.length === 1 ? "" : "s"
-              } (missing info or already existing).`}
+              ` Skipped ${result.skipped.length} row${result.skipped.length === 1 ? "" : "s"} (missing info or already existing).`}
           </p>
         </div>
       )}
 
       {preview.length > 0 && (
         <>
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-white/80">
-              {validCount} of {preview.length} rows ready to import
-            </p>
-            <button
-              type="button"
-              onClick={handleImport}
-              disabled={validCount === 0}
-              className="h-11 rounded-full bg-[#97191d] px-8 text-sm font-bold uppercase tracking-[2px] text-white transition-all hover:bg-[#b81f25] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Import {validCount} Student{validCount === 1 ? "" : "s"}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-white/80">{validCount} of {preview.length} rows ready to import</p>
+            <button type="button" onClick={handleImport} disabled={validCount === 0} className="btn-primary">
+              Import {validCount} student{validCount === 1 ? "" : "s"}
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-[24px] border border-white/20 bg-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md">
-            <div className="max-h-[420px] overflow-auto">
-              <table className="w-full min-w-[720px] border-collapse text-left">
-                <thead>
-                  <tr className="bg-[#7a1317]/70">
+          <div className="table-wrap">
+            <div className="table-scroll max-h-[420px] overflow-y-auto">
+              <table className="w-full min-w-[640px] border-collapse">
+                <thead className="sticky top-0 bg-[#1c1011]">
+                  <tr>
                     {["Student ID", "Name", "Course", "Section", "Status"].map((col) => (
-                      <th
-                        key={col}
-                        className="sticky top-0 bg-[#7a1317] px-6 py-3 text-sm font-bold uppercase tracking-[2px] text-white"
-                      >
-                        {col}
-                      </th>
+                      <th key={col} className="th">{col}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody>
-                  {preview.map((row, i) => (
-                    <tr
-                      key={`${row.studentId}-${i}`}
-                      className={`border-b border-dashed border-white/20 last:border-none ${
-                        row.validity === "new"
-                          ? i % 2 === 0
-                            ? "bg-white/10"
-                            : "bg-white/5"
-                          : row.validity === "duplicate"
-                          ? "bg-yellow-500/10"
-                          : "bg-red-500/10"
-                      }`}
-                    >
-                      <td className="px-6 py-3 text-sm font-semibold text-white">
-                        {row.studentId || "—"}
-                      </td>
-                      <td className="px-6 py-3 text-sm text-white/90">{row.name || "—"}</td>
-                      <td className="px-6 py-3 text-sm text-white/90">{row.course || "—"}</td>
-                      <td className="px-6 py-3 text-sm text-white/90">{row.section || "—"}</td>
-                      <td className="px-6 py-3 text-sm">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[1px] ${
-                            row.validity === "new"
-                              ? "bg-green-500/20 text-green-300"
-                              : row.validity === "duplicate"
-                              ? "bg-yellow-500/20 text-yellow-300"
-                              : "bg-red-500/20 text-red-300"
-                          }`}
-                        >
-                          {row.validity === "new"
-                            ? "New"
-                            : row.validity === "duplicate"
-                            ? "Duplicate"
-                            : "Missing Info"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-white/10">
+                  {preview.map((row, i) => {
+                    const [chip, label] = CHIP[row.validity];
+                    return (
+                      <tr key={`${row.studentId}-${i}`}>
+                        <td className="td font-mono">{row.studentId || "—"}</td>
+                        <td className="td">{row.name || "—"}</td>
+                        <td className="td muted">{row.course || "—"}</td>
+                        <td className="td muted">{row.section || "—"}</td>
+                        <td className="td"><span className={chip}>{label}</span></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

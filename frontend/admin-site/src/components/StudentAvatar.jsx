@@ -5,7 +5,7 @@ export default function StudentAvatar({ student, size = 36 }) {
   const initials = `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
   return (
     <span
-      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#f2b400]/70 bg-gradient-to-b from-[#7a1317] to-[#2b0a0c] text-[11px] font-bold text-white"
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold/60 bg-maroon/40 font-mono text-[11px] font-bold text-gold"
       style={{ width: size, height: size }}
     >
       {student.photo ? (

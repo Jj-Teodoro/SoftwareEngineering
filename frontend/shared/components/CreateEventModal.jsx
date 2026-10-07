@@ -4,9 +4,8 @@ import Modal from "./Modal.jsx";
 import { resizeImageToDataUrl } from "../utils/image.js";
 import { todayLocal } from "../utils/events.js";
 
-const inputClass =
-  "h-11 w-full rounded-lg border border-white/30 bg-black/20 px-3 text-sm text-white placeholder-white/40 outline-none focus:border-white/60";
-const labelClass = "mb-1 block text-[11px] font-bold uppercase tracking-[1px] text-white/70";
+const inputClass = "input";
+const labelClass = "label mb-1.5 block";
 
 /**
  * Create-event form shared by the Admin and Scanner sites. An event needs a
@@ -84,7 +83,7 @@ export default function CreateEventModal({
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-lg">
-      <h2 className="mb-1 text-lg font-bold uppercase tracking-[2px] text-white">
+      <h2 className="page-title pr-8 mb-1">
         {editing ? "Edit Event" : "New Event"}
       </h2>
       <p className="mb-5 text-xs text-white/55">
@@ -136,8 +135,8 @@ export default function CreateEventModal({
           </select>
         </div>
 
-        <div className="rounded-xl border border-white/15 bg-black/20 p-4">
-          <p className="mb-3 text-[11px] font-bold uppercase tracking-[1px] text-[#f2b400]">
+        <div className="rounded-lg border border-white/15 bg-black/20 p-4">
+          <p className="mb-3 text-[11px] font-bold uppercase tracking-[1px] text-gold">
             What students will see — add at least one
           </p>
 
@@ -145,7 +144,7 @@ export default function CreateEventModal({
           <textarea
             rows={3}
             maxLength={400}
-            className="w-full rounded-lg border border-white/30 bg-black/20 px-3 py-2 text-sm text-white placeholder-white/40 outline-none focus:border-white/60"
+            className="input py-2"
             placeholder="Venue, time, what to bring, what the event is about..."
             value={form.description}
             onChange={set("description")}
@@ -178,12 +177,12 @@ export default function CreateEventModal({
         </div>
 
         {editing && (
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/15 bg-black/20 px-4 py-3">
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/15 bg-black/20 px-4 py-3">
             <input
               type="checkbox"
               checked={notify}
               onChange={(e) => setNotify(e.target.checked)}
-              className="mt-0.5 h-4 w-4 accent-[#97191d]"
+              className="mt-0.5 h-4 w-4 accent-[#f2b400]"
             />
             <span className="text-xs text-white/80">
               <span className="font-bold uppercase tracking-[1px] text-white">
@@ -202,7 +201,7 @@ export default function CreateEventModal({
           <button
             type="button"
             onClick={onClose}
-            className="h-11 rounded-full border border-white/30 px-6 text-sm font-bold uppercase tracking-[2px] text-white transition-all hover:bg-white/10"
+            className="btn-ghost h-11"
           >
             {warning ? "Close" : "Cancel"}
           </button>
@@ -210,7 +209,7 @@ export default function CreateEventModal({
             <button
               type="submit"
               disabled={submitting}
-              className="h-11 rounded-full bg-[#97191d] px-8 text-sm font-bold uppercase tracking-[2px] text-white transition-all hover:bg-[#b81f25] disabled:opacity-50"
+              className="btn-primary h-11"
             >
               {submitting ? "Saving..." : editing ? "Save Changes" : "Create Event"}
             </button>
