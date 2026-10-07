@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@oasis/shared/firebaseClient.js";
+import { useEvents } from "./EventsContext";
 import { useRequirements } from "./RequirementsContext";
 import { useStudents } from "./StudentsContext";
 
@@ -10,7 +11,8 @@ const PointsContext = createContext(null);
 export function PointsProvider({ children }) {
   const [eventPoints, setEventPoints] = useState({});
   const [attendanceByStudent, setAttendanceByStudent] = useState({});
-  const { getRequirementPoints, targetPoints } = useRequirements();
+  const { items, appliesTo, getRequirementPoints } = useRequirements();
+  const { events } = useEvents();
   const { students } = useStudents();
 
   useEffect(() => {
@@ -49,7 +51,21 @@ export function PointsProvider({ children }) {
     (eventPoints[studentId] || 0) +
     getRequirementPoints(studentId, students.find((s) => s.studentId === studentId)?.course);
 
+  // What a student has to earn to be cleared: every requirement and event that
+  // applies to their program (events open to all programs, or to theirs).
+  const getTargetPoints = (studentId) => {
+    const course = students.find((s) => s.studentId === studentId)?.course;
+    const fromRequirements = items
+      .filter((item) => appliesTo(item, course))
+      .reduce((sum, item) => sum + (item.pointValue || 0), 0);
+    const fromEvents = events
+      .filter((e) => !e.programFilter || e.programFilter === "ALL" || e.programFilter === course)
+      .reduce((sum, e) => sum + (e.pointValue || 0), 0);
+    return fromRequirements + fromEvents;
+  };
+
   const getClearance = (studentId) => {
+    const targetPoints = getTargetPoints(studentId);
     const totalPoints = getTotalPoints(studentId);
     return {
       totalPoints,
@@ -62,7 +78,7 @@ export function PointsProvider({ children }) {
 
   return (
     <PointsContext.Provider
-      value={{ getTotalPoints, getClearance, targetPoints, getAttendanceRecords }}
+      value={{ getTotalPoints, getClearance, getTargetPoints, getAttendanceRecords }}
     >
       {children}
     </PointsContext.Provider>

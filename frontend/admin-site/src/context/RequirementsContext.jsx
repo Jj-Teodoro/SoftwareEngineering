@@ -25,20 +25,17 @@ function completionId(studentId, requirementId) {
 export function RequirementsProvider({ children }) {
   const [items, setItems] = useState([]);
   const [completions, setCompletions] = useState({});
-  const [targetPoints, setTargetPoints] = useState(0);
 
   useEffect(() => {
     let unsubItems = null;
     let unsubCompletions = null;
-    let unsubSettings = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      [unsubItems, unsubCompletions, unsubSettings].forEach((u) => u && u());
+      [unsubItems, unsubCompletions].forEach((u) => u && u());
 
       if (!user) {
         setItems([]);
         setCompletions({});
-        setTargetPoints(0);
         return;
       }
 
@@ -56,15 +53,11 @@ export function RequirementsProvider({ children }) {
         });
         setCompletions(next);
       });
-
-      unsubSettings = onSnapshot(doc(db, "settings", "semester"), (snapshot) => {
-        setTargetPoints(snapshot.exists() ? snapshot.data().targetPoints || 0 : 0);
-      });
     });
 
     return () => {
       unsubscribeAuth();
-      [unsubItems, unsubCompletions, unsubSettings].forEach((u) => u && u());
+      [unsubItems, unsubCompletions].forEach((u) => u && u());
     };
   }, []);
 
@@ -147,7 +140,6 @@ export function RequirementsProvider({ children }) {
         isCompleted,
         toggleCompleted,
         getRequirementPoints,
-        targetPoints,
       }}
     >
       {children}

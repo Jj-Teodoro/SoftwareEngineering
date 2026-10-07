@@ -52,7 +52,7 @@ function PointsBar({ points, target, cleared }) {
 export default function DashboardHome({ onNavigate }) {
   const { students } = useStudents();
   const { events, presentCounts } = useEvents();
-  const { getTotalPoints, getClearance, targetPoints } = usePoints();
+  const { getTotalPoints, getClearance } = usePoints();
   const { getActivity } = usePresence();
 
   const clearedCount = students.filter((s) => getClearance(s.studentId).cleared).length;
@@ -121,7 +121,7 @@ export default function DashboardHome({ onNavigate }) {
           className="xl:col-span-3"
         >
           <p className="mb-3 text-xs muted">
-            Semester target: <span className="font-mono font-bold text-white">{targetPoints} pts</span>
+            Each student's target is every requirement and event that applies to their program.
           </p>
           {usersStatus.length === 0 ? (
             <EmptyState>No students yet.</EmptyState>
@@ -129,7 +129,7 @@ export default function DashboardHome({ onNavigate }) {
             <ul className="divide-y divide-white/10">
               {usersStatus.map((student) => {
                 const points = getTotalPoints(student.studentId);
-                const cleared = getClearance(student.studentId).cleared;
+                const { cleared, targetPoints } = getClearance(student.studentId);
                 return (
                   <li key={student.studentId} className="grid items-center gap-x-4 gap-y-1.5 py-3 sm:grid-cols-[1fr_minmax(0,220px)]">
                     <div className="min-w-0">

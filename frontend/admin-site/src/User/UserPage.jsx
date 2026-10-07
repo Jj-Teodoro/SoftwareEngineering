@@ -100,7 +100,7 @@ function FilterPanel({ groups, filters, setFilters, activeCount }) {
 export default function UserPage() {
   const { students, deleteStudents, resetRequests } = useStudents();
   const confirm = useConfirm();
-  const { getTotalPoints, getClearance, targetPoints } = usePoints();
+  const { getTotalPoints, getClearance } = usePoints();
   const { getActivity } = usePresence();
 
   const [search, setSearch] = useState("");
@@ -260,7 +260,7 @@ export default function UserPage() {
         {pageStudents.map((user) => {
           const isSelected = selectedIds.has(user.studentId);
           const points = getTotalPoints(user.studentId);
-          const cleared = getClearance(user.studentId).cleared;
+          const { cleared, targetPoints } = getClearance(user.studentId);
           const pct = targetPoints > 0 ? Math.min(100, Math.round((points / targetPoints) * 100)) : 0;
           return (
             <div
