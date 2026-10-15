@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { FcGoogle } from "react-icons/fc";
 import PageBackground from "../components/PageBackground";
 import aces_logo from "../assets/aceslogo.png";
 import oasis_logo from "../assets/oasislogo.gif"; // Imported the OASIS GIF logo
+import { login } from "../api/client";
 
 export default function LoginPage({ onLoginSuccess }) {
   const {
@@ -17,9 +18,20 @@ export default function LoginPage({ onLoginSuccess }) {
     },
   });
 
-  const onSubmit = (data) => {
-    console.log("Form Submitted:", data);
-    onLoginSuccess?.(data);
+  const [loginError, setLoginError] = useState("");
+
+  const onSubmit = async (data) => {
+    setLoginError("");
+    try {
+      await login(data.studentId.trim(), data.password);
+      onLoginSuccess?.();
+    } catch (error) {
+      setLoginError(
+        error.status === 401
+          ? "Invalid student ID or password"
+          : "Unable to reach the server. Please try again."
+      );
+    }
   };
 
   return (
@@ -126,6 +138,12 @@ export default function LoginPage({ onLoginSuccess }) {
                   </p>
                 )}
               </div>
+
+              {loginError && (
+                <p role="alert" className="mb-4 text-center text-sm font-semibold text-red-300">
+                  {loginError}
+                </p>
+              )}
 
               {/* Submit Button */}
               <div className="flex justify-center pt-2">

@@ -1,22 +1,40 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FiSearch } from "react-icons/fi";
+import { api } from "../api/client";
 
-const SAMPLE_USERS = [
-  { id: "2024-02333", name: "NIEVES, RAFAEL JOSEPH G.", section: "BSCPE-3A", status: "ACTIVE" },
-  { id: "2024-00429", name: "OCAMPO, NATHAN LEO", section: "BSCPE-3A", status: "INACTIVE" },
-  { id: "2024-00429", name: "OCAMPO, NATHAN LEO", section: "BSCPE-3A", status: "INACTIVE" },
-  { id: "2024-00429", name: "OCAMPO, NATHAN LEO", section: "BSCPE-3A", status: "INACTIVE" },
-  { id: "2024-00429", name: "OCAMPO, NATHAN LEO", section: "BSCPE-3A", status: "INACTIVE" },
-  { id: "2024-00429", name: "OCAMPO, NATHAN LEO", section: "BSCPE-3A", status: "INACTIVE" },
-  { id: "2024-00429", name: "OCAMPO, NATHAN LEO", section: "BSCPE-3A", status: "INACTIVE" },
-  { id: "2024-00429", name: "OCAMPO, NATHAN LEO", section: "BSCPE-3A", status: "INACTIVE" },
-];
+const PAGE_SIZE = 8;
 
-const TOTAL_PAGES = 8;
+function formatName(user) {
+  const middleInitial = user.middle_name ? ` ${user.middle_name[0]}.` : "";
+  return `${user.last_name}, ${user.first_name}${middleInitial}`.toUpperCase();
+}
 
 export default function UserPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const loadUsers = useCallback(async (query = "") => {
+    setLoading(true);
+    setError("");
+    try {
+      setUsers(await api.users.list({ search: query.trim() }));
+      setPage(1);
+    } catch (err) {
+      setError(err.message || "Failed to load users");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
+  const pageUsers = users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -29,6 +47,7 @@ export default function UserPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && loadUsers(search)}
               placeholder="Search student ID or name"
               className="w-full bg-transparent text-sm text-white placeholder-white/50 outline-none"
             />
@@ -36,6 +55,7 @@ export default function UserPage() {
 
           <button
             type="button"
+            onClick={() => loadUsers(search)}
             className="h-12 rounded-full bg-white/90 px-8 text-sm font-bold uppercase tracking-[2px] text-[#7a1317] transition-all hover:bg-white"
           >
             Enter
@@ -71,7 +91,7 @@ export default function UserPage() {
           <table className="w-full min-w-[640px] border-collapse text-left">
             <thead>
               <tr className="bg-[#7a1317]/70">
-                {["Student ID", "Name", "Section", "Status"].map((col) => (
+                {["Student ID", "Name", "Section", "Role"].map((col) => (
                   <th
                     key={col}
                     className="px-6 py-4 text-sm font-bold uppercase tracking-[2px] text-white"
@@ -82,17 +102,24 @@ export default function UserPage() {
               </tr>
             </thead>
             <tbody>
-              {SAMPLE_USERS.map((user, i) => (
+              {(loading || error || pageUsers.length === 0) && (
+                <tr>
+                  <td colSpan={4} className={`px-6 py-8 text-center text-sm ${error ? "text-red-300" : "text-white/70"}`}>
+                    {loading ? "Loading users..." : error || "No users found"}
+                  </td>
+                </tr>
+              )}
+              {!loading && !error && pageUsers.map((user, i) => (
                 <tr
-                  key={`${user.id}-${i}`}
+                  key={user.student_id}
                   className={`border-b border-dashed border-white/20 last:border-none ${
                     i % 2 === 0 ? "bg-white/10" : "bg-white/5"
                   }`}
                 >
-                  <td className="px-6 py-4 text-sm font-semibold text-white">{user.id}</td>
-                  <td className="px-6 py-4 text-sm text-white/90">{user.name}</td>
+                  <td className="px-6 py-4 text-sm font-semibold text-white">{user.student_id}</td>
+                  <td className="px-6 py-4 text-sm text-white/90">{formatName(user)}</td>
                   <td className="px-6 py-4 text-sm text-white/90">{user.section}</td>
-                  <td className="px-6 py-4 text-sm text-white/90">{user.status}</td>
+                  <td className="px-6 py-4 text-sm text-white/90">{user.role.toUpperCase()}</td>
                 </tr>
               ))}
             </tbody>
@@ -102,7 +129,7 @@ export default function UserPage() {
 
       {/* Pagination */}
       <div className="flex flex-wrap items-center justify-center gap-3 pb-2">
-        {Array.from({ length: TOTAL_PAGES }, (_, i) => i + 1).map((n) => (
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
           <button
             key={n}
             type="button"
@@ -116,9 +143,6 @@ export default function UserPage() {
             {n}
           </button>
         ))}
-        <span className="flex h-10 min-w-10 items-center justify-center rounded-full border border-white/40 bg-white/5 px-4 text-sm font-bold text-white backdrop-blur-md">
-          ...
-        </span>
       </div>
     </div>
   );
