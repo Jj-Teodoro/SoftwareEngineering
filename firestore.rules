@@ -1,0 +1,125 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isStaff() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/staff/$(request.auth.uid));
+    }
+    function staffRole() {
+      return get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role;
+    }
+    function isAdmin() {
+      return isStaff() && staffRole() == "admin";
+    }
+    function isScanner() {
+      return isStaff() && (staffRole() == "scanner" || staffRole() == "admin");
+    }
+    function isOwnStudent(studentId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/students/$(studentId)).data.authUid == request.auth.uid;
+    }
+
+    match /students/{studentId} {
+      allow read: if isSignedIn();
+      allow create, delete: if isAdmin();
+      // Admins manage everything on a student record. A student may only change
+      // their own photo, bio, talent and hobbies, and may clear the
+      // mustChangePassword flag after setting a new password.
+      allow update: if isAdmin() ||
+        (isOwnStudent(studentId) &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['bio', 'hobbies', 'talent', 'photo', 'mustChangePassword']) &&
+         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['mustChangePassword']) ||
+          request.resource.data.mustChangePassword == false) &&
+         (!('photo' in request.resource.data) || request.resource.data.photo.size() < 200000));
+
+      match /notificationReads/{notifId} {
+        allow read, write: if isOwnStudent(studentId);
+      }
+    }
+
+    // Temporary first-login passwords: visible to admins only, and removed by the
+    // student's own client as soon as they choose a new password.
+    match /accountCredentials/{studentId} {
+      allow read, create, update: if isAdmin();
+      allow delete: if isAdmin() || isOwnStudent(studentId);
+    }
+
+    // Live "using the website" status: each student writes only their own
+    // heartbeat; only admins can read it.
+    match /presence/{studentId} {
+      allow read, delete: if isAdmin();
+      allow create, update: if isOwnStudent(studentId) &&
+        request.resource.data.keys().hasOnly(['lastSeen', 'online']) &&
+        request.resource.data.lastSeen is timestamp &&
+        request.resource.data.online is bool;
+    }
+
+    // After an admin re-issues a student's login, the login page looks up the
+    // new address by the hash of the student's email (a single get, no listing).
+    match /loginAliases/{hash} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if isAdmin();
+    }
+
+    // "I forgot my password": anyone can flag a Student ID; only admins can read it.
+    match /passwordRequests/{studentId} {
+      allow create, update: if request.resource.data.keys().hasOnly(['requestedAt']) &&
+        request.resource.data.requestedAt is timestamp;
+      allow read, delete: if isAdmin();
+    }
+
+    match /hobbiesCatalog/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Staff (admin / scanner) accounts are separate from students. Only an admin
+    // can create one, and its username can never be a student ID.
+    match /staff/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() &&
+        request.resource.data.keys().hasOnly(['username', 'name', 'role']) &&
+        request.resource.data.role in ['admin', 'scanner'] &&
+        !exists(/databases/$(database)/documents/students/$(request.resource.data.username));
+      allow update, delete: if isAdmin();
+    }
+
+    match /requirements/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /studentRequirements/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow create, update: if isScanner() &&
+        (!('image' in request.resource.data) || request.resource.data.image.size() < 400000);
+      allow delete: if isScanner();
+    }
+
+    match /attendance/{id} {
+      allow read: if isSignedIn();
+      allow write: if isScanner();
+    }
+
+    // Event announcements are created by whoever creates the event (admin or scanner).
+    match /notifications/{id} {
+      allow read: if isSignedIn();
+      allow write: if isScanner();
+    }
+
+    match /settings/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

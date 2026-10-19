@@ -1,0 +1,60 @@
+/*
+ * Shared look for the admin and scanner sites: a restrained cyberpunk style
+ * (dark surfaces, gold primary, cyan focus, mono labels). Import it from each
+ * site's index.css, then use these classes instead of long utility strings.
+ */
+@layer base {
+  html { color-scheme: dark; }
+  body { @apply bg-ink font-['Montserrat',sans-serif] text-white antialiased; }
+  ::selection { background: rgba(242, 180, 0, 0.35); }
+}
+
+@layer components {
+  /* surfaces */
+  .surface { @apply rounded-xl border border-white/10 bg-ink-panel/90; }
+  .surface-accent { @apply surface border-t-2 border-t-gold/70; }
+  .surface-inset { @apply rounded-lg border border-white/10 bg-black/25; }
+
+  /* typography */
+  .page-title { @apply font-display text-base uppercase tracking-wider text-white sm:text-lg; }
+  .label { @apply font-mono text-[11px] uppercase tracking-widest text-white/55; }
+  .muted { @apply text-white/60; }
+
+  /* buttons */
+  .btn {
+    @apply inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-4
+      text-xs font-semibold uppercase tracking-wider transition-colors
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon-cyan
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary { @apply btn border-transparent bg-gold text-[#1a0405] hover:bg-gold-soft; }
+  .btn-ghost { @apply btn border-white/20 bg-white/5 text-white hover:bg-white/10; }
+  .btn-danger { @apply btn border-red-400/40 bg-transparent text-red-300 hover:bg-red-600 hover:text-white; }
+  .btn-sm { @apply h-8 px-3 text-[11px]; }
+  .btn-icon { @apply btn h-9 w-9 border-white/15 bg-white/5 p-0 text-white hover:bg-white/10; }
+
+  /* form controls */
+  .input {
+    @apply h-10 w-full rounded-lg border border-white/15 bg-black/30 px-3 text-sm text-white
+      placeholder-white/35 outline-none transition-colors
+      focus:border-neon-cyan focus:ring-1 focus:ring-neon-cyan/50 disabled:opacity-50;
+  }
+  textarea.input { @apply h-auto py-2; }
+
+  /* status chips */
+  .chip {
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-0.5
+      font-mono text-[11px] font-semibold uppercase tracking-wider;
+  }
+  .chip-green { @apply chip border-green-400/30 bg-green-500/10 text-green-300; }
+  .chip-amber { @apply chip border-yellow-400/30 bg-yellow-500/10 text-yellow-300; }
+  .chip-red { @apply chip border-red-400/30 bg-red-500/10 text-red-300; }
+  .chip-cyan { @apply chip border-neon-cyan/30 bg-neon-cyan/10 text-neon-cyan; }
+  .chip-gray { @apply chip border-white/15 bg-white/5 text-white/55; }
+
+  /* data tables (phones scroll them sideways; pages can also swap to cards) */
+  .table-wrap { @apply surface overflow-hidden; }
+  .table-scroll { @apply overflow-x-auto; }
+  .th { @apply px-4 py-3 text-left font-mono text-[11px] font-semibold uppercase tracking-widest text-white/60; }
+  .td { @apply px-4 py-3 text-sm; }
+}
