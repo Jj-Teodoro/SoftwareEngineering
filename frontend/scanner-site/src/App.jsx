@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSignedIn } from "@oasis/shared/api/hooks.js";
 import LoginPage from "./Login/Login";
 import Shell from "./Shell";
 import StudentKioskView from "./Kiosk/StudentKioskView";
@@ -8,9 +9,22 @@ import { StudentsProvider } from "./context/StudentsContext";
 import { EventsProvider } from "./context/EventsContext";
 
 function AppContent() {
-  const { signOut } = useAuth();
+  const { signOut, restoreSession } = useAuth();
+  const signedIn = useSignedIn();
   const [currentUser, setCurrentUser] = useState(null);
   const [kioskEventId, setKioskEventId] = useState(null);
+
+  useEffect(() => {
+    restoreSession().then((staff) => staff && setCurrentUser(staff));
+  }, []);
+
+  // the session expired (or was signed out in another tab)
+  useEffect(() => {
+    if (!signedIn) {
+      setCurrentUser(null);
+      setKioskEventId(null);
+    }
+  }, [signedIn]);
 
   const handleLogout = async () => {
     await signOut();

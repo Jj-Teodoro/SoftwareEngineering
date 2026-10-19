@@ -1,57 +1,49 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
-import { auth, db } from "@oasis/shared/firebaseClient.js";
+import { api } from "@oasis/shared/api/client.js";
+import { useSignedIn, usePolling } from "@oasis/shared/api/hooks.js";
+import { toStudent } from "@oasis/shared/api/mappers.js";
 
 const StudentContext = createContext(null);
 
 export function StudentProvider({ children }) {
+  const signedIn = useSignedIn();
   const [student, setStudent] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(signedIn);
 
   useEffect(() => {
-    let unsubscribeSnapshot = null;
+    if (!signedIn) {
+      setStudent(null);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }, [signedIn]);
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (unsubscribeSnapshot) {
-        unsubscribeSnapshot();
-        unsubscribeSnapshot = null;
-      }
-      if (!user) {
-        setStudent(null);
+  const refresh = usePolling(
+    async () => {
+      try {
+        const user = await api.me();
+        setStudent(user.role === "student" ? toStudent(user) : null);
+      } finally {
         setLoading(false);
-        return;
       }
-      const q = query(collection(db, "students"), where("authUid", "==", user.uid));
-      unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
-        if (snapshot.empty) {
-          setStudent(null);
-        } else {
-          const d = snapshot.docs[0];
-          setStudent({ studentId: d.id, ...d.data() });
-        }
-        setLoading(false);
-      });
-    });
-
-    return () => {
-      unsubscribeAuth();
-      if (unsubscribeSnapshot) unsubscribeSnapshot();
-    };
-  }, []);
+    },
+    { interval: 15000, enabled: signedIn }
+  );
 
   // Students may only change their own photo, bio, talent and hobbies;
   // everything else on their record is managed by an admin.
   const updateProfile = async ({ bio, hobbies, talent, photo }) => {
     if (!student) return;
-    await updateDoc(doc(db, "students", student.studentId), { bio, hobbies, talent, photo });
+    await api.updateProfile({ bio, hobbies, talent, photo });
+    await refresh();
   };
 
+  // The server clears the temporary password when the new one is saved,
+  // so all that is left is reloading the record.
   const completePasswordChange = async () => {
     if (!student) return;
-    await updateDoc(doc(db, "students", student.studentId), { mustChangePassword: false });
-    // The temporary password is no longer valid; remove the admin-visible copy.
-    await deleteDoc(doc(db, "accountCredentials", student.studentId)).catch(() => {});
+    await refresh();
   };
 
   return (

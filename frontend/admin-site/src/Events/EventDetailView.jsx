@@ -214,10 +214,10 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
         </div>
       )}
 
-      {event.lastNotifiedAt?.toDate && (
+      {event.lastNotifiedAt && (
         <p className="-mt-2 text-xs text-white/45">
           Students last notified{" "}
-          {event.lastNotifiedAt.toDate().toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}.
+          {new Date(event.lastNotifiedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}.
         </p>
       )}
 

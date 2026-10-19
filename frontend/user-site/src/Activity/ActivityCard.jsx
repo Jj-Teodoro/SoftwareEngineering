@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
 import { FiCamera, FiCheck, FiEdit2, FiTrash2, FiX } from "react-icons/fi";
-import { db } from "@oasis/shared/firebaseClient.js";
+import { api } from "@oasis/shared/api/client.js";
 import StudentIdCard from "@oasis/shared/components/StudentIdCard.jsx";
 import { usePoints } from "../context/PointsContext";
 import { useStudent } from "../context/StudentContext";
@@ -24,10 +23,14 @@ export default function ActivityCard({ student, onShowBreakdown }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "hobbiesCatalog"), (snapshot) => {
-      setHobbiesCatalog(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-    return unsubscribe;
+    let cancelled = false;
+    api.hobbies
+      .list()
+      .then((list) => !cancelled && setHobbiesCatalog(list.map((h) => ({ id: h.hobby_id, label: h.label }))))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const startEditing = () => {

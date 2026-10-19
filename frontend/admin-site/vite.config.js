@@ -8,4 +8,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   plugins: [react()],
   envDir: path.resolve(__dirname, "../.."),
+  // fixed ports so the Django CORS settings know each site
+  server: { port: 5173, strictPort: true },
 });

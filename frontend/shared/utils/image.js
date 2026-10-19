@@ -1,5 +1,5 @@
 // Resizes and center-crops an image file to a JPEG data URL small enough to
-// store directly on a Firestore document (no Storage bucket needed).
+// store directly on a database record (no Storage bucket needed).
 export function resizeImageToDataUrl(file, { width, height, quality = 0.78 }) {
   return new Promise((resolve, reject) => {
     if (!file || !file.type.startsWith("image/")) {

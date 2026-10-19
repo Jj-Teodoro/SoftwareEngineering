@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
-import { auth, db } from "@oasis/shared/firebaseClient.js";
+import { createContext, useContext, useState } from "react";
+import { api } from "@oasis/shared/api/client.js";
+import { usePolling } from "@oasis/shared/api/hooks.js";
+import { toAttendance, toEvent } from "@oasis/shared/api/mappers.js";
 import { todayLocal } from "@oasis/shared/utils/events.js";
 import { useStudent } from "./StudentContext";
 
@@ -12,42 +12,15 @@ export function EventsProvider({ children }) {
   const [events, setEvents] = useState([]);
   const [myAttendance, setMyAttendance] = useState({});
 
-  useEffect(() => {
-    let unsubscribeSnapshot = null;
-
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (unsubscribeSnapshot) unsubscribeSnapshot();
-      if (!user) {
-        setEvents([]);
-        return;
-      }
-      const q = query(collection(db, "events"), orderBy("date", "asc"));
-      unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
-        setEvents(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-      });
-    });
-
-    return () => {
-      unsubscribeAuth();
-      if (unsubscribeSnapshot) unsubscribeSnapshot();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!student) {
-      setMyAttendance({});
-      return;
-    }
-    const q = query(collection(db, "attendance"), where("studentId", "==", student.studentId));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const next = {};
-      snapshot.forEach((d) => {
-        next[d.data().eventId] = d.data();
-      });
-      setMyAttendance(next);
-    });
-    return unsubscribe;
-  }, [student?.studentId]);
+  // the server only returns this student's own attendance
+  usePolling(
+    async () => {
+      const [eventList, attendance] = await Promise.all([api.events.list(), api.attendance.list()]);
+      setEvents(eventList.map(toEvent).sort((a, b) => a.date.localeCompare(b.date)));
+      setMyAttendance(Object.fromEntries(attendance.map((r) => [r.event, toAttendance(r)])));
+    },
+    { enabled: Boolean(student) }
+  );
 
   const myEvents = events.filter(
     (e) => !e.programFilter || e.programFilter === "ALL" || e.programFilter === student?.course

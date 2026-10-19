@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  updatePassword,
-} from "firebase/auth";
-import { auth } from "@oasis/shared/firebaseClient.js";
+import { api } from "@oasis/shared/api/client.js";
 import { PageHeader, Section } from "@oasis/shared/components/ui.jsx";
 
 export default function SettingsPage({ currentUser }) {
@@ -24,17 +19,15 @@ export default function SettingsPage({ currentUser }) {
 
     setIsSubmitting(true);
     try {
-      const credential = EmailAuthProvider.credential(
-        auth.currentUser.email,
-        currentPassword
-      );
-      await reauthenticateWithCredential(auth.currentUser, credential);
-      await updatePassword(auth.currentUser, newPassword);
+      await api.changePassword(currentPassword, newPassword);
       setStatus({ type: "success", message: "Password updated." });
       setCurrentPassword("");
       setNewPassword("");
-    } catch {
-      setStatus({ type: "error", message: "Current password is incorrect." });
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message: error.data?.current_password ? "Current password is incorrect." : error.message,
+      });
     }
     setIsSubmitting(false);
   };

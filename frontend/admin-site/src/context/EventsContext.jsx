@@ -1,144 +1,83 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import {
-  collection,
-  doc,
-  addDoc,
-  deleteDoc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  onSnapshot,
-  query,
-  where,
-  orderBy,
-  serverTimestamp,
-  writeBatch,
-} from "firebase/firestore";
-import { auth, db } from "@oasis/shared/firebaseClient.js";
+import { createContext, useContext, useState } from "react";
+import { api } from "@oasis/shared/api/client.js";
+import { useSignedIn, usePolling } from "@oasis/shared/api/hooks.js";
+import { fromEvent, toAttendance, toEvent } from "@oasis/shared/api/mappers.js";
 import { formatEventDate, getEventPhase } from "@oasis/shared/utils/events.js";
 
 const EventsContext = createContext(null);
 
-function attendanceDocId(eventId, studentId) {
-  return `${eventId}_${studentId}`;
+// How often the per-event roster refreshes while an admin is watching it.
+const ROSTER_POLL_MS = 3000;
+
+function validateEvent({ title, date, description, image }) {
+  if (!(title || "").trim()) return "Event name is required.";
+  if (!date) return "Date is required.";
+  if (!(description || "").trim() && !image) {
+    return "Add a description or a background picture. Students receive it in their notification.";
+  }
+  return null;
+}
+
+function cleanEvent(fields) {
+  return {
+    ...fields,
+    title: fields.title.trim(),
+    description: (fields.description || "").trim(),
+    programFilter: fields.programFilter || "ALL",
+  };
 }
 
 export function EventsProvider({ children }) {
+  const signedIn = useSignedIn();
   const [events, setEvents] = useState([]);
   const [presentCounts, setPresentCounts] = useState({});
 
-  useEffect(() => {
-    let unsubscribeEvents = null;
-    let unsubscribeAttendance = null;
-
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (unsubscribeEvents) {
-        unsubscribeEvents();
-        unsubscribeEvents = null;
-      }
-      if (unsubscribeAttendance) {
-        unsubscribeAttendance();
-        unsubscribeAttendance = null;
-      }
-      if (!user) {
-        setEvents([]);
-        setPresentCounts({});
-        return;
-      }
-      const q = query(collection(db, "events"), orderBy("createdAt", "desc"));
-      unsubscribeEvents = onSnapshot(q, (snapshot) => {
-        setEvents(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+  const refresh = usePolling(
+    async () => {
+      const [eventList, attendance] = await Promise.all([api.events.list(), api.attendance.list()]);
+      setEvents(eventList.map(toEvent));
+      const counts = {};
+      attendance.forEach((record) => {
+        counts[record.event] = (counts[record.event] || 0) + 1;
       });
-
-      // Present-count per event for the list cards, kept live via the same
-      // flat `attendance` collection everyone else reads.
-      unsubscribeAttendance = onSnapshot(collection(db, "attendance"), (snapshot) => {
-        const counts = {};
-        snapshot.forEach((d) => {
-          const eventId = d.data().eventId;
-          if (!eventId) return;
-          counts[eventId] = (counts[eventId] || 0) + 1;
-        });
-        setPresentCounts(counts);
-      });
-    });
-
-    return () => {
-      unsubscribeAuth();
-      if (unsubscribeEvents) unsubscribeEvents();
-      if (unsubscribeAttendance) unsubscribeAttendance();
-    };
-  }, []);
-
-  // An event needs a description or a background picture because that is what
-  // students receive in their notification. Creating it also notifies the
-  // students in its program (events dated in the past are not announced).
-  const createEvent = async ({
-    title,
-    date,
-    description,
-    image,
-    pointValue,
-    programFilter,
-  }) => {
-    const trimmedTitle = (title || "").trim();
-    const trimmedDescription = (description || "").trim();
-    if (!trimmedTitle) {
-      return { ok: false, message: "Event name is required." };
-    }
-    if (!date) {
-      return { ok: false, message: "Date is required." };
-    }
-    if (!trimmedDescription && !image) {
-      return {
-        ok: false,
-        message: "Add a description or a background picture. Students receive it in their notification.",
-      };
-    }
-
-    const eventData = {
-      title: trimmedTitle,
-      date,
-      description: trimmedDescription,
-      image: image || "",
-      pointValue: Number(pointValue) || 0,
-      programFilter: programFilter || "ALL",
-      createdBy: auth.currentUser?.uid || null,
-      createdAt: serverTimestamp(),
-    };
-    const ref = await addDoc(collection(db, "events"), eventData);
-
-    let notified = true;
-    if (getEventPhase(eventData) !== "done") {
-      try {
-        await announce({ id: ref.id, ...eventData }, "new");
-      } catch {
-        notified = false;
-      }
-    }
-    return { ok: true, event: { id: ref.id }, notified };
-  };
+      setPresentCounts(counts);
+    },
+    { enabled: signedIn }
+  );
 
   // Posts an announcement for the students in the event's program. `kind` is
   // "new", "update" or "reminder"; each one shows up as a fresh unread
   // notification, even for students who already read an earlier one.
   const announce = async (event, kind) => {
     const label = kind === "reminder" ? "Reminder" : kind === "update" ? "Updated" : "New event";
-    await addDoc(collection(db, "notifications"), {
-      type: "event",
-      kind,
-      eventId: event.id,
-      title: event.title,
-      message: `${label}: ${event.title} on ${formatEventDate(event.date)}`,
-      eventDate: event.date,
-      targetProgram: event.programFilter || "ALL",
-      createdAt: serverTimestamp(),
-    });
-    await updateDoc(doc(db, "events", event.id), { lastNotifiedAt: serverTimestamp() }).catch(
-      () => {}
-    );
+    await api.events.announce(event.id, kind, `${label}: ${event.title} on ${formatEventDate(event.date)}`);
+  };
+
+  // An event needs a description or a background picture because that is what
+  // students receive in their notification. Creating it also notifies the
+  // students in its program (events dated in the past are not announced).
+  const createEvent = async (fields) => {
+    const problem = validateEvent(fields);
+    if (problem) return { ok: false, message: problem };
+
+    const eventData = cleanEvent(fields);
+    let created;
+    try {
+      created = toEvent(await api.events.create(fromEvent(eventData)));
+    } catch (error) {
+      return { ok: false, message: error.message };
+    }
+
+    let notified = true;
+    if (getEventPhase(created) !== "done") {
+      try {
+        await announce(created, "new");
+      } catch {
+        notified = false;
+      }
+    }
+    await refresh();
+    return { ok: true, event: { id: created.id }, notified };
   };
 
   const notifyEvent = async (eventId, kind = "reminder") => {
@@ -152,33 +91,20 @@ export function EventsProvider({ children }) {
     } catch {
       return { ok: false, message: "Could not send the notification." };
     }
+    await refresh();
     return { ok: true };
   };
 
-  const updateEvent = async (
-    eventId,
-    { title, date, description, image, pointValue, programFilter, notify }
-  ) => {
-    const trimmedTitle = (title || "").trim();
-    const trimmedDescription = (description || "").trim();
-    if (!trimmedTitle) return { ok: false, message: "Event name is required." };
-    if (!date) return { ok: false, message: "Date is required." };
-    if (!trimmedDescription && !image) {
-      return {
-        ok: false,
-        message: "Add a description or a background picture. Students receive it in their notification.",
-      };
-    }
+  const updateEvent = async (eventId, { notify, ...fields }) => {
+    const problem = validateEvent(fields);
+    if (problem) return { ok: false, message: problem };
 
-    const changes = {
-      title: trimmedTitle,
-      date,
-      description: trimmedDescription,
-      image: image || "",
-      pointValue: Number(pointValue) || 0,
-      programFilter: programFilter || "ALL",
-    };
-    await updateDoc(doc(db, "events", eventId), changes);
+    const changes = cleanEvent(fields);
+    try {
+      await api.events.update(eventId, fromEvent(changes));
+    } catch (error) {
+      return { ok: false, message: error.message };
+    }
 
     let notified = true;
     if (notify && getEventPhase(changes) !== "done") {
@@ -188,19 +114,14 @@ export function EventsProvider({ children }) {
         notified = false;
       }
     }
+    await refresh();
     return { ok: true, event: { id: eventId }, notified };
   };
 
+  // The server removes the event's attendance and notifications with it.
   const deleteEvent = async (eventId) => {
-    const [attendanceSnap, notificationSnap] = await Promise.all([
-      getDocs(query(collection(db, "attendance"), where("eventId", "==", eventId))),
-      getDocs(query(collection(db, "notifications"), where("eventId", "==", eventId))),
-    ]);
-    const batch = writeBatch(db);
-    attendanceSnap.forEach((d) => batch.delete(d.ref));
-    notificationSnap.forEach((d) => batch.delete(d.ref));
-    batch.delete(doc(db, "events", eventId));
-    await batch.commit();
+    await api.events.remove(eventId);
+    await refresh();
   };
 
   return (
@@ -219,48 +140,37 @@ export function useEvents() {
 }
 
 /**
- * Realtime attendance roster for a single event. Used by the admin's
- * full roster view, which legitimately needs to see everyone's status.
+ * Attendance roster for a single event, refreshed every few seconds. Used by the
+ * admin's full roster view, which legitimately needs to see everyone's status.
  */
 export function useEventAttendance(eventId) {
   const [records, setRecords] = useState({});
 
-  useEffect(() => {
-    if (!eventId) return;
-    const q = query(collection(db, "attendance"), where("eventId", "==", eventId));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const next = {};
-      snapshot.forEach((d) => {
-        next[d.data().studentId] = d.data();
-      });
-      setRecords(next);
-    });
-    return unsubscribe;
-  }, [eventId]);
+  const refresh = usePolling(
+    async () => {
+      const list = await api.attendance.list({ event: eventId });
+      setRecords(Object.fromEntries(list.map((r) => [r.user, toAttendance(r)])));
+    },
+    { interval: ROSTER_POLL_MS, enabled: Boolean(eventId) }
+  );
 
   const markPresent = async (studentId) => {
-    const eventSnap = await getDoc(doc(db, "events", eventId));
-    const pointValue = eventSnap.exists() ? eventSnap.data().pointValue || 0 : 0;
-    await setDoc(doc(db, "attendance", attendanceDocId(eventId, studentId)), {
-      eventId,
-      studentId,
-      pointValue,
-      timeIn: new Date().toISOString(),
-      timeOut: null,
-    });
+    await api.attendance.create({ event: eventId, user: studentId });
+    await refresh();
   };
 
   const markOut = async (studentId) => {
     const existing = records[studentId];
     if (!existing) return;
-    await setDoc(doc(db, "attendance", attendanceDocId(eventId, studentId)), {
-      ...existing,
-      timeOut: new Date().toISOString(),
-    });
+    await api.attendance.update(existing.id, { time_out: new Date().toISOString() });
+    await refresh();
   };
 
   const unmarkPresent = async (studentId) => {
-    await deleteDoc(doc(db, "attendance", attendanceDocId(eventId, studentId)));
+    const existing = records[studentId];
+    if (!existing) return;
+    await api.attendance.remove(existing.id);
+    await refresh();
   };
 
   return { records, markPresent, markOut, unmarkPresent };
@@ -268,29 +178,10 @@ export function useEventAttendance(eventId) {
 
 /**
  * Single-scan check-in/check-out for one student at one event, without
- * subscribing to the rest of the roster (used by the admin's quick-scan
- * box and by the private student Kiosk, which should never hold other
- * students' data in memory).
+ * loading the rest of the roster (used by the admin's quick-scan box and by
+ * the private student Kiosk, which should never hold other students' data).
  */
 export async function scanEventAttendance(eventId, studentId) {
-  const ref = doc(db, "attendance", attendanceDocId(eventId, studentId));
-  const snap = await getDoc(ref);
-  const now = new Date().toISOString();
-
-  if (!snap.exists()) {
-    const eventSnap = await getDoc(doc(db, "events", eventId));
-    const pointValue = eventSnap.exists() ? eventSnap.data().pointValue || 0 : 0;
-    const record = { eventId, studentId, pointValue, timeIn: now, timeOut: null };
-    await setDoc(ref, record);
-    return { action: "in", record };
-  }
-
-  const existing = snap.data();
-  if (!existing.timeOut) {
-    const record = { ...existing, timeOut: now };
-    await setDoc(ref, record);
-    return { action: "out", record };
-  }
-
-  return { action: "already", record: existing };
+  const { action, record } = await api.attendance.scan(eventId, studentId);
+  return { action, record: toAttendance(record) };
 }

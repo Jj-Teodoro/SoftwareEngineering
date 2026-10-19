@@ -1,7 +1,11 @@
+// Talks to the Django API (which stores everything in Supabase Postgres).
+// Each site runs on its own origin, so each keeps its own session.
+
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000/api").replace(/\/$/, "");
 
 const ACCESS_KEY = "oasis_access_token";
 const REFRESH_KEY = "oasis_refresh_token";
+const SESSION_EVENT = "oasis:session";
 
 function readToken(key) {
   try {
@@ -16,11 +20,11 @@ function saveTokens({ access, refresh }) {
     if (access) localStorage.setItem(ACCESS_KEY, access);
     if (refresh) localStorage.setItem(REFRESH_KEY, refresh);
   } catch {
-    // storage unavailable; tokens only live for this request
+    // storage unavailable; the session ends with the tab
   }
 }
 
-export function clearTokens() {
+function clearTokens() {
   try {
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
@@ -29,8 +33,19 @@ export function clearTokens() {
   }
 }
 
+function announceSession() {
+  window.dispatchEvent(new Event(SESSION_EVENT));
+}
+
 export function hasSession() {
   return Boolean(readToken(ACCESS_KEY));
+}
+
+// Calls `callback` whenever the user signs in or out (replaces onAuthStateChanged).
+export function subscribeSession(callback) {
+  const handler = () => callback(hasSession());
+  window.addEventListener(SESSION_EVENT, handler);
+  return () => window.removeEventListener(SESSION_EVENT, handler);
 }
 
 export class ApiError extends Error {
@@ -96,59 +111,85 @@ export async function request(path, options = {}) {
       await refreshAccessToken();
     } catch {
       clearTokens();
-      window.dispatchEvent(new Event("oasis:logout"));
+      announceSession();
       throw error;
     }
     return send(path, options);
   }
 }
 
-export async function login(studentId, password) {
-  const tokens = await send("/token", {
+// portal: "staff" (username) or "student" (email or student ID)
+export async function login(identifier, password, portal) {
+  const { access, refresh, user } = await send("/auth/login", {
     method: "POST",
-    body: { student_id: studentId, password },
+    body: { identifier, password, portal },
     auth: false,
   });
-  saveTokens(tokens);
-  return tokens;
+  saveTokens({ access, refresh });
+  announceSession();
+  return user;
 }
 
 export function logout() {
   clearTokens();
-  window.dispatchEvent(new Event("oasis:logout"));
+  announceSession();
 }
+
+const id = encodeURIComponent;
 
 export const api = {
   me: () => request("/user/me"),
+  updateProfile: (fields) => request("/user/me", { method: "PATCH", body: fields }),
+  changePassword: (currentPassword, newPassword) =>
+    request("/user/me/password", {
+      method: "POST",
+      body: { current_password: currentPassword, new_password: newPassword },
+    }),
+  heartbeat: (online) => request("/user/me/presence", { method: "POST", body: { online } }),
+  requestTempPassword: (studentId) =>
+    send("/auth/password-request", { method: "POST", body: { student_id: studentId }, auth: false }),
+
   users: {
     list: (query) => request("/user", { query }),
-    get: (studentId) => request(`/user/${encodeURIComponent(studentId)}`),
+    get: (studentId) => request(`/user/${id(studentId)}`),
     create: (user) => request("/user/register", { method: "POST", body: user }),
     bulkCreate: (users) => request("/user/bulk", { method: "POST", body: users }),
-    update: (studentId, changes) => request(`/user/${encodeURIComponent(studentId)}`, { method: "PATCH", body: changes }),
-    remove: (studentId) => request(`/user/${encodeURIComponent(studentId)}`, { method: "DELETE" }),
+    bulkDelete: (studentIds) => request("/user/bulk-delete", { method: "POST", body: { student_ids: studentIds } }),
+    update: (studentId, changes) => request(`/user/${id(studentId)}`, { method: "PATCH", body: changes }),
+    issueAccount: (studentId) => request(`/user/${id(studentId)}/account`, { method: "POST" }),
+    storedTempPassword: (studentId) => request(`/user/${id(studentId)}/account`),
+    dismissPasswordRequest: (studentId) => request(`/user/${id(studentId)}/password-request`, { method: "DELETE" }),
   },
   events: {
-    list: (query) => request("/event", { query }),
-    get: (eventId) => request(`/event/${eventId}`),
+    list: () => request("/event"),
     create: (event) => request("/event", { method: "POST", body: event }),
     update: (eventId, changes) => request(`/event/${eventId}`, { method: "PATCH", body: changes }),
     remove: (eventId) => request(`/event/${eventId}`, { method: "DELETE" }),
+    announce: (eventId, kind, message) =>
+      request(`/event/${eventId}/announce`, { method: "POST", body: { kind, message } }),
   },
   attendance: {
     list: (query) => request("/attendance", { query }),
     create: (attendance) => request("/attendance", { method: "POST", body: attendance }),
     update: (attendanceId, changes) => request(`/attendance/${attendanceId}`, { method: "PATCH", body: changes }),
     remove: (attendanceId) => request(`/attendance/${attendanceId}`, { method: "DELETE" }),
+    scan: (eventId, studentId) => request("/attendance/scan", { method: "POST", body: { event: eventId, user: studentId } }),
   },
   notifications: {
-    list: (query) => request("/notification", { query }),
-    create: (notification) => request("/notification", { method: "POST", body: notification }),
-    update: (notificationId, changes) => request(`/notification/${notificationId}`, { method: "PATCH", body: changes }),
-    markAllRead: (studentId) => request(`/user/${encodeURIComponent(studentId)}/notifications/read`, { method: "POST" }),
+    list: () => request("/notification"),
+    markRead: (notificationId) =>
+      request(`/notification/${notificationId}`, { method: "PATCH", body: { read_status: true } }),
   },
-  logs: {
-    list: (query) => request("/log", { query }),
-    create: (log) => request("/log", { method: "POST", body: log }),
+  requirements: {
+    list: () => request("/requirement"),
+    create: (requirement) => request("/requirement", { method: "POST", body: requirement }),
+    update: (requirementId, changes) => request(`/requirement/${requirementId}`, { method: "PATCH", body: changes }),
+    remove: (requirementId) => request(`/requirement/${requirementId}`, { method: "DELETE" }),
+    completions: () => request("/requirement/completion"),
+    toggle: (studentId, requirementId) =>
+      request("/requirement/completion/toggle", { method: "POST", body: { student: studentId, requirement: requirementId } }),
+  },
+  hobbies: {
+    list: () => request("/hobby"),
   },
 };

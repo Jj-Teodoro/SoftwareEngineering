@@ -1,9 +1,7 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { collection, onSnapshot } from "firebase/firestore";
-import { auth, db } from "@oasis/shared/firebaseClient.js";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { usePoints } from "./PointsContext";
 import { useEvents } from "./EventsContext";
+import { useStudents } from "./StudentsContext";
 
 // A student's heartbeat arrives every 30s while they use the User site.
 const ONLINE_WINDOW_MS = 90 * 1000;
@@ -26,59 +24,14 @@ export function formatAgo(ms, now) {
 export function PresenceProvider({ children }) {
   const { getAttendanceRecords } = usePoints();
   const { events } = useEvents();
-  const [presence, setPresence] = useState({});
+  const { students } = useStudents();
   const [now, setNow] = useState(() => Date.now());
 
-  useEffect(() => {
-    let unsubscribeSnapshot = null;
-    let retryTimer = null;
-    let signedIn = false;
-
-    // A Firestore listener that fails (for example while rules are still
-    // propagating) never recovers by itself, so resubscribe after a pause.
-    const subscribe = () => {
-      unsubscribeSnapshot = onSnapshot(
-        collection(db, "presence"),
-        (snapshot) => {
-          const next = {};
-          snapshot.forEach((d) => {
-            const data = d.data();
-            next[d.id] = {
-              online: Boolean(data.online),
-              lastSeen: data.lastSeen?.toMillis?.() ?? null,
-            };
-          });
-          setPresence(next);
-        },
-        () => {
-          setPresence({});
-          unsubscribeSnapshot = null;
-          if (signedIn) retryTimer = setTimeout(subscribe, 10000);
-        }
-      );
-    };
-
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      clearTimeout(retryTimer);
-      if (unsubscribeSnapshot) {
-        unsubscribeSnapshot();
-        unsubscribeSnapshot = null;
-      }
-      signedIn = Boolean(user);
-      if (!user) {
-        setPresence({});
-        return;
-      }
-      subscribe();
-    });
-
-    return () => {
-      signedIn = false;
-      clearTimeout(retryTimer);
-      unsubscribeAuth();
-      if (unsubscribeSnapshot) unsubscribeSnapshot();
-    };
-  }, []);
+  // heartbeats arrive with the student list (last_seen / online on each student)
+  const presence = useMemo(
+    () => Object.fromEntries(students.map((s) => [s.studentId, { online: s.online, lastSeen: s.lastSeen }])),
+    [students]
+  );
 
   // Re-evaluate every 15s so students flip to Inactive soon after their
   // heartbeats stop, without needing any new data to arrive.

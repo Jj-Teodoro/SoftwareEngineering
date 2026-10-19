@@ -1,65 +1,28 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import {
-  collection,
-  doc,
-  addDoc,
-  deleteDoc,
-  getDocs,
-  query,
-  setDoc,
-  updateDoc,
-  onSnapshot,
-  serverTimestamp,
-  where,
-  writeBatch,
-} from "firebase/firestore";
-import { auth, db } from "@oasis/shared/firebaseClient.js";
+import { createContext, useContext, useState } from "react";
+import { api } from "@oasis/shared/api/client.js";
+import { useSignedIn, usePolling } from "@oasis/shared/api/hooks.js";
+import { fromRequirement, toRequirement } from "@oasis/shared/api/mappers.js";
 
 const RequirementsContext = createContext(null);
 
-function completionId(studentId, requirementId) {
-  return `${studentId}_${requirementId}`;
-}
-
 export function RequirementsProvider({ children }) {
+  const signedIn = useSignedIn();
   const [items, setItems] = useState([]);
   const [completions, setCompletions] = useState({});
 
-  useEffect(() => {
-    let unsubItems = null;
-    let unsubCompletions = null;
-
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      [unsubItems, unsubCompletions].forEach((u) => u && u());
-
-      if (!user) {
-        setItems([]);
-        setCompletions({});
-        return;
-      }
-
-      unsubItems = onSnapshot(collection(db, "requirements"), (snapshot) => {
-        setItems(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+  const refresh = usePolling(
+    async () => {
+      const [requirements, done] = await Promise.all([api.requirements.list(), api.requirements.completions()]);
+      setItems(requirements.map(toRequirement));
+      const next = {};
+      done.forEach(({ student, requirement }) => {
+        if (!next[student]) next[student] = new Set();
+        next[student].add(requirement);
       });
-
-      unsubCompletions = onSnapshot(collection(db, "studentRequirements"), (snapshot) => {
-        const next = {};
-        snapshot.forEach((d) => {
-          const data = d.data();
-          if (!data.completed) return;
-          if (!next[data.studentId]) next[data.studentId] = new Set();
-          next[data.studentId].add(data.requirementId);
-        });
-        setCompletions(next);
-      });
-    });
-
-    return () => {
-      unsubscribeAuth();
-      [unsubItems, unsubCompletions].forEach((u) => u && u());
-    };
-  }, []);
+      setCompletions(next);
+    },
+    { enabled: signedIn }
+  );
 
   const addItem = async ({ title, pointValue, programFilter }) => {
     const trimmed = title.trim();
@@ -67,12 +30,12 @@ export function RequirementsProvider({ children }) {
     if (items.some((i) => i.title.toLowerCase() === trimmed.toLowerCase())) {
       return { ok: false, message: "This requirement already exists." };
     }
-    await addDoc(collection(db, "requirements"), {
-      title: trimmed,
-      pointValue: Number(pointValue) || 0,
-      programFilter: programFilter || "ALL",
-      createdAt: serverTimestamp(),
-    });
+    try {
+      await api.requirements.create(fromRequirement({ title: trimmed, pointValue, programFilter }));
+    } catch (error) {
+      return { ok: false, message: error.message };
+    }
+    await refresh();
     return { ok: true };
   };
 
@@ -82,40 +45,27 @@ export function RequirementsProvider({ children }) {
     if (items.some((i) => i.id !== requirementId && i.title.toLowerCase() === trimmed.toLowerCase())) {
       return { ok: false, message: "Another requirement already has this name." };
     }
-    await updateDoc(doc(db, "requirements", requirementId), {
-      title: trimmed,
-      pointValue: Math.max(0, Number(pointValue) || 0),
-      programFilter: programFilter || "ALL",
-    });
+    try {
+      await api.requirements.update(requirementId, fromRequirement({ title: trimmed, pointValue, programFilter }));
+    } catch (error) {
+      return { ok: false, message: error.message };
+    }
+    await refresh();
     return { ok: true };
   };
 
   // Removing a requirement also removes every student's completion record for it.
   const deleteItem = async (requirementId) => {
-    const completionsSnap = await getDocs(
-      query(collection(db, "studentRequirements"), where("requirementId", "==", requirementId))
-    );
-    const batch = writeBatch(db);
-    completionsSnap.forEach((d) => batch.delete(d.ref));
-    batch.delete(doc(db, "requirements", requirementId));
-    await batch.commit();
+    await api.requirements.remove(requirementId);
+    await refresh();
   };
 
   const isCompleted = (studentId, requirementId) =>
     Boolean(completions[studentId]?.has(requirementId));
 
   const toggleCompleted = async (studentId, requirementId) => {
-    const id = completionId(studentId, requirementId);
-    if (isCompleted(studentId, requirementId)) {
-      await deleteDoc(doc(db, "studentRequirements", id));
-    } else {
-      await setDoc(doc(db, "studentRequirements", id), {
-        studentId,
-        requirementId,
-        completed: true,
-        completedAt: serverTimestamp(),
-      });
-    }
+    await api.requirements.toggle(studentId, requirementId);
+    await refresh();
   };
 
   // A requirement can be limited to one program; it only counts for students in it.

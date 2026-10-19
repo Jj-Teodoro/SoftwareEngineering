@@ -1,5 +1,5 @@
 // Resizes and center-crops an image file to a small JPEG data URL so it can be
-// stored directly on the student's Firestore document (no Storage bucket needed).
+// stored directly on the student's record (no Storage bucket needed).
 export function fileToPhoto(file, width = 256, height = 300) {
   return new Promise((resolve, reject) => {
     if (!file || !file.type.startsWith("image/")) {

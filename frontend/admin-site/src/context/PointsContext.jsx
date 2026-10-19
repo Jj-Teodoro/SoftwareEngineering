@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { collection, onSnapshot } from "firebase/firestore";
-import { auth, db } from "@oasis/shared/firebaseClient.js";
+import { createContext, useContext, useState } from "react";
+import { api } from "@oasis/shared/api/client.js";
+import { useSignedIn, usePolling } from "@oasis/shared/api/hooks.js";
+import { toAttendance } from "@oasis/shared/api/mappers.js";
 import { useEvents } from "./EventsContext";
 import { useRequirements } from "./RequirementsContext";
 import { useStudents } from "./StudentsContext";
@@ -16,39 +16,25 @@ export function PointsProvider({ children }) {
   const { events } = useEvents();
   const { students } = useStudents();
 
-  useEffect(() => {
-    let unsubscribeSnapshot = null;
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (unsubscribeSnapshot) {
-        unsubscribeSnapshot();
-        unsubscribeSnapshot = null;
-      }
-      if (!user) {
-        setEventPoints({});
-        setAttendanceByStudent({});
-        setAttendanceRecords([]);
-        return;
-      }
-      unsubscribeSnapshot = onSnapshot(collection(db, "attendance"), (snapshot) => {
-        const totals = {};
-        const byStudent = {};
-        snapshot.forEach((d) => {
-          const data = d.data();
-          if (!data.studentId) return;
-          totals[data.studentId] = (totals[data.studentId] || 0) + (data.pointValue || 0);
-          if (!byStudent[data.studentId]) byStudent[data.studentId] = [];
-          byStudent[data.studentId].push(data);
-        });
-        setEventPoints(totals);
-        setAttendanceByStudent(byStudent);
-        setAttendanceRecords(snapshot.docs.map((d) => d.data()));
+  const signedIn = useSignedIn();
+
+  usePolling(
+    async () => {
+      const records = (await api.attendance.list()).map(toAttendance);
+      const totals = {};
+      const byStudent = {};
+      records.forEach((data) => {
+        if (!data.studentId) return;
+        totals[data.studentId] = (totals[data.studentId] || 0) + (data.pointValue || 0);
+        if (!byStudent[data.studentId]) byStudent[data.studentId] = [];
+        byStudent[data.studentId].push(data);
       });
-    });
-    return () => {
-      unsubscribeAuth();
-      if (unsubscribeSnapshot) unsubscribeSnapshot();
-    };
-  }, []);
+      setEventPoints(totals);
+      setAttendanceByStudent(byStudent);
+      setAttendanceRecords(records);
+    },
+    { enabled: signedIn }
+  );
 
   const getTotalPoints = (studentId) =>
     (eventPoints[studentId] || 0) +

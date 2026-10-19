@@ -1,19 +1,13 @@
 import { createContext, useContext } from "react";
-import {
-  signInWithEmailAndPassword,
-  signOut as firebaseSignOut,
-} from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "@oasis/shared/firebaseClient.js";
+import { api, hasSession, login, logout } from "@oasis/shared/api/client.js";
+import { toStaff } from "@oasis/shared/api/mappers.js";
 
 const AdminContext = createContext(null);
 
+const STAFF_ROLES = ["admin", "scanner"];
+
 // Staff accounts are separate from students: they sign in with a username
 // (e.g. "admin"), never a student ID.
-function staffEmailFor(username) {
-  return `${username.trim().toLowerCase()}@oasis.local`;
-}
-
 export function AdminProvider({ children }) {
   const authenticate = async (username, password) => {
     const id = username.trim();
@@ -21,39 +15,34 @@ export function AdminProvider({ children }) {
       return { ok: false, message: "Invalid username or password." };
     }
 
-    let userCredential;
     try {
-      userCredential = await signInWithEmailAndPassword(
-        auth,
-        staffEmailFor(id),
-        password
-      );
-    } catch {
-      return { ok: false, message: "Invalid username or password." };
+      const user = await login(id, password, "staff");
+      return { ok: true, admin: toStaff(user) };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error.status === 401 ? "Invalid username or password." : "Unable to reach the server.",
+      };
     }
-
-    const staffSnap = await getDoc(doc(db, "staff", userCredential.user.uid));
-    if (!staffSnap.exists()) {
-      await firebaseSignOut(auth);
-      return { ok: false, message: "This account is not authorized as staff." };
-    }
-
-    const staff = staffSnap.data();
-    return {
-      ok: true,
-      admin: {
-        uid: userCredential.user.uid,
-        username: staff.username,
-        name: staff.name,
-        role: staff.role,
-      },
-    };
   };
 
-  const signOut = () => firebaseSignOut(auth);
+  // Picks up the session saved in this browser, so a reload doesn't log staff out.
+  const restoreSession = async () => {
+    if (!hasSession()) return null;
+    try {
+      const user = await api.me();
+      if (STAFF_ROLES.includes(user.role)) return toStaff(user);
+    } catch {
+      // expired or invalid; fall through to the login page
+    }
+    logout();
+    return null;
+  };
+
+  const signOut = async () => logout();
 
   return (
-    <AdminContext.Provider value={{ authenticate, signOut }}>
+    <AdminContext.Provider value={{ authenticate, restoreSession, signOut }}>
       {children}
     </AdminContext.Provider>
   );

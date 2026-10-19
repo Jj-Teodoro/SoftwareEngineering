@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
-import { auth, db } from "@oasis/shared/firebaseClient.js";
+import { createContext, useContext, useState } from "react";
+import { api } from "@oasis/shared/api/client.js";
+import { usePolling } from "@oasis/shared/api/hooks.js";
+import { toRequirement } from "@oasis/shared/api/mappers.js";
 import { useStudent } from "./StudentContext";
 
 const RequirementsContext = createContext(null);
@@ -11,44 +11,15 @@ export function RequirementsProvider({ children }) {
   const [items, setItems] = useState([]);
   const [completedIds, setCompletedIds] = useState(new Set());
 
-  useEffect(() => {
-    let unsubItems = null;
-
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (unsubItems) unsubItems();
-      if (!user) {
-        setItems([]);
-        return;
-      }
-      unsubItems = onSnapshot(collection(db, "requirements"), (snapshot) => {
-        setItems(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-      });
-    });
-
-    return () => {
-      unsubscribeAuth();
-      if (unsubItems) unsubItems();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!student) {
-      setCompletedIds(new Set());
-      return;
-    }
-    const q = query(
-      collection(db, "studentRequirements"),
-      where("studentId", "==", student.studentId)
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const next = new Set();
-      snapshot.forEach((d) => {
-        if (d.data().completed) next.add(d.data().requirementId);
-      });
-      setCompletedIds(next);
-    });
-    return unsubscribe;
-  }, [student?.studentId]);
+  // the server only returns this student's own completions
+  usePolling(
+    async () => {
+      const [requirements, done] = await Promise.all([api.requirements.list(), api.requirements.completions()]);
+      setItems(requirements.map(toRequirement));
+      setCompletedIds(new Set(done.map((c) => c.requirement)));
+    },
+    { enabled: Boolean(student) }
+  );
 
   const myItems = items.filter(
     (i) => !i.programFilter || i.programFilter === "ALL" || i.programFilter === student?.course

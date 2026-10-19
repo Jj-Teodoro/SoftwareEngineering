@@ -1,7 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
+import { useMemo, useState } from "react";
 import { FiCalendar, FiLogIn, FiLogOut } from "react-icons/fi";
-import { db } from "@oasis/shared/firebaseClient.js";
 import { EmptyState, Section } from "@oasis/shared/components/ui.jsx";
 import { formatAgo, usePresence } from "../context/PresenceContext";
 import { useEvents } from "../context/EventsContext";
@@ -27,18 +25,7 @@ export default function ActivityFeed() {
   const { students } = useStudents();
   const { attendanceRecords } = usePoints();
   const { now } = usePresence();
-  const [staff, setStaff] = useState({});
   const [showAll, setShowAll] = useState(false);
-
-  useEffect(
-    () =>
-      onSnapshot(
-        collection(db, "staff"),
-        (snap) => setStaff(Object.fromEntries(snap.docs.map((d) => [d.id, d.data()]))),
-        () => setStaff({})
-      ),
-    []
-  );
 
   const items = useMemo(() => {
     const nameOf = Object.fromEntries(students.map((s) => [s.studentId, s.name]));
@@ -54,21 +41,20 @@ export default function ActivityFeed() {
     });
 
     events.forEach((e) => {
-      const at = e.createdAt?.toMillis?.();
+      const at = Date.parse(e.createdAt);
       if (!at) return;
-      const creator = staff[e.createdBy];
       list.push({
         key: `event-${e.id}`,
         kind: "event",
         at,
-        who: creator ? creator.name : "Someone",
-        role: creator?.role,
+        who: e.createdByName || "Someone",
+        role: e.createdByRole,
         event: e.title,
       });
     });
 
     return list.filter((i) => Number.isFinite(i.at)).sort((a, b) => b.at - a.at);
-  }, [attendanceRecords, events, students, staff]);
+  }, [attendanceRecords, events, students]);
 
   const visible = showAll ? items.slice(0, 30) : items.slice(0, SHOWN);
 

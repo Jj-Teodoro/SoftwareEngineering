@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
 import { getEventPhase, formatEventDate } from "@oasis/shared/utils/events.js";
 import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiRefreshCw, FiTrash2, FiXCircle } from "react-icons/fi";
-import { db } from "@oasis/shared/firebaseClient.js";
+import { api } from "@oasis/shared/api/client.js";
 import StudentIdCard from "@oasis/shared/components/StudentIdCard.jsx";
 import { useConfirm } from "@oasis/shared/components/ConfirmDialog.jsx";
 import Modal from "@oasis/shared/components/Modal.jsx";
@@ -244,11 +243,14 @@ function StudentAccountTab({ student }) {
       setStored(undefined);
       return undefined;
     }
-    return onSnapshot(
-      doc(db, "accountCredentials", student.studentId),
-      (snap) => setStored(snap.exists() ? snap.data().tempPassword : null),
-      () => setStored(null)
-    );
+    let cancelled = false;
+    api.users
+      .storedTempPassword(student.studentId)
+      .then((data) => !cancelled && setStored(data.temp_password))
+      .catch(() => !cancelled && setStored(null));
+    return () => {
+      cancelled = true;
+    };
   }, [pending, student.studentId]);
 
   const tempPassword = result?.ok ? result.tempPassword : stored;

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
-import { auth } from "@oasis/shared/firebaseClient.js";
+import { api } from "@oasis/shared/api/client.js";
 import PageBackground from "../components/PageBackground";
 import CyberFrame from "../components/CyberFrame";
 import oasis_logo from "../assets/oasislogo.gif";
@@ -47,18 +46,13 @@ export default function ForcePasswordChange({ onLogout }) {
 
     setSubmitting(true);
     try {
-      const credential = EmailAuthProvider.credential(auth.currentUser.email, tempPassword);
-      await reauthenticateWithCredential(auth.currentUser, credential);
-    } catch {
-      setError("The temporary password is incorrect.");
-      setSubmitting(false);
-      return;
-    }
-
-    try {
-      await updatePassword(auth.currentUser, newPassword);
-    } catch {
-      setError("Could not update your password. Please try again.");
+      await api.changePassword(tempPassword, newPassword);
+    } catch (err) {
+      setError(
+        err.data?.current_password
+          ? "The temporary password is incorrect."
+          : "Could not update your password. Please try again."
+      );
       setSubmitting(false);
       return;
     }

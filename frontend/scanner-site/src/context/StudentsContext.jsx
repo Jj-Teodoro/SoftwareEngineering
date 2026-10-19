@@ -1,38 +1,23 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { collection, onSnapshot } from "firebase/firestore";
-import { auth, db } from "@oasis/shared/firebaseClient.js";
+import { createContext, useContext, useState } from "react";
+import { api } from "@oasis/shared/api/client.js";
+import { useSignedIn, usePolling } from "@oasis/shared/api/hooks.js";
+import { toStudent } from "@oasis/shared/api/mappers.js";
 
 const StudentsContext = createContext(null);
 
 export function StudentsProvider({ children }) {
+  const signedIn = useSignedIn();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let unsubscribeSnapshot = null;
-
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (unsubscribeSnapshot) {
-        unsubscribeSnapshot();
-        unsubscribeSnapshot = null;
-      }
-      if (!user) {
-        setStudents([]);
-        setLoading(false);
-        return;
-      }
-      unsubscribeSnapshot = onSnapshot(collection(db, "students"), (snapshot) => {
-        setStudents(snapshot.docs.map((d) => ({ studentId: d.id, ...d.data() })));
-        setLoading(false);
-      });
-    });
-
-    return () => {
-      unsubscribeAuth();
-      if (unsubscribeSnapshot) unsubscribeSnapshot();
-    };
-  }, []);
+  usePolling(
+    async () => {
+      const users = await api.users.list({ role: "student" });
+      setStudents(users.map(toStudent));
+      setLoading(false);
+    },
+    { enabled: signedIn }
+  );
 
   return (
     <StudentsContext.Provider value={{ students, loading }}>
