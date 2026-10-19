@@ -102,17 +102,17 @@ WSGI_APPLICATION = 'server.wsgi.application'
 # Uses Supabase Postgres when DB_HOST is set in .env, otherwise falls back to SQLite
 if os.getenv("DB_HOST"):
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv("DB_NAME", "postgres"),
-            'USER': os.getenv("DB_USER", "postgres"),
-            'PASSWORD': os.getenv("DB_PASSWORD", ""),
-            'HOST': os.getenv("DB_HOST"),
-            'PORT': os.getenv("DB_PORT", "5432"),
-            'OPTIONS': {'sslmode': 'require'},
-            'CONN_MAX_AGE': 60,
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ["DB_NAME"],
+            "USER": os.environ["DB_USER"],
+            "PASSWORD": os.environ["DB_PASSWORD"],
+            "HOST": os.environ["DB_HOST"],
+            "PORT": os.environ.get("DB_PORT", "5432"),
+            "OPTIONS": {"sslmode": "require"},
+            "DISABLE_SERVER_SIDE_CURSORS": True,
         }
-    }
+    }  
 else:
     DATABASES = {
         'default': {
@@ -168,8 +168,13 @@ MAILERS = {
     },
 }
 
-CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+# admin-site :5173, scanner-site :5174, user-site :5175
+CORS_ALLOWED_ORIGINS = os.getenv(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:5173,http://localhost:5174,http://localhost:5175",
+).split(",")
 
 # Faster password hashing when running the test suite
 if "test" in sys.argv:
     PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+

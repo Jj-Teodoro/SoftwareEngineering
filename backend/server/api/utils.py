@@ -26,6 +26,7 @@ class ActivityStatus(StrEnum):
 # Notification Type enum
 class NotificationType(StrEnum):
   SYSTEM = "system"
+  EVENT = "event"
   ACTIVITY = "activity"
   REMINDER = "reminder"
 
