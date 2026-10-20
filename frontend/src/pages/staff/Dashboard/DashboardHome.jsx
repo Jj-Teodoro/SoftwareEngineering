@@ -26,13 +26,13 @@ const QUICK_ACTIONS = [
 
 function StatCard({ icon: Icon, label, value, tone }) {
   return (
-    <div className="surface flex items-center gap-4 p-4">
-      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${tone}`}>
+    <div className="surface flex items-center gap-3 p-3 sm:gap-4 sm:p-4">
+      <div className={`flex h-10 w-10 shrink-0 sm:h-11 sm:w-11 items-center justify-center rounded-lg ${tone}`}>
         <Icon size={20} />
       </div>
       <div className="min-w-0">
         <p className="font-mono text-2xl font-bold leading-none">{value}</p>
-        <p className="label mt-1.5 truncate">{label}</p>
+        <p className="label mt-1.5 leading-snug">{label}</p>
       </div>
     </div>
   );

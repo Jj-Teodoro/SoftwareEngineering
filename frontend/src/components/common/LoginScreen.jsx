@@ -20,7 +20,7 @@ export default function LoginScreen({ title, logoSrc, acesSrc, onLogin }) {
 
   return (
     <PageBackground>
-      <div className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
+      <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
         <div className="mb-8 flex flex-col items-center text-center">
           {acesSrc && <img src={acesSrc} alt="ACES" className="mb-5 h-24 w-24 object-contain sm:h-28 sm:w-28" />}
           <h2 className="text-sm font-bold uppercase tracking-[0.2em]">Dr. Yanga's Colleges, Inc.</h2>

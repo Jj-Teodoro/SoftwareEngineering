@@ -11,7 +11,7 @@ export default function Shell({ onLogout }) {
 
   return (
     <PageBackground>
-      <div className="mx-auto flex min-h-screen w-full max-w-[1040px] flex-col gap-6 px-4 py-6 sm:px-6">
+      <div className="mx-auto flex min-h-dvh w-full max-w-[1040px] flex-col gap-6 px-4 py-6 sm:px-6">
         <Header active={activeTab} onNavigate={setActiveTab} />
         <main>
           {activeTab === "Activity" && <ActivityPage />}
