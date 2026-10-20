@@ -73,123 +73,166 @@
 }
 
 /* ===================================================================
- * Student portal (/): calm card layout on warm maroon + gold. Light is the
- * default; html.light is toggled by ThemeProvider (dark otherwise).
+ * Student portal (/): a computer-studies look (grid, terminal prompts,
+ * corner brackets) on maroon and gold, kept static and easy to read.
+ * Dark is the default; html.light is toggled by ThemeProvider.
  * Colours come from the variables below; .st-* classes are the shared pieces.
  * =================================================================== */
 :root {
-  --bg-base: #150a0b;
-  --card: #211213;
-  --card-2: #2b1a1b;
-  --line: rgba(255, 255, 255, 0.09);
-  --track: rgba(255, 255, 255, 0.14);
-  --shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-  --text-primary: #fdf6f3;
-  --text-muted: rgba(253, 246, 243, 0.68);
-  --text-faint: rgba(253, 246, 243, 0.42);
+  --bg-base: #0c0506;
+  --card: #150a0b;
+  --card-2: #1d1011;
+  --line: rgba(242, 180, 0, 0.2);
+  --track: rgba(255, 255, 255, 0.13);
+  --grid: rgba(242, 180, 0, 0.05);
+  --shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  --text-primary: #f6efec;
+  --text-muted: rgba(246, 239, 236, 0.7);
+  --text-faint: rgba(246, 239, 236, 0.45);
   --gold: #f2b400;
   --accent-text: #f2b400;
   --series-b: #4fc3d1;
   --danger: #ff6b81;
   --ok: #3ddc97;
   --on-gold: #2a0507;
-  --header-from: #8c1a1f;
-  --header-to: #4a0d10;
+  --header-from: #7a1317;
+  --header-to: #3d0a0d;
+  --glow-a: rgba(151, 25, 29, 0.45);
+  --glow-b: rgba(79, 195, 209, 0.1);
 }
 
 html.light {
-  --bg-base: #f4efec;
+  --bg-base: #f3eeea;
   --card: #ffffff;
   --card-2: #f8f2ef;
-  --line: rgba(74, 13, 16, 0.1);
+  --line: rgba(122, 19, 23, 0.2);
   --track: rgba(74, 13, 16, 0.12);
-  --shadow: 0 8px 26px rgba(74, 13, 16, 0.08);
+  --grid: rgba(122, 19, 23, 0.05);
+  --shadow: 0 8px 24px rgba(74, 13, 16, 0.09);
   --text-primary: #2a1012;
-  --text-muted: rgba(42, 16, 18, 0.66);
-  --text-faint: rgba(42, 16, 18, 0.42);
+  --text-muted: rgba(42, 16, 18, 0.68);
+  --text-faint: rgba(42, 16, 18, 0.45);
   --accent-text: #8a1c20;
   --series-b: #0e8fa0;
   --danger: #c0213f;
   --ok: #12875a;
+  --glow-a: rgba(217, 160, 0, 0.18);
+  --glow-b: rgba(14, 143, 160, 0.08);
 }
 
 body {
   background: var(--bg-base);
 }
 
-/* Student site: Inter, a typeface made for reading on screens */
+/* Student site: Inter for reading, JetBrains Mono only for short labels, titles and IDs */
 .st-root {
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-feature-settings: "cv11", "ss01";
   line-height: 1.55;
 }
-/* the ID card and other older pieces use mono/display fonts; keep one readable face on this site */
 .st-root .font-mono,
 .st-root .font-display {
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* static page backdrop: fine grid fading downward plus two soft glows */
+.st-backdrop {
+  background-image:
+    radial-gradient(ellipse 60% 40% at 10% 0%, var(--glow-a), transparent 70%),
+    radial-gradient(ellipse 50% 35% at 100% 100%, var(--glow-b), transparent 70%),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
 }
 
 @layer components {
+  .st-mono {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  /* a panel: faint grid inside, gold hairline border and two corner brackets */
   .st-card {
-    @apply rounded-3xl border bg-[var(--card)] shadow-[var(--shadow)];
+    @apply relative rounded-xl border bg-[var(--card)] shadow-[var(--shadow)];
     border-color: var(--line);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .st-card::before,
+  .st-card::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: 0 solid var(--gold);
+    opacity: 0.85;
+  }
+  .st-card::before {
+    left: -1px;
+    top: -1px;
+    border-left-width: 2px;
+    border-top-width: 2px;
+    border-top-left-radius: 12px;
+  }
+  .st-card::after {
+    right: -1px;
+    bottom: -1px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-bottom-right-radius: 12px;
   }
   .st-inset {
-    @apply rounded-2xl bg-[var(--card-2)];
+    @apply rounded-lg border bg-[var(--card-2)];
+    border-color: var(--line);
   }
   .st-title {
-    @apply text-base font-bold text-[var(--text-primary)];
+    @apply st-mono text-sm font-bold text-[var(--text-primary)];
+  }
+  .st-title::before {
+    content: "// ";
+    color: var(--gold);
   }
   .st-label {
-    @apply text-[11px] font-semibold uppercase tracking-wide text-[var(--accent-text)];
+    @apply st-mono text-[11px] font-bold uppercase tracking-wide text-[var(--accent-text)];
   }
   .st-muted {
     @apply text-[var(--text-muted)];
   }
 
   .st-btn {
-    @apply inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--gold)] px-6 text-sm font-bold
-      tracking-wide text-[var(--on-gold)] shadow-sm transition hover:brightness-105
+    @apply st-mono inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[var(--gold)] px-6 text-sm
+      font-bold uppercase tracking-wide text-[var(--on-gold)] shadow-sm transition hover:brightness-105
       active:brightness-95 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .st-btn-ghost {
-    @apply inline-flex h-12 items-center justify-center gap-2 rounded-2xl border bg-transparent px-6 text-sm
-      font-semibold text-[var(--text-primary)] transition hover:bg-[var(--card-2)]
-      disabled:cursor-not-allowed disabled:opacity-50;
+    @apply st-mono inline-flex h-12 items-center justify-center gap-2 rounded-lg border bg-transparent px-6 text-sm
+      font-bold uppercase tracking-wide text-[var(--text-primary)] transition hover:border-[var(--gold)]
+      hover:text-[var(--accent-text)] disabled:cursor-not-allowed disabled:opacity-50;
     border-color: var(--line);
   }
   .st-btn-sm {
-    @apply inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition
+    @apply st-mono inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition
       disabled:opacity-50;
   }
 
   .st-input {
-    @apply h-12 w-full rounded-2xl border bg-[var(--card-2)] px-4 text-base text-[var(--text-primary)]
+    @apply st-mono h-12 w-full rounded-lg border bg-[var(--card-2)] px-4 text-base text-[var(--text-primary)]
       outline-none transition placeholder:text-[var(--text-faint)] focus:border-[var(--gold)];
     border-color: var(--line);
   }
   .st-input:focus {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 30%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 28%, transparent);
   }
   .st-input.st-error {
     border-color: var(--danger);
   }
   .st-chip {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold;
+    @apply st-mono inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold;
   }
-}
-
-.st-spin {
-  animation: st-spin 0.9s linear infinite;
-}
-@keyframes st-spin {
-  to { transform: rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .st-spin {
-    animation: none;
-  }
   * {
     transition-duration: 0.01ms !important;
   }

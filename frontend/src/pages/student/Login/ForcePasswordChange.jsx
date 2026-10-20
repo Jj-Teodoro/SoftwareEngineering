@@ -9,7 +9,9 @@ const MIN_LENGTH = 8;
 function PasswordInput({ label, ...props }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-semibold">{label}</span>
+      <span className="mb-1.5 block text-sm font-semibold">
+        <span className="st-mono text-[var(--gold)]">&gt;</span> {label}
+      </span>
       <input type="password" {...props} className="st-input" />
     </label>
   );
@@ -70,20 +72,29 @@ export default function ForcePasswordChange({ onLogout }) {
   };
 
   const errorBox = error && (
-    <p className="rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] p-3 text-sm font-medium text-[var(--danger)]">{error}</p>
+    <p className="rounded-lg border border-[var(--danger)] p-3 text-sm font-medium text-[var(--danger)]">! {error}</p>
   );
 
   return (
     <PageBackground>
-      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
-        <div className="rounded-b-[40px] bg-gradient-to-b from-[var(--header-from)] to-[var(--header-to)] px-6 pb-14 pt-8 text-center shadow-[0_10px_30px_rgba(74,13,16,0.25)]">
-          <img src={oasis_logo} alt="OASIS" className="mx-auto h-12 w-auto" />
-        </div>
+      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-8">
+        <div className="st-card overflow-hidden">
+          <div
+            className="flex items-center gap-2 border-b bg-gradient-to-r from-[var(--header-from)] to-[var(--header-to)] px-4 py-2.5"
+            style={{ borderColor: "var(--line)" }}
+          >
+            <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+            <span className="st-mono ml-2 truncate text-[11px] text-white/80">oasis://student/new-password</span>
+          </div>
 
-        <div className="-mt-9 flex-1 px-4 pb-10">
-          <div className="st-card p-6 sm:p-7">
-            <h1 className="text-xl font-bold">Set a new password</h1>
-            <p className="st-muted mt-2 text-sm leading-relaxed">
+          <div className="p-6 sm:p-7">
+            <div className="mx-auto mb-5 w-fit rounded-xl bg-[var(--header-to)] px-6 py-2.5">
+              <img src={oasis_logo} alt="OASIS" className="h-11 w-auto" />
+            </div>
+            <h1 className="text-center text-lg font-bold">Set a new password</h1>
+            <p className="st-muted mt-2 text-center text-sm leading-relaxed">
               Welcome{student?.name ? `, ${student.name.split(",")[0]}` : ""}. You signed in with a temporary
               password from your admin. Choose your own password to continue. Only you will know it.
             </p>
@@ -136,12 +147,8 @@ export default function ForcePasswordChange({ onLogout }) {
             )}
 
             <div className="mt-5 border-t pt-4 text-center" style={{ borderColor: "var(--line)" }}>
-              <button
-                type="button"
-                onClick={onLogout}
-                className="text-sm font-semibold text-[var(--accent-text)] hover:underline"
-              >
-                Log out
+              <button type="button" onClick={onLogout} className="st-mono text-sm font-bold text-[var(--accent-text)] hover:underline">
+                [ Log out ]
               </button>
             </div>
           </div>

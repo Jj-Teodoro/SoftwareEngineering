@@ -6,10 +6,9 @@ import { usePoints } from "../../../context/student/PointsContext";
 import { useStudent } from "../../../context/student/StudentContext";
 import { fileToPhoto } from "../../../utils/image";
 
-// The ID card is always dark, so these use fixed colours rather than the theme.
 const fieldClass =
-  "w-full border border-[#f2b400]/40 bg-black/50 px-3 py-2 text-[12px] text-white placeholder-white/35 outline-none focus:border-[#f2b400]";
-const labelClass = "mb-1 block font-mono text-[10px] uppercase tracking-[2px] text-[#e8b43a]";
+  "w-full rounded-lg border bg-[var(--card-2)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-faint)] outline-none focus:border-[var(--gold)]";
+const labelClass = "st-label mb-1 block";
 
 export default function ActivityCard({ student, onShowBreakdown }) {
   const { totalPoints, targetPoints, cleared } = usePoints();
@@ -76,15 +75,15 @@ export default function ActivityCard({ student, onShowBreakdown }) {
     setSaving(false);
   };
 
-  const smallButton =
-    "flex h-8 items-center gap-1.5 border px-3 font-mono text-[10px] font-bold uppercase tracking-[1.5px] transition-all disabled:opacity-50";
+  const smallButton = "st-btn-sm";
 
   const titleAction = editing ? (
     <div className="flex shrink-0 gap-2">
       <button
         type="button"
         onClick={() => setEditing(false)}
-        className={`${smallButton} border-white/30 text-white/70 hover:bg-white/10`}
+        className={`${smallButton} text-[var(--text-muted)] hover:border-[var(--gold)]`}
+        style={{ borderColor: "var(--line)" }}
       >
         <FiX size={13} /> Cancel
       </button>
@@ -92,7 +91,7 @@ export default function ActivityCard({ student, onShowBreakdown }) {
         type="button"
         onClick={handleSave}
         disabled={saving}
-        className={`${smallButton} border-[#f2b400] bg-[#f2b400] text-[#1a0405] hover:bg-[#ffc933]`}
+        className={`${smallButton} border-[var(--gold)] bg-[var(--gold)] text-[var(--on-gold)]`}
       >
         <FiCheck size={13} /> {saving ? "Saving" : "Save"}
       </button>
@@ -101,7 +100,7 @@ export default function ActivityCard({ student, onShowBreakdown }) {
     <button
       type="button"
       onClick={startEditing}
-      className={`${smallButton} shrink-0 border-[#f2b400] text-[#f2b400] hover:bg-[#f2b400] hover:text-[#1a0405]`}
+      className={`${smallButton} shrink-0 border-[var(--gold)] text-[var(--accent-text)] hover:bg-[var(--gold)] hover:text-[var(--on-gold)]`}
     >
       <FiEdit2 size={13} /> Edit card
     </button>
@@ -115,7 +114,7 @@ export default function ActivityCard({ student, onShowBreakdown }) {
         onClick={() => fileRef.current?.click()}
         className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 bg-black/65 py-2 text-[10px] font-bold uppercase tracking-[1.5px] text-white hover:bg-black/80"
       >
-        <FiCamera size={13} /> {draft.photo ? "Change" : "Add photo"}
+        <FiCamera size={13} /> {draft.photo ? "Change" : "Add"}
       </button>
       {draft.photo && (
         <button
@@ -163,10 +162,10 @@ export default function ActivityCard({ student, onShowBreakdown }) {
                 key={h.id}
                 type="button"
                 onClick={() => toggleHobby(h.label)}
-                className={`border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[1px] transition-all ${
+                className={`st-chip border transition ${
                   selected
-                    ? "border-[#f2b400] bg-[#f2b400] text-[#1a0405]"
-                    : "border-white/25 bg-black/30 text-white/70 hover:border-[#f2b400]"
+                    ? "border-[var(--gold)] bg-[var(--gold)] text-[var(--on-gold)]"
+                    : "border-[var(--line)] bg-[var(--card-2)] text-[var(--text-muted)] hover:border-[var(--gold)]"
                 }`}
               >
                 {h.label}
@@ -175,8 +174,8 @@ export default function ActivityCard({ student, onShowBreakdown }) {
           })}
         </div>
       </div>
-      {error && <p className="font-mono text-[11px] font-semibold text-[#ff2a6d]">{error}</p>}
-      <p className="font-mono text-[10px] text-white/40">
+      {error && <p className="text-sm font-medium text-[var(--danger)]">! {error}</p>}
+      <p className="text-xs text-[var(--text-faint)]">
         Your name, student ID, program and points are managed by your admin.
       </p>
     </div>

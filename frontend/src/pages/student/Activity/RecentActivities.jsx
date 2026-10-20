@@ -2,7 +2,7 @@ import { FiAward } from "react-icons/fi";
 import Panel from "../../../components/student/Panel";
 import { useEvents } from "../../../context/student/EventsContext";
 
-export default function RecentActivities({ onShowBreakdown }) {
+export default function RecentActivities() {
   const { attended, myAttendance } = useEvents();
 
   const recent = [...attended]
@@ -12,7 +12,7 @@ export default function RecentActivities({ onShowBreakdown }) {
     .slice(0, 5);
 
   return (
-    <Panel title="Recent activities" className="flex h-full flex-col">
+    <Panel title="Recent activities" className="flex flex-col">
       {recent.length === 0 ? (
         <p className="st-muted flex-1 py-6 text-center text-sm">No activities yet. Events you attend show up here.</p>
       ) : (
@@ -31,14 +31,6 @@ export default function RecentActivities({ onShowBreakdown }) {
           })}
         </ul>
       )}
-
-      <button
-        type="button"
-        onClick={onShowBreakdown}
-        className="mt-4 w-full rounded-2xl py-2.5 text-center text-sm font-semibold text-[var(--accent-text)] transition hover:bg-[var(--card-2)]"
-      >
-        View points breakdown
-      </button>
     </Panel>
   );
 }

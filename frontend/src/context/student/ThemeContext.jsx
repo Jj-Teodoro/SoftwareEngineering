@@ -4,9 +4,9 @@ const ThemeContext = createContext(null);
 
 function readStoredTheme() {
   try {
-    return localStorage.getItem("oasis-theme-v2") !== "dark" ? "light" : "dark";
+    return localStorage.getItem("oasis-theme-v3") === "light" ? "light" : "dark";
   } catch {
-    return "light";
+    return "dark";
   }
 }
 
@@ -16,7 +16,7 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
     try {
-      localStorage.setItem("oasis-theme-v2", theme);
+      localStorage.setItem("oasis-theme-v3", theme);
     } catch {
       // ignore (private browsing, storage disabled, etc.)
     }

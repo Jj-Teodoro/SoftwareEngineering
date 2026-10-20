@@ -9,7 +9,7 @@ function Field({ id, label, error, type = "text", register, rules, autoComplete 
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold">
-        {label}
+        <span className="st-mono text-[var(--gold)]">&gt;</span> {label}
       </label>
       <input
         id={id}
@@ -18,7 +18,7 @@ function Field({ id, label, error, type = "text", register, rules, autoComplete 
         {...register(id, rules)}
         className={`st-input ${error ? "st-error" : ""}`}
       />
-      {error && <p className="mt-1.5 text-sm font-medium text-[var(--danger)]">{error.message}</p>}
+      {error && <p className="mt-1.5 text-sm font-medium text-[var(--danger)]">! {error.message}</p>}
     </div>
   );
 }
@@ -66,20 +66,42 @@ export default function AuthPage({ onAuthSuccess }) {
 
   return (
     <PageBackground>
-      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
-        <div className="rounded-b-[40px] bg-gradient-to-b from-[var(--header-from)] to-[var(--header-to)] px-6 pb-16 pt-8 text-center text-white shadow-[0_10px_30px_rgba(74,13,16,0.25)]">
-          <img src={aces_logo} alt="ACES" className="mx-auto h-24 w-24 object-contain sm:h-28 sm:w-28" />
-          <h2 className="mt-4 text-base font-bold tracking-wide">Dr. Yanga's Colleges, Inc.</h2>
-          <p className="mt-1 text-xs text-white/75">
-            College of Computer Studies · Association of Computer Enthusiast Students
+      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-4 py-8">
+        <div className="text-center">
+          <img
+            src={aces_logo}
+            alt="ACES"
+            className="mx-auto h-24 w-24 rounded-full object-contain ring-2 ring-[var(--gold)] ring-offset-4 ring-offset-[var(--bg-base)] sm:h-28 sm:w-28"
+          />
+          <h2 className="mt-5 text-lg font-bold tracking-wide">Dr. Yanga's Colleges, Inc.</h2>
+          <p className="st-mono mt-1 text-xs text-[var(--accent-text)]">
+            &lt;College of Computer Studies /&gt;
           </p>
-          <img src={oasis_logo} alt="OASIS" className="mx-auto mt-5 h-12 w-auto" />
+          <p className="st-muted mt-0.5 text-xs">Association of Computer Enthusiast Students</p>
         </div>
 
-        <div className="-mt-10 flex-1 px-4 pb-10">
-          <div className="st-card p-6 sm:p-7">
-            <h1 className="text-xl font-bold">{mode === "login" ? "Welcome back" : "Forgot your password?"}</h1>
-            <p className="st-muted mt-1 text-sm">
+        <div className="st-card overflow-hidden">
+          {/* terminal title bar */}
+          <div
+            className="flex items-center gap-2 border-b bg-gradient-to-r from-[var(--header-from)] to-[var(--header-to)] px-4 py-2.5"
+            style={{ borderColor: "var(--line)" }}
+          >
+            <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+            <span className="st-mono ml-2 truncate text-[11px] text-white/80">
+              oasis://student/{mode === "login" ? "login" : "recover"}
+            </span>
+          </div>
+
+          <div className="p-6 sm:p-7">
+            <div className="mx-auto mb-5 w-fit rounded-xl bg-[var(--header-to)] px-6 py-2.5">
+              <img src={oasis_logo} alt="OASIS" className="h-11 w-auto" />
+            </div>
+            <h1 className="text-center text-lg font-bold">
+              {mode === "login" ? "Student login" : "Forgot your password?"}
+            </h1>
+            <p className="st-muted mt-1 text-center text-sm">
               {mode === "login"
                 ? "Log in with your student number."
                 : "Ask your admin for a new temporary password."}
@@ -87,7 +109,7 @@ export default function AuthPage({ onAuthSuccess }) {
 
             {mode === "forgot" && resetSent ? (
               <div className="mt-6">
-                <p className="rounded-2xl bg-[color-mix(in_srgb,var(--ok)_10%,transparent)] p-4 text-sm leading-relaxed text-[var(--ok)]">
+                <p className="rounded-lg border border-[var(--ok)] p-4 text-sm leading-relaxed text-[var(--ok)]">
                   Request sent. Your admin will give you a new temporary password. Log in with your student
                   number and that password, then choose a new one.
                 </p>
@@ -131,8 +153,8 @@ export default function AuthPage({ onAuthSuccess }) {
                 )}
 
                 {errors.root && (
-                  <p className="rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] p-3 text-center text-sm font-medium text-[var(--danger)]">
-                    {errors.root.message}
+                  <p className="rounded-lg border border-[var(--danger)] p-3 text-center text-sm font-medium text-[var(--danger)]">
+                    ! {errors.root.message}
                   </p>
                 )}
 
@@ -154,9 +176,9 @@ export default function AuthPage({ onAuthSuccess }) {
                 <button
                   type="button"
                   onClick={() => switchMode(mode === "login" ? "forgot" : "login")}
-                  className="text-sm font-semibold text-[var(--accent-text)] hover:underline"
+                  className="st-mono text-sm font-bold text-[var(--accent-text)] hover:underline"
                 >
-                  {mode === "login" ? "Forgot password?" : "Back to log in"}
+                  {mode === "login" ? "[ Forgot password? ]" : "[ Back to log in ]"}
                 </button>
               </div>
             )}
