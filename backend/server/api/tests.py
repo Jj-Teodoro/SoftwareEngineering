@@ -701,6 +701,12 @@ class LoginViewTest(TestCase):
     User.objects.create_user("2024-00002", None, first_name="No", last_name="Login", email="none@school.edu")
     self.assertEqual(self.login("none@school.edu", "anything", "student").status_code, status.HTTP_401_UNAUTHORIZED)
 
+  def test_refresh_token_of_deleted_user_is_rejected(self):
+    refresh = self.login("2024-00001", "JMC090907", "student").data["refresh"]
+    self.student.delete()
+    response = APIClient().post("/api/token/refresh", {"refresh": refresh}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
 
 class RolePermissionTest(TestCase):
 

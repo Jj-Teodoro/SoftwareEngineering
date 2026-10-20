@@ -9,7 +9,10 @@ from .models import User, Event, Attendance, Notification, SubmissionLog, Requir
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
 from .serializers import (
   UserSerializer,
   ProfileSerializer,
@@ -77,6 +80,20 @@ class LoginView(APIView):
         return Response({**tokens_for(user), "user": UserSerializer(user).data}, status=status.HTTP_200_OK)
 
     return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class SafeTokenRefreshSerializer(TokenRefreshSerializer):
+  """simplejwt looks the user up with .get() and crashes (500) when they were deleted."""
+
+  def validate(self, attrs):
+    try:
+      return super().validate(attrs)
+    except User.DoesNotExist:
+      raise AuthenticationFailed("No active account found for the given token.", "no_active_account")
+
+
+class SafeTokenRefreshView(TokenRefreshView):
+  serializer_class = SafeTokenRefreshSerializer
 
 
 class PasswordRequestView(APIView):
