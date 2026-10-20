@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import PageBackground from "../../../components/student/PageBackground";
-import aces_logo from "../../../assets/aceslogo.png";
-import oasis_logo from "../../../assets/oasis-logo.png";
+import AuthHero, { TypedLines } from "../../../components/student/AuthHero";
 import { useAuth } from "../../../context/student/AuthContext";
 
 function Field({ id, label, error, type = "text", register, rules, autoComplete }) {
@@ -22,6 +21,13 @@ function Field({ id, label, error, type = "text", register, rules, autoComplete 
     </div>
   );
 }
+
+const WELCOME_LINES = [
+  "> checking your points...",
+  "> syncing attended events...",
+  "> loading requirements...",
+  "> ready when you are",
+];
 
 export default function AuthPage({ onAuthSuccess }) {
   const [mode, setMode] = useState("login");
@@ -66,20 +72,9 @@ export default function AuthPage({ onAuthSuccess }) {
 
   return (
     <PageBackground>
-      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-4 py-8">
-        <div className="text-center">
-          <img
-            src={aces_logo}
-            alt="ACES"
-            className="mx-auto h-24 w-24 rounded-full object-contain ring-2 ring-[var(--gold)] ring-offset-4 ring-offset-[var(--bg-base)] sm:h-28 sm:w-28"
-          />
-          <h2 className="mt-5 text-lg font-bold tracking-wide">Dr. Yanga's Colleges, Inc.</h2>
-          <p className="st-mono mt-1 text-xs text-[var(--accent-text)]">
-            &lt;College of Computer Studies /&gt;
-          </p>
-          <p className="st-muted mt-0.5 text-xs">Association of Computer Enthusiast Students</p>
-        </div>
-
+      <div className="flex min-h-dvh flex-col">
+        <AuthHero />
+        <div className="mx-auto -mt-10 w-full max-w-md flex-1 px-4 pb-10">
         <div className="st-card overflow-hidden">
           {/* terminal title bar */}
           <div
@@ -95,13 +90,11 @@ export default function AuthPage({ onAuthSuccess }) {
           </div>
 
           <div className="p-6 sm:p-7">
-            <div className="mx-auto mb-5 w-fit rounded-xl bg-[var(--header-to)] px-6 py-2.5">
-              <img src={oasis_logo} alt="OASIS" className="h-11 w-auto" />
-            </div>
-            <h1 className="text-center text-lg font-bold">
+            <TypedLines lines={WELCOME_LINES} className="mb-3 text-[var(--series-b)]" />
+            <h1 className="text-lg font-bold">
               {mode === "login" ? "Student login" : "Forgot your password?"}
             </h1>
-            <p className="st-muted mt-1 text-center text-sm">
+            <p className="st-muted mt-1 text-sm">
               {mode === "login"
                 ? "Log in with your student number."
                 : "Ask your admin for a new temporary password."}
@@ -183,6 +176,7 @@ export default function AuthPage({ onAuthSuccess }) {
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
     </PageBackground>

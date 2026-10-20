@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../../../api/client.js";
 import PageBackground from "../../../components/student/PageBackground";
-import oasis_logo from "../../../assets/oasis-logo.png";
+import AuthHero from "../../../components/student/AuthHero";
 import { useStudent } from "../../../context/student/StudentContext";
 
 const MIN_LENGTH = 8;
@@ -77,7 +77,9 @@ export default function ForcePasswordChange({ onLogout }) {
 
   return (
     <PageBackground>
-      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-8">
+      <div className="flex min-h-dvh flex-col">
+        <AuthHero />
+        <div className="mx-auto -mt-10 w-full max-w-md flex-1 px-4 pb-10">
         <div className="st-card overflow-hidden">
           <div
             className="flex items-center gap-2 border-b bg-gradient-to-r from-[var(--header-from)] to-[var(--header-to)] px-4 py-2.5"
@@ -90,11 +92,9 @@ export default function ForcePasswordChange({ onLogout }) {
           </div>
 
           <div className="p-6 sm:p-7">
-            <div className="mx-auto mb-5 w-fit rounded-xl bg-[var(--header-to)] px-6 py-2.5">
-              <img src={oasis_logo} alt="OASIS" className="h-11 w-auto" />
-            </div>
-            <h1 className="text-center text-lg font-bold">Set a new password</h1>
-            <p className="st-muted mt-2 text-center text-sm leading-relaxed">
+
+            <h1 className="text-lg font-bold">Set a new password</h1>
+            <p className="st-muted mt-2 text-sm leading-relaxed">
               Welcome{student?.name ? `, ${student.name.split(",")[0]}` : ""}. You signed in with a temporary
               password from your admin. Choose your own password to continue. Only you will know it.
             </p>
@@ -152,6 +152,7 @@ export default function ForcePasswordChange({ onLogout }) {
               </button>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </PageBackground>
