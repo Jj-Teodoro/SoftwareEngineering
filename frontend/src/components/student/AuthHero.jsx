@@ -54,47 +54,68 @@ export function TypedLines({ lines, className = "" }) {
   );
 }
 
-// Event photos that crossfade behind the banner. Only the current and previous photo are in the
-// page, and the next one is fetched ahead of time, so the login screen stays light.
+// Event photos laid out as a wall of tiles behind the login card. Every second or so two tiles
+// swap photos with a quick flash. Photos are small (about 600px wide) so the page stays light.
 const COVERS = Object.entries(
   import.meta.glob("../../assets/cover/*.jpg", { eager: true, query: "?url", import: "default" })
 )
   .sort(([a], [b]) => a.localeCompare(b))
   .map(([, url]) => url);
-const SLIDE_MS = 4200;
+const TILES = 16;
+const SWAP_MS = 1300;
 
-function CoverSlideshow() {
-  const [index, setIndex] = useState(0);
-  const [previous, setPrevious] = useState(null);
+function shuffled(count) {
+  const order = Array.from({ length: count }, (_, i) => i);
+  for (let i = order.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order;
+}
+
+function PhotoMosaic() {
+  const count = Math.min(TILES, COVERS.length);
+  const [order, setOrder] = useState(() => shuffled(COVERS.length).slice(0, count));
+  const [stamps, setStamps] = useState(() => Array(count).fill(0));
 
   useEffect(() => {
-    if (reducedMotion() || COVERS.length < 2) return undefined;
+    if (reducedMotion() || count < 2) return undefined;
     const timer = setInterval(() => {
-      setIndex((current) => {
-        setPrevious(current);
-        return (current + 1) % COVERS.length;
+      const a = Math.floor(Math.random() * count);
+      let b = Math.floor(Math.random() * count);
+      if (b === a) b = (a + 1) % count;
+      setOrder((current) => {
+        const next = [...current];
+        [next[a], next[b]] = [next[b], next[a]];
+        return next;
       });
-    }, SLIDE_MS);
+      setStamps((current) => {
+        const next = [...current];
+        next[a] += 1;
+        next[b] += 1;
+        return next;
+      });
+    }, SWAP_MS);
     return () => clearInterval(timer);
-  }, []);
+  }, [count]);
 
-  useEffect(() => {
-    if (COVERS.length > 1) new Image().src = COVERS[(index + 1) % COVERS.length];
-  }, [index]);
-
-  if (COVERS.length === 0) return null;
+  if (count === 0) return null;
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-      {previous !== null && <img src={COVERS[previous]} alt="" className="absolute inset-0 h-full w-full object-cover" />}
-      <img key={index} src={COVERS[index]} alt="" className="st-cover absolute inset-0 h-full w-full object-cover" />
-      {/* maroon wash so the logo and text stay readable over any photo */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(180deg, rgba(58,8,11,0.82) 0%, rgba(42,6,9,0.6) 45%, rgba(30,4,6,0.86) 100%)",
-        }}
-      />
+      <div className="grid h-full w-full grid-cols-4 grid-rows-4 gap-[3px] bg-black">
+        {order.map((photo, tile) => (
+          <div key={tile} className="relative overflow-hidden">
+            <img
+              key={`${photo}-${stamps[tile]}`}
+              src={COVERS[photo]}
+              alt=""
+              className="st-tile absolute inset-0 h-full w-full object-cover"
+            />
+          </div>
+        ))}
+      </div>
+      {/* dark wash so the tiles read as a backdrop and the card stands out */}
+      <div className="absolute inset-0 bg-[rgba(24,6,9,0.56)]" />
     </div>
   );
 }
@@ -106,7 +127,7 @@ const PERKS = ["see your activity points", "check upcoming events", "get event n
 function AuthHero() {
   return (
     <div
-      className="relative flex flex-col items-center justify-center overflow-hidden border-b-2 px-6 pb-16 pt-9 text-center text-white lg:min-h-dvh lg:border-b-0 lg:border-r-2 lg:px-12 lg:pb-9"
+      className="flex flex-col items-center justify-center border-b-2 px-6 pb-16 pt-9 text-center text-white lg:min-h-dvh lg:border-b-0 lg:border-r-2 lg:px-12 lg:pb-9"
       style={{
         borderColor: "var(--gold)",
         backgroundImage:
@@ -114,7 +135,6 @@ function AuthHero() {
         backgroundSize: "32px 32px, 32px 32px, 100% 100%",
       }}
     >
-      <CoverSlideshow />
       <div className="st-rise relative">
         <img src={oasis_logo} alt="OASIS" className="mx-auto h-16 w-auto sm:h-20 lg:h-28" />
       </div>
@@ -150,8 +170,9 @@ export function AuthShell({ children }) {
   return (
     <div className="st-root min-h-dvh bg-[var(--login-bg)] text-[var(--text-primary)] lg:grid lg:grid-cols-[1fr_1fr]">
       <AuthHero />
-      <div className="relative -mt-10 flex justify-center px-4 pb-10 lg:mt-0 lg:items-center lg:py-12">
-        <div className="w-full max-w-md">{children}</div>
+      <div className="relative -mt-10 flex justify-center overflow-hidden px-4 pb-10 lg:mt-0 lg:items-center lg:py-12">
+        <PhotoMosaic />
+        <div className="relative w-full max-w-md">{children}</div>
       </div>
     </div>
   );

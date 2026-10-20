@@ -239,9 +239,9 @@ body {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
 }
-@keyframes st-cover-in {
-  from { opacity: 0; transform: scale(1.07); }
-  to { opacity: 1; transform: scale(1); }
+@keyframes st-tile-in {
+  from { opacity: 0; filter: brightness(2.4); transform: scale(1.1); }
+  to { opacity: 1; filter: none; transform: scale(1); }
 }
 @keyframes st-blink {
   0%, 49% { opacity: 1; }
@@ -250,8 +250,8 @@ body {
 .st-rise {
   animation: st-rise 0.6s ease-out both;
 }
-.st-cover {
-  animation: st-cover-in 1.4s ease-out both;
+.st-tile {
+  animation: st-tile-in 0.9s ease-out both;
 }
 .st-caret {
   display: inline-block;
@@ -268,7 +268,7 @@ body {
     transition-duration: 0.01ms !important;
   }
   .st-rise,
-  .st-cover,
+  .st-tile,
   .st-caret {
     animation: none !important;
   }
