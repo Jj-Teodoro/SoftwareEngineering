@@ -60,39 +60,75 @@ const COVERS = Object.entries(
 )
   .sort(([a], [b]) => a.localeCompare(b))
   .map(([, url]) => url);
-const STEP = 3; // coprime with 16, so each shape walks through every photo
 
-// One photo that changes by itself with a quick flash. Only the current and previous
-// photo are in the page, and the next one is fetched ahead of time.
-function PhotoLoop({ offset = 0, every = 3800, className = "" }) {
+const pad2 = (n) => String(n).padStart(2, "0");
+
+// Photo showcase: the whole photo is always visible (a blurred copy fills the frame behind it),
+// with arrows, a counter, autoplay that pauses on hover, and two photos peeking out behind.
+function PhotoShowcase() {
   const count = COVERS.length;
-  const [pair, setPair] = useState({ cur: count ? offset % count : 0, prev: null });
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  const go = (delta) => setIndex((i) => (i + delta + count) % count);
 
   useEffect(() => {
-    if (reducedMotion() || count < 2) return undefined;
-    const timer = setInterval(
-      () => setPair((p) => ({ cur: (p.cur + STEP) % count, prev: p.cur })),
-      every
-    );
-    return () => clearInterval(timer);
-  }, [count, every]);
+    if (reducedMotion() || paused || count < 2) return undefined;
+    const timer = setTimeout(() => go(1), 4200);
+    return () => clearTimeout(timer);
+  }, [index, paused, count]);
 
   useEffect(() => {
-    if (count > 1) new Image().src = COVERS[(pair.cur + STEP) % count];
-  }, [pair.cur, count]);
+    if (count > 1) new Image().src = COVERS[(index + 2) % count];
+  }, [index, count]);
 
-  if (count === 0) return <div className={className} />;
+  if (count === 0) return null;
+  const at = (offset) => COVERS[(index + offset + count) % count];
+  const arrow =
+    "absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-lg font-bold text-white backdrop-blur transition hover:bg-[#f2b400] hover:text-[#2a0507] sm:h-10 sm:w-10";
+
   return (
-    <div className={`overflow-hidden bg-[#3a0a0d] ${className}`}>
-      {pair.prev !== null && (
-        <img src={COVERS[pair.prev]} alt="" className="absolute inset-0 h-full w-full object-cover" />
-      )}
+    <div
+      className="relative mx-auto w-full max-w-[280px] sm:max-w-[460px] lg:mx-0 lg:max-w-[500px] xl:max-w-[580px]"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      {/* the next photos peek out behind the frame */}
       <img
-        key={pair.cur}
-        src={COVERS[pair.cur]}
+        src={at(2)}
         alt=""
-        className="st-tile absolute inset-0 h-full w-full object-cover"
+        className="absolute -left-3 top-3 hidden aspect-[3/2] w-[88%] -rotate-6 rounded-xl border-4 border-white/70 object-cover opacity-60 sm:block"
+        aria-hidden="true"
       />
+      <img
+        src={at(1)}
+        alt=""
+        className="absolute -right-3 top-2 hidden aspect-[3/2] w-[88%] rotate-6 rounded-xl border-4 border-white/70 object-cover opacity-70 sm:block"
+        aria-hidden="true"
+      />
+
+      <div className="relative aspect-[3/2] overflow-hidden rounded-2xl border-[5px] border-white bg-[#1c0507] shadow-[0_18px_40px_rgba(0,0,0,0.5)]">
+        <img
+          key={`bg-${index}`}
+          src={at(0)}
+          alt=""
+          className="st-fade absolute inset-0 h-full w-full scale-125 object-cover opacity-60 blur-xl"
+          aria-hidden="true"
+        />
+        <img key={index} src={at(0)} alt="OASIS event photo" className="st-fade absolute inset-0 h-full w-full object-contain" />
+
+        <button type="button" onClick={() => go(-1)} aria-label="Previous photo" className={`${arrow} left-2`}>
+          &lsaquo;
+        </button>
+        <button type="button" onClick={() => go(1)} aria-label="Next photo" className={`${arrow} right-2`}>
+          &rsaquo;
+        </button>
+        <span className="st-mono absolute bottom-2 left-1/2 -translate-x-1/2 rounded-md bg-black/55 px-2 py-0.5 text-[10px] font-bold text-white">
+          {pad2(index + 1)} / {pad2(count)}
+        </span>
+      </div>
     </div>
   );
 }
@@ -134,7 +170,7 @@ function Poster() {
       <div className="relative mt-6 lg:mt-8">
         <p className="st-mono mb-2 text-xs font-bold tracking-widest text-[#f2b400]">&#9654;&#9654;&#9654;</p>
         <h1
-          className="st-rise text-[30px] font-extrabold uppercase leading-[1.1] tracking-tight sm:text-4xl lg:text-[50px] xl:text-[58px]"
+          className="st-rise text-[30px] font-extrabold uppercase leading-[1.1] tracking-tight sm:text-[36px] lg:text-[50px] xl:text-[58px]"
           style={{ fontFamily: "Montserrat, Inter, sans-serif" }}
         >
           Earn points.
@@ -148,28 +184,14 @@ function Poster() {
         </p>
       </div>
 
-      {/* photo shapes */}
-      <div className="relative mt-6 h-[150px] w-full max-w-[540px] sm:h-[200px] lg:mt-8 lg:h-[270px] xl:mt-10 xl:h-[340px]">
-        <PhotoLoop
-          offset={0}
-          every={3600}
-          className="absolute right-0 top-0 h-[136px] w-[136px] rounded-full border-[5px] border-[#f2b400] sm:h-[190px] sm:w-[190px] lg:h-[230px] lg:w-[230px] lg:border-[6px] xl:h-[290px] xl:w-[290px] xl:border-[7px]"
-        />
-        <PhotoLoop
-          offset={5}
-          every={4400}
-          className="absolute bottom-0 left-0 h-[130px] w-[88px] rounded-b-[18px] rounded-t-full border-[4px] border-white sm:h-[180px] sm:w-[120px] lg:h-[210px] lg:w-[142px] lg:rounded-b-[24px] lg:border-[5px] xl:h-[260px] xl:w-[176px] xl:rounded-b-[28px]"
-        />
-        <PhotoLoop
-          offset={11}
-          every={5200}
-          className="absolute left-[78px] top-0 h-[56px] w-[56px] rounded-full border-[3px] border-[#f2b400] sm:left-[104px] sm:h-[78px] sm:w-[78px] lg:left-[118px] lg:h-[90px] lg:w-[90px] lg:border-4 xl:left-[150px] xl:h-[112px] xl:w-[112px]"
-        />
+      {/* photo showcase + call-to-action badge */}
+      <div className="relative mt-7 lg:mt-8">
+        <PhotoShowcase />
         <button
           type="button"
           onClick={focusLogin}
           aria-label="Go to the log in form"
-          className="st-mono absolute bottom-1 right-[92px] flex h-[64px] w-[64px] -rotate-12 flex-col items-center justify-center rounded-full bg-[#f2b400] text-center text-[10px] font-extrabold uppercase leading-tight text-[#2a0507] shadow-lg transition hover:scale-105 sm:right-[150px] sm:h-[84px] sm:w-[84px] sm:text-xs lg:bottom-3 lg:right-[160px] lg:h-[96px] lg:w-[96px] lg:text-sm xl:right-[200px] xl:h-[108px] xl:w-[108px]"
+          className="st-mono absolute -bottom-5 right-0 flex h-[68px] w-[68px] -rotate-12 flex-col items-center justify-center rounded-full bg-[#f2b400] text-center text-[10px] font-extrabold uppercase leading-tight text-[#2a0507] shadow-lg transition hover:scale-105 sm:h-[84px] sm:w-[84px] sm:text-xs lg:right-auto lg:left-[440px] xl:left-[520px] lg:h-[96px] lg:w-[96px] lg:text-sm"
         >
           Log in
           <span aria-hidden="true">now &rarr;</span>
