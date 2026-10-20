@@ -12,11 +12,21 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 import os
 import sys
 
 load_dotenv()
+
+# Vercel sets VERCEL=1 in every build and function. There, settings must come from
+# the project's Environment Variables, never from the development defaults below.
+ON_VERCEL = bool(os.getenv("VERCEL"))
+
+
+def required_on_vercel(name):
+    if ON_VERCEL and not os.getenv(name):
+        raise ImproperlyConfigured(f"Set {name} in the Vercel project's Environment Variables.")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,10 +36,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
+required_on_vercel("DJANGO_SECRET_KEY")
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-dev-only-change-me")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
+DEBUG = os.getenv("DJANGO_DEBUG", "False" if ON_VERCEL else "True") == "True"
 
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",")
 
@@ -100,6 +111,8 @@ WSGI_APPLICATION = 'server.wsgi.application'
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
 # Uses Supabase Postgres when DB_HOST is set in .env, otherwise falls back to SQLite
+# (except on Vercel, where there is no SQLite file to fall back to)
+required_on_vercel("DB_HOST")
 if os.getenv("DB_HOST"):
     DATABASES = {
         "default": {
@@ -168,8 +181,13 @@ MAILERS = {
     },
 }
 
-# the React app (admin, scanner and student portals) runs on :5173
-CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+# Origins only (scheme + domain, no path or trailing slash): one entry covers
+# /, /admin and /scanner. On Vercel the app and API share a domain, so CORS is
+# only needed for local development on :5173.
+CORS_ALLOWED_ORIGINS = os.getenv(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:5173,https://softwareengineering-flax.vercel.app",
+).split(",")
 
 # Faster password hashing when running the test suite
 if "test" in sys.argv:
