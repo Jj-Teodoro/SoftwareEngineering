@@ -179,7 +179,6 @@ function StudentInfoTab({ student }) {
         <input
           value={form.email}
           onChange={set("email")}
-          disabled={hasAccount}
           className={inputClass}
         />
       </FormRow>
@@ -189,11 +188,6 @@ function StudentInfoTab({ student }) {
       <FormRow label="Address">
         <input value={form.address} onChange={set("address")} className={inputClass} />
       </FormRow>
-      {hasAccount && (
-        <p className="text-[11px] text-white/50">
-          The email is locked because it is this student's login.
-        </p>
-      )}
       {error && <p className="text-xs font-semibold text-red-300">{error}</p>}
       <div className="flex justify-end gap-3 pt-1">
         <button
@@ -312,7 +306,7 @@ function StudentAccountTab({ student }) {
               : "Account active"}
           </p>
           <p className="text-xs text-white/60">
-            Login email: {student.email || "— none on file —"}
+            Logs in with student number: {student.studentId}
           </p>
           {hasAccount && (
             <p className="mt-1 text-xs text-white/60">
@@ -356,7 +350,7 @@ function StudentAccountTab({ student }) {
             Give these to the student — visible until they set their own password
           </p>
           <p className="text-sm text-white">
-            Email: <span className="font-semibold">{student.email}</span>
+            Student number: <span className="font-semibold">{student.studentId}</span>
           </p>
           {tempPassword ? (
             <div className="flex flex-wrap items-center gap-3">

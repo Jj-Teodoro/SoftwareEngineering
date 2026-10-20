@@ -40,7 +40,7 @@ export default function AuthPage({ onAuthSuccess }) {
     setError,
     formState: { errors, isSubmitting },
   } = useForm({
-    defaultValues: { email: "", password: "", studentId: "" },
+    defaultValues: { studentNumber: "", password: "", studentId: "" },
   });
 
   const switchMode = (next) => {
@@ -51,7 +51,7 @@ export default function AuthPage({ onAuthSuccess }) {
 
   const onSubmit = async (data) => {
     if (mode === "login") {
-      const result = await login(data.email, data.password);
+      const result = await login(data.studentNumber, data.password);
       if (!result.ok) {
         setError("root", { type: "manual", message: result.message });
         return;
@@ -123,7 +123,7 @@ export default function AuthPage({ onAuthSuccess }) {
                   &gt; REQUEST SENT<span className="cursor-blink">_</span>
                 </p>
                 <p className="mt-3 text-sm leading-relaxed text-[var(--text-primary)]">
-                  Your admin will give you a new temporary password. Log in with your usual email
+                  Your admin will give you a new temporary password. Log in with your student number
                   and that password, then choose a new one.
                 </p>
                 <button
@@ -152,12 +152,12 @@ export default function AuthPage({ onAuthSuccess }) {
                 ) : (
                   <>
                     <Field
-                      id="email"
-                      label="Email"
-                      type="email"
-                      error={errors.email}
+                      id="studentNumber"
+                      label="Student Number"
+                      type="text"
+                      error={errors.studentNumber}
                       register={register}
-                      rules={{ required: "Email is required" }}
+                      rules={{ required: "Student number is required" }}
                     />
                     <Field
                       id="password"
@@ -197,7 +197,7 @@ export default function AuthPage({ onAuthSuccess }) {
 
             {mode === "login" && (
               <p className="mt-6 text-center font-mono text-[11px] leading-relaxed text-[var(--text-muted)]">
-                First time here? Log in with the email and temporary password your admin gave
+                First time here? Log in with your student number and the temporary password your admin gave
                 you. You'll be asked to set your own password.
               </p>
             )}

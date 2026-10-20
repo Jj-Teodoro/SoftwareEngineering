@@ -676,14 +676,14 @@ class LoginViewTest(TestCase):
   def login(self, identifier, password, portal):
     return self.client.post("/api/auth/login", {"identifier": identifier, "password": password, "portal": portal}, format="json")
 
-  def test_student_logs_in_with_email(self):
-    response = self.login("student@school.edu", "JMC090907", "student")
+  def test_student_logs_in_with_student_number(self):
+    response = self.login("2024-00001", "JMC090907", "student")
     self.assertEqual(response.status_code, status.HTTP_200_OK)
     self.assertEqual(response.data["user"]["student_id"], "2024-00001")
     self.assertIn("access", response.data)
 
-  def test_student_logs_in_with_student_id(self):
-    self.assertEqual(self.login("2024-00001", "JMC090907", "student").status_code, status.HTTP_200_OK)
+  def test_student_cannot_log_in_with_email(self):
+    self.assertEqual(self.login("student@school.edu", "JMC090907", "student").status_code, status.HTTP_401_UNAUTHORIZED)
 
   def test_staff_logs_in_with_username(self):
     response = self.login("STAFF-SCANNER", "StaffPass1", "staff")
@@ -699,7 +699,7 @@ class LoginViewTest(TestCase):
 
   def test_student_without_account_cannot_log_in(self):
     User.objects.create_user("2024-00002", None, first_name="No", last_name="Login", email="none@school.edu")
-    self.assertEqual(self.login("none@school.edu", "anything", "student").status_code, status.HTTP_401_UNAUTHORIZED)
+    self.assertEqual(self.login("2024-00002", "anything", "student").status_code, status.HTTP_401_UNAUTHORIZED)
 
   def test_refresh_token_of_deleted_user_is_rejected(self):
     refresh = self.login("2024-00001", "JMC090907", "student").data["refresh"]
@@ -833,10 +833,11 @@ class AccountProvisioningTest(TestCase):
     self.assertFalse(self.student.check_password(first))
     self.assertTrue(self.student.check_password(second))
 
-  def test_requires_email(self):
+  def test_works_without_email(self):
     User.objects.filter(pk="2024-00001").update(email="")
     response = self.client.post("/api/user/2024-00001/account")
-    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    self.assertEqual(response.data["student_id"], "2024-00001")
 
   def test_temp_password_hidden_after_student_changes_it(self):
     self.client.post("/api/user/2024-00001/account")

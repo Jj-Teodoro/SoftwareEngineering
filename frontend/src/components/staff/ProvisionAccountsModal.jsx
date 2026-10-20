@@ -3,14 +3,13 @@ import { FiCopy, FiDownload } from "react-icons/fi";
 import Modal from "../common/Modal.jsx";
 import { useStudents } from "../../context/staff/StudentsContext";
 
-const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 
 function toCsv(results) {
   const escape = (v) => `"${String(v ?? "").replaceAll('"', '""')}"`;
-  const rows = [["Student ID", "Name", "Email", "Temporary Password"]];
+  const rows = [["Student Number", "Name", "Temporary Password"]];
   results
     .filter((r) => r.ok)
-    .forEach((r) => rows.push([r.studentId, r.name, r.email, r.tempPassword]));
+    .forEach((r) => rows.push([r.studentId, r.name, r.tempPassword]));
   return rows.map((row) => row.map(escape).join(",")).join("\r\n");
 }
 
@@ -20,13 +19,8 @@ export default function ProvisionAccountsModal({ onClose }) {
   const [results, setResults] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  const { ready, missingEmail } = useMemo(() => {
-    const withoutAccount = students.filter((s) => !s.authUid);
-    return {
-      ready: withoutAccount.filter((s) => EMAIL_PATTERN.test((s.email || "").trim())),
-      missingEmail: withoutAccount.filter((s) => !EMAIL_PATTERN.test((s.email || "").trim())),
-    };
-  }, [students]);
+  // students sign in with their student number, so everyone without an account is ready
+  const ready = useMemo(() => students.filter((s) => !s.authUid), [students]);
 
   const handleCreate = async () => {
     setProgress({ done: 0, total: ready.length });
@@ -51,7 +45,7 @@ export default function ProvisionAccountsModal({ onClose }) {
   const copyAll = async () => {
     const text = results
       .filter((r) => r.ok)
-      .map((r) => `${r.studentId}\t${r.email}\t${r.tempPassword}`)
+      .map((r) => `${r.studentId}\t${r.tempPassword}`)
       .join("\n");
     try {
       await navigator.clipboard.writeText(text);
@@ -74,19 +68,13 @@ export default function ProvisionAccountsModal({ onClose }) {
       {!results ? (
         <>
           <p className="text-sm text-white/70">
-            Each student gets a login using the email on their record and a random temporary
+            Each student gets a login using their student number and a random temporary
             password. They'll be asked to choose their own password the first time they log in.
           </p>
           <div className="surface-inset p-4 mt-4 space-y-1">
             <p>
               <span className="font-bold">{ready.length}</span> student(s) ready for an account
             </p>
-            {missingEmail.length > 0 && (
-              <p className="text-white/60">
-                {missingEmail.length} skipped — no valid email on file (add one under Info):{" "}
-                {missingEmail.map((s) => s.studentId).join(", ")}
-              </p>
-            )}
           </div>
           <p className="mt-3 text-xs text-gold">
             Temporary passwords are shown once, right after creation. Save or hand them out
@@ -129,7 +117,6 @@ export default function ProvisionAccountsModal({ onClose }) {
                 <tr className="bg-white/[0.04] font-mono uppercase tracking-wider text-white/60">
                   <th className="px-3 py-2">Student ID</th>
                   <th className="px-3 py-2">Name</th>
-                  <th className="px-3 py-2">Email</th>
                   <th className="px-3 py-2">Temporary password</th>
                 </tr>
               </thead>
@@ -138,7 +125,6 @@ export default function ProvisionAccountsModal({ onClose }) {
                   <tr key={r.studentId} className="border-t border-white/10">
                     <td className="px-3 py-2 font-semibold">{r.studentId}</td>
                     <td className="px-3 py-2">{r.name}</td>
-                    <td className="px-3 py-2">{r.ok ? r.email : "—"}</td>
                     <td className="px-3 py-2">
                       {r.ok ? (
                         <span className="select-all font-mono text-sm font-bold tracking-[1px]">

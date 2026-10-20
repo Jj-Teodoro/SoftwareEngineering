@@ -79,12 +79,12 @@ export function StudentsProvider({ children }) {
   };
 
   // The server sets a random temporary password and returns it once; the student
-  // must replace it on first login, after which no admin can see it.
+  // signs in with their student number and must replace it on first login.
   const issueAccount = async (studentId) => {
     try {
-      const { email, temp_password: tempPassword } = await api.users.issueAccount(studentId);
+      const { temp_password: tempPassword } = await api.users.issueAccount(studentId);
       await refresh();
-      return { ok: true, email, tempPassword };
+      return { ok: true, tempPassword };
     } catch (error) {
       return { ok: false, message: error.message || "Could not create the account." };
     }
@@ -94,9 +94,6 @@ export function StudentsProvider({ children }) {
     const student = students.find((s) => s.studentId === studentId);
     if (!student) return { ok: false, message: "Student not found." };
     if (student.authUid) return { ok: false, message: "This student already has an account." };
-    if (!EMAIL_PATTERN.test((student.email || "").trim())) {
-      return { ok: false, message: "Add a valid email to this student first." };
-    }
     return issueAccount(studentId);
   };
 

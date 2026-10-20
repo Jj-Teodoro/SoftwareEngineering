@@ -63,7 +63,7 @@ export default function SettingsPage({ onLogout }) {
 
       <Panel title="Account">
         <p className="mb-4 font-mono text-sm text-[var(--text-primary)]">
-          {student?.name} · {student?.email}
+          {student?.name} · {student?.studentId}
         </p>
 
         <p className="mb-4 font-mono text-xs leading-relaxed text-[var(--text-muted)]">

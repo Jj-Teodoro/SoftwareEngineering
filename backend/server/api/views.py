@@ -1,4 +1,3 @@
-import re
 import secrets
 
 from django.db import transaction
@@ -39,7 +38,6 @@ from .utils import UserRole
 # Create your views here.
 
 TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
-EMAIL_PATTERN = re.compile(r"^\S+@\S+\.\S+$")
 MIN_PASSWORD_LENGTH = 6
 
 
@@ -55,7 +53,7 @@ def tokens_for(user):
 # ---------------------------------------------------------------- auth
 
 class LoginView(APIView):
-  """Staff sign in with their username, students with their email or student ID."""
+  """Staff sign in with their username, students with their student number."""
   permission_classes = [AllowAny]
   authentication_classes = []
 
@@ -70,9 +68,7 @@ class LoginView(APIView):
     if portal == "staff":
       candidates = User.objects.filter(student_id__iexact=identifier, role__in=STAFF_ROLES)
     else:
-      candidates = User.objects.filter(role=UserRole.STUDENT.value).filter(
-        Q(email__iexact=identifier) | Q(student_id__iexact=identifier)
-      )
+      candidates = User.objects.filter(student_id__iexact=identifier, role=UserRole.STUDENT.value)
 
     for user in candidates:
       if user.is_active and user.check_password(password):
@@ -260,18 +256,15 @@ class AccountView(APIView):
     return Response({"temp_password": user.temp_password if pending else None}, status=status.HTTP_200_OK)
 
   def post(self, request, student_id):
+    # the student signs in with their student number, so no email is needed
     user = get_object_or_404(User, student_id=student_id)
-    email = user.email.strip().lower()
-    if not EMAIL_PATTERN.match(email):
-      return Response({"detail": "Add a valid email to this student first."}, status=status.HTTP_400_BAD_REQUEST)
-
     temp_password = generate_temp_password()
     user.set_password(temp_password)
     user.temp_password = temp_password
     user.must_change_password = True
     user.password_requested_at = None
     user.save(update_fields=["password", "temp_password", "must_change_password", "password_requested_at"])
-    return Response({"email": email, "temp_password": temp_password}, status=status.HTTP_200_OK)
+    return Response({"student_id": user.student_id, "temp_password": temp_password}, status=status.HTTP_200_OK)
 
 class PasswordRequestDismissView(APIView):
   permission_classes = [IsAdmin]

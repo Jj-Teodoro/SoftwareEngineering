@@ -6,12 +6,12 @@ const AuthContext = createContext(null);
 
 // Student accounts are created by an admin with a temporary password, so there
 // is no self sign-up. A forgotten password is handled by asking the admin for a
-// new temporary one (requestTempPassword); there is no email reset.
+// new temporary one (requestTempPassword). Students sign in with their student number.
 export function AuthProvider({ children }) {
-  const login = async (email, password) => {
-    const typed = email.trim().toLowerCase();
+  const login = async (studentNumber, password) => {
+    const typed = studentNumber.trim();
     if (!typed || !password) {
-      return { ok: false, message: "Email and password are required." };
+      return { ok: false, message: "Student number and password are required." };
     }
 
     try {
@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       return {
         ok: false,
-        message: error.status === 401 ? "Invalid email or password." : "Unable to reach the server.",
+        message: error.status === 401 ? "Invalid student number or password." : "Unable to reach the server.",
       };
     }
   };
