@@ -7,7 +7,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
-  envDir: path.resolve(__dirname, "../.."),
-  // fixed ports so the Django CORS settings know each site
-  server: { port: 5175, strictPort: true },
+  resolve: {
+    alias: {
+      "@oasis/shared": path.resolve(__dirname, "src/shared"),
+    },
+  },
+  // the Django CORS settings expect the app on this port
+  server: { port: 5173, strictPort: true },
 });

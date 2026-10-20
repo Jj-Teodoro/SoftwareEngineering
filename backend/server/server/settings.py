@@ -168,11 +168,8 @@ MAILERS = {
     },
 }
 
-# admin-site :5173, scanner-site :5174, user-site :5175
-CORS_ALLOWED_ORIGINS = os.getenv(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:5173,http://localhost:5174,http://localhost:5175",
-).split(",")
+# the React app (admin, scanner and student portals) runs on :5173
+CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 
 # Faster password hashing when running the test suite
 if "test" in sys.argv:

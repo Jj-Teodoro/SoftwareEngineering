@@ -1,0 +1,6 @@
+/* admin + scanner theme (classes like .btn, .surface, .chip) */
+@import "./shared/styles/theme.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

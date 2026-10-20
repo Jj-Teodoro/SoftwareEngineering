@@ -1,11 +1,14 @@
 // Talks to the Django API (which stores everything in Supabase Postgres).
-// Each site runs on its own origin, so each keeps its own session.
+// The admin, scanner and student portals share one origin, so each portal keeps
+// its own tokens: signing in at /admin doesn't sign anyone in on the student site.
+import { currentPortal } from "./portal.js";
 
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000/api").replace(/\/$/, "");
 
-const ACCESS_KEY = "oasis_access_token";
-const REFRESH_KEY = "oasis_refresh_token";
 const SESSION_EVENT = "oasis:session";
+
+const accessKey = () => `oasis_${currentPortal()}_access_token`;
+const refreshKey = () => `oasis_${currentPortal()}_refresh_token`;
 
 function readToken(key) {
   try {
@@ -17,8 +20,8 @@ function readToken(key) {
 
 function saveTokens({ access, refresh }) {
   try {
-    if (access) localStorage.setItem(ACCESS_KEY, access);
-    if (refresh) localStorage.setItem(REFRESH_KEY, refresh);
+    if (access) localStorage.setItem(accessKey(), access);
+    if (refresh) localStorage.setItem(refreshKey(), refresh);
   } catch {
     // storage unavailable; the session ends with the tab
   }
@@ -26,8 +29,8 @@ function saveTokens({ access, refresh }) {
 
 function clearTokens() {
   try {
-    localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(REFRESH_KEY);
+    localStorage.removeItem(accessKey());
+    localStorage.removeItem(refreshKey());
   } catch {
     // nothing to clear
   }
@@ -38,7 +41,7 @@ function announceSession() {
 }
 
 export function hasSession() {
-  return Boolean(readToken(ACCESS_KEY));
+  return Boolean(readToken(accessKey()));
 }
 
 // Calls `callback` whenever the user signs in or out (replaces onAuthStateChanged).
@@ -72,7 +75,7 @@ async function send(path, { method = "GET", body, query, auth = true } = {}) {
   });
 
   const headers = { "Content-Type": "application/json" };
-  const token = auth && readToken(ACCESS_KEY);
+  const token = auth && readToken(accessKey());
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const response = await fetch(url, {
@@ -90,7 +93,7 @@ async function send(path, { method = "GET", body, query, auth = true } = {}) {
 let refreshing = null;
 
 async function refreshAccessToken() {
-  const refresh = readToken(REFRESH_KEY);
+  const refresh = readToken(refreshKey());
   if (!refresh) throw new ApiError(401, { detail: "Session expired" });
 
   // share one refresh call between requests that fail at the same time
