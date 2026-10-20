@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "admin-site": {
+      "root": "frontend/admin-site",
+      "framework": "vite"
+    },
+    "scanner-site": {
+      "root": "frontend/scanner-site",
+      "framework": "vite"
+    },
+    "user-site": {
+      "root": "frontend/user-site",
+      "framework": "vite"
+    }
+  },
+  "rewrites": []
+}
