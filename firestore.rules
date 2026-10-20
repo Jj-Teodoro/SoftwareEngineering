@@ -17,6 +17,11 @@ service cloud.firestore {
     function isScanner() {
       return isStaff() && (staffRole() == "scanner" || staffRole() == "admin");
     }
+    // The temporary-password / reset-request document of the signed-in staff member.
+    function isOwnStaffKey(key) {
+      return isStaff() &&
+        key == 'staff_' + get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.username;
+    }
     function isOwnStudent(studentId) {
       return isSignedIn() &&
         get(/databases/$(database)/documents/students/$(studentId)).data.authUid == request.auth.uid;
@@ -45,7 +50,7 @@ service cloud.firestore {
     // student's own client as soon as they choose a new password.
     match /accountCredentials/{studentId} {
       allow read, create, update: if isAdmin();
-      allow delete: if isAdmin() || isOwnStudent(studentId);
+      allow delete: if isAdmin() || isOwnStaffKey(studentId) || isOwnStudent(studentId);
     }
 
     // Live "using the website" status: each student writes only their own
@@ -80,13 +85,29 @@ service cloud.firestore {
 
     // Staff (admin / scanner) accounts are separate from students. Only an admin
     // can create one, and its username can never be a student ID.
+    // A new account starts with a temporary password (mustChangePassword); the
+    // staff member can only clear that flag, after choosing their own password.
     match /staff/{uid} {
       allow read: if isSignedIn();
       allow create: if isAdmin() &&
-        request.resource.data.keys().hasOnly(['username', 'name', 'role']) &&
+        request.resource.data.keys().hasOnly(['username', 'name', 'role', 'mustChangePassword', 'loginEmail', 'loginVersion']) &&
         request.resource.data.role in ['admin', 'scanner'] &&
         !exists(/databases/$(database)/documents/students/$(request.resource.data.username));
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin() ||
+        (request.auth.uid == uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mustChangePassword']) &&
+         request.resource.data.mustChangePassword == false);
+      allow delete: if isAdmin();
+    }
+
+    // Who is using the admin and scanner sites right now, and where. Each staff
+    // member writes only their own heartbeat; only admins read it.
+    match /staffPresence/{uid} {
+      allow read, delete: if isAdmin();
+      allow create, update: if isStaff() && request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['lastSeen', 'online', 'app', 'page', 'event', 'device', 'username', 'name', 'role']) &&
+        request.resource.data.lastSeen is timestamp &&
+        request.resource.data.online is bool;
     }
 
     match /requirements/{id} {

@@ -1,35 +1,25 @@
 import { createContext, useContext } from "react";
-import {
-  signInWithEmailAndPassword,
-  signOut as firebaseSignOut,
-} from "firebase/auth";
+import { signInWithEmailAndPassword, signOut as firebaseSignOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@oasis/shared/firebaseClient.js";
+import { resolveStaffLoginEmail } from "@oasis/shared/utils/staffAuth.js";
 
 const AdminContext = createContext(null);
 
-// Staff accounts are separate from students: they sign in with a username
-// (e.g. "admin"), never a student ID.
-function staffEmailFor(username) {
-  return `${username.trim().toLowerCase()}@oasis.local`;
-}
+const INVALID = { ok: false, message: "Invalid username or password." };
 
 export function AdminProvider({ children }) {
+  // Only accounts with the admin role may use the admin site; scanner accounts
+  // sign in on the scanner site.
   const authenticate = async (username, password) => {
     const id = username.trim();
-    if (!id || !password) {
-      return { ok: false, message: "Invalid username or password." };
-    }
+    if (!id || !password) return INVALID;
 
     let userCredential;
     try {
-      userCredential = await signInWithEmailAndPassword(
-        auth,
-        staffEmailFor(id),
-        password
-      );
+      userCredential = await signInWithEmailAndPassword(auth, await resolveStaffLoginEmail(db, id), password);
     } catch {
-      return { ok: false, message: "Invalid username or password." };
+      return INVALID;
     }
 
     const staffSnap = await getDoc(doc(db, "staff", userCredential.user.uid));
@@ -39,24 +29,20 @@ export function AdminProvider({ children }) {
     }
 
     const staff = staffSnap.data();
+    if (staff.role !== "admin") {
+      await firebaseSignOut(auth);
+      return { ok: false, message: "This account can't use the admin site. Use the scanner site instead." };
+    }
+
     return {
       ok: true,
-      admin: {
-        uid: userCredential.user.uid,
-        username: staff.username,
-        name: staff.name,
-        role: staff.role,
-      },
+      admin: { uid: userCredential.user.uid, username: staff.username, name: staff.name, role: staff.role },
     };
   };
 
   const signOut = () => firebaseSignOut(auth);
 
-  return (
-    <AdminContext.Provider value={{ authenticate, signOut }}>
-      {children}
-    </AdminContext.Provider>
-  );
+  return <AdminContext.Provider value={{ authenticate, signOut }}>{children}</AdminContext.Provider>;
 }
 
 export function useAdmin() {

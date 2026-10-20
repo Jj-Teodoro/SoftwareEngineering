@@ -3,7 +3,9 @@ import LoginPage from "./Login/Login";
 import DashboardShell from "./Dashboard/DashboardShell";
 import StudentKioskView from "./Kiosk/StudentKioskView";
 import { ConfirmProvider } from "@oasis/shared/components/ConfirmDialog.jsx";
+import StaffPresenceTracker from "@oasis/shared/components/StaffPresenceTracker.jsx";
 import { AdminProvider, useAdmin } from "./context/AdminContext";
+import { StaffProvider } from "./context/StaffContext";
 import { StudentsProvider } from "./context/StudentsContext";
 import { EventsProvider } from "./context/EventsContext";
 import { RequirementsProvider } from "./context/RequirementsContext";
@@ -20,23 +22,24 @@ function AppContent() {
     setCurrentUser(null);
   };
 
-  if (kioskEventId) {
-    return (
-      <StudentKioskView
-        eventId={kioskEventId}
-        currentAdmin={currentUser}
-        onExit={() => setKioskEventId(null)}
-      />
-    );
-  }
-
   if (currentUser) {
     return (
-      <DashboardShell
-        currentUser={currentUser}
-        onLogout={handleLogout}
-        onStartKiosk={setKioskEventId}
-      />
+      <>
+        <StaffPresenceTracker user={currentUser} app="admin" />
+        {kioskEventId ? (
+          <StudentKioskView
+            eventId={kioskEventId}
+            currentAdmin={currentUser}
+            onExit={() => setKioskEventId(null)}
+          />
+        ) : (
+          <DashboardShell
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            onStartKiosk={setKioskEventId}
+          />
+        )}
+      </>
     );
   }
 
@@ -47,6 +50,7 @@ export default function App() {
   return (
     <ConfirmProvider>
     <AdminProvider>
+      <StaffProvider>
       <StudentsProvider>
         <EventsProvider>
           <RequirementsProvider>
@@ -58,6 +62,7 @@ export default function App() {
           </RequirementsProvider>
         </EventsProvider>
       </StudentsProvider>
+      </StaffProvider>
     </AdminProvider>
     </ConfirmProvider>
   );

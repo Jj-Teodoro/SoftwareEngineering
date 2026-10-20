@@ -58,9 +58,14 @@ export function NotificationsProvider({ children }) {
     });
   };
 
+  const markAllRead = async () => {
+    const unread = myNotifications.filter((n) => !isRead(n.id));
+    await Promise.all(unread.map((n) => markRead(n.id)));
+  };
+
   return (
     <NotificationsContext.Provider
-      value={{ notifications: myNotifications, isRead, unreadCount, markRead }}
+      value={{ notifications: myNotifications, isRead, unreadCount, markRead, markAllRead }}
     >
       {children}
     </NotificationsContext.Provider>
