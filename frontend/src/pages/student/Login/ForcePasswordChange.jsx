@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { api } from "../../../api/client.js";
-import PageBackground from "../../../components/student/PageBackground";
-import AuthHero from "../../../components/student/AuthHero";
+import { AuthShell } from "../../../components/student/AuthHero";
 import { useStudent } from "../../../context/student/StudentContext";
 
 const MIN_LENGTH = 8;
@@ -76,10 +75,7 @@ export default function ForcePasswordChange({ onLogout }) {
   );
 
   return (
-    <PageBackground>
-      <div className="flex min-h-dvh flex-col">
-        <AuthHero />
-        <div className="mx-auto -mt-10 w-full max-w-md flex-1 px-4 pb-10">
+    <AuthShell>
         <div className="st-card overflow-hidden">
           <div
             className="flex items-center gap-2 border-b bg-gradient-to-r from-[var(--header-from)] to-[var(--header-to)] px-4 py-2.5"
@@ -153,8 +149,6 @@ export default function ForcePasswordChange({ onLogout }) {
             </div>
           </div>
         </div>
-        </div>
-      </div>
-    </PageBackground>
+    </AuthShell>
   );
 }

@@ -54,26 +54,61 @@ export function TypedLines({ lines, className = "" }) {
   );
 }
 
-// The OASIS name is the star of the top banner; the school sits underneath it.
-export default function AuthHero() {
+const PERKS = ["see your activity points", "check upcoming events", "get event notifications"];
+
+// The OASIS name leads the banner and the school sits underneath it.
+// Phones: a banner across the top. Computers: the left half of the screen.
+function AuthHero() {
   return (
     <div
-      className="border-b-2 bg-gradient-to-b from-[var(--header-from)] to-[var(--header-to)] px-6 pb-16 pt-9 text-center text-white"
-      style={{ borderColor: "var(--gold)" }}
+      className="flex flex-col items-center justify-center border-b-2 px-6 pb-16 pt-9 text-center text-white lg:min-h-dvh lg:border-b-0 lg:border-r-2 lg:px-12 lg:pb-9"
+      style={{
+        borderColor: "var(--gold)",
+        backgroundImage:
+          "linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px), linear-gradient(180deg, var(--header-from), var(--header-to))",
+        backgroundSize: "32px 32px, 32px 32px, 100% 100%",
+      }}
     >
       <div className="st-rise">
-        <div className="st-shine mx-auto w-fit">
-          <img src={oasis_logo} alt="OASIS" className="mx-auto h-16 w-auto sm:h-20" />
+        <img src={oasis_logo} alt="OASIS" className="mx-auto h-16 w-auto sm:h-20 lg:h-28" />
+      </div>
+
+      <div
+        className="st-rise mx-auto mt-6 flex max-w-xs items-center justify-center gap-3 text-left lg:mt-10"
+        style={{ animationDelay: "0.15s" }}
+      >
+        <img src={aces_logo} alt="ACES" className="h-12 w-12 shrink-0 object-contain lg:h-14 lg:w-14" />
+        <div className="leading-tight">
+          <p className="text-sm font-bold lg:text-base">Dr. Yanga's Colleges, Inc.</p>
+          <p className="st-mono mt-0.5 text-[11px] text-[var(--gold)] lg:text-xs">&lt;College of Computer Studies /&gt;</p>
         </div>
       </div>
 
-      <div className="st-rise mx-auto mt-6 flex max-w-xs items-center justify-center gap-3 text-left" style={{ animationDelay: "0.15s" }}>
-        <img src={aces_logo} alt="ACES" className="h-12 w-12 shrink-0 object-contain" />
-        <div className="leading-tight">
-          <p className="text-sm font-bold">Dr. Yanga's Colleges, Inc.</p>
-          <p className="st-mono mt-0.5 text-[11px] text-[var(--gold)]">&lt;College of Computer Studies /&gt;</p>
-        </div>
+      <ul
+        className="st-rise st-mono mt-10 hidden space-y-2 text-left text-sm text-white/80 lg:block"
+        style={{ animationDelay: "0.3s" }}
+      >
+        {PERKS.map((perk) => (
+          <li key={perk}>
+            <span className="text-[var(--gold)]">&gt;</span> {perk}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Page frame for the login screens: hero on one side, a form card on the other.
+// The form side has its own tone so the card never blends into the page.
+export function AuthShell({ children }) {
+  return (
+    <div className="st-root min-h-dvh bg-[var(--login-bg)] text-[var(--text-primary)] lg:grid lg:grid-cols-[1fr_1fr]">
+      <AuthHero />
+      <div className="relative -mt-10 flex justify-center px-4 pb-10 lg:mt-0 lg:items-center lg:py-12">
+        <div className="w-full max-w-md">{children}</div>
       </div>
     </div>
   );
 }
+
+export default AuthHero;

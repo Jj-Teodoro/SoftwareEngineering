@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import PageBackground from "../../../components/student/PageBackground";
-import AuthHero, { TypedLines } from "../../../components/student/AuthHero";
+import { AuthShell, TypedLines } from "../../../components/student/AuthHero";
 import { useAuth } from "../../../context/student/AuthContext";
 
 function Field({ id, label, error, type = "text", register, rules, autoComplete }) {
@@ -71,10 +70,7 @@ export default function AuthPage({ onAuthSuccess }) {
   };
 
   return (
-    <PageBackground>
-      <div className="flex min-h-dvh flex-col">
-        <AuthHero />
-        <div className="mx-auto -mt-10 w-full max-w-md flex-1 px-4 pb-10">
+    <AuthShell>
         <div className="st-card overflow-hidden">
           {/* terminal title bar */}
           <div
@@ -177,8 +173,6 @@ export default function AuthPage({ onAuthSuccess }) {
             )}
           </div>
         </div>
-        </div>
-      </div>
-    </PageBackground>
+    </AuthShell>
   );
 }
