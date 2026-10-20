@@ -73,249 +73,124 @@
 }
 
 /* ===================================================================
- * Student portal (/): theme variables (dark + html.light), .cp-* classes
- * and animations. Plain CSS, so it comes after Tailwind's base styles.
+ * Student portal (/): calm card layout on warm maroon + gold. Light is the
+ * default; html.light is toggled by ThemeProvider (dark otherwise).
+ * Colours come from the variables below; .st-* classes are the shared pieces.
  * =================================================================== */
 :root {
-  --bg-base: #0b0203;
-  --bg-glow-1: rgba(151, 25, 29, 0.55);
-  --bg-glow-2: rgba(5, 217, 232, 0.12);
-  --header-bg: #1a0405;
-  --panel-bg: #2a0709;
-  --frame-bg: linear-gradient(160deg, #3d0a0d 0%, #1f0506 55%, #120304 100%);
-  --grid-line: rgba(242, 180, 0, 0.07);
-  --scan: rgba(0, 0, 0, 0.35);
-  --panel-title: #ffffff;
+  --bg-base: #150a0b;
+  --card: #211213;
+  --card-2: #2b1a1b;
+  --line: rgba(255, 255, 255, 0.09);
+  --track: rgba(255, 255, 255, 0.14);
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  --text-primary: #fdf6f3;
+  --text-muted: rgba(253, 246, 243, 0.68);
+  --text-faint: rgba(253, 246, 243, 0.42);
   --gold: #f2b400;
-  --neon-pink: #ff2a6d;
-  --neon-cyan: #05d9e8;
-  --nav-active-bg: #97191d;
-  --nav-active-text: #ffffff;
-  --nav-idle-bg: rgba(255, 255, 255, 0.04);
-  --nav-idle-text: #f2b400;
-  --surface: rgba(255, 255, 255, 0.06);
-  --surface-strong: rgba(255, 255, 255, 0.12);
-  --surface-border: rgba(242, 180, 0, 0.3);
-  --surface-2: rgba(0, 0, 0, 0.35);
-  --text-primary: #ffffff;
-  --text-muted: rgba(255, 255, 255, 0.68);
-  --text-faint: rgba(255, 255, 255, 0.4);
-  --glow: rgba(242, 180, 0, 0.45);
+  --accent-text: #f2b400;
+  --series-b: #4fc3d1;
+  --danger: #ff6b81;
+  --ok: #3ddc97;
+  --on-gold: #2a0507;
+  --header-from: #8c1a1f;
+  --header-to: #4a0d10;
 }
 
 html.light {
-  --bg-base: #f6e8da;
-  --bg-glow-1: rgba(217, 160, 0, 0.25);
-  --bg-glow-2: rgba(5, 217, 232, 0.12);
-  --header-bg: #fffaf4;
-  --panel-bg: #fffaf4;
-  --frame-bg: linear-gradient(160deg, #fffaf4 0%, #f8e9da 100%);
-  --grid-line: rgba(122, 19, 23, 0.08);
-  --scan: rgba(122, 19, 23, 0.035);
-  --panel-title: #4a0d10;
-  --gold: #c58f00;
-  --neon-pink: #d6204f;
-  --neon-cyan: #05a9b8;
-  --nav-active-bg: #7a1317;
-  --nav-idle-bg: rgba(122, 19, 23, 0.05);
-  --nav-idle-text: #7a1317;
-  --surface: rgba(0, 0, 0, 0.04);
-  --surface-strong: rgba(0, 0, 0, 0.08);
-  --surface-border: rgba(122, 19, 23, 0.3);
-  --surface-2: rgba(122, 19, 23, 0.06);
-  --text-primary: #2a0507;
-  --text-muted: rgba(42, 5, 7, 0.68);
-  --text-faint: rgba(42, 5, 7, 0.42);
-  --glow: rgba(197, 143, 0, 0.35);
+  --bg-base: #f4efec;
+  --card: #ffffff;
+  --card-2: #f8f2ef;
+  --line: rgba(74, 13, 16, 0.1);
+  --track: rgba(74, 13, 16, 0.12);
+  --shadow: 0 8px 26px rgba(74, 13, 16, 0.08);
+  --text-primary: #2a1012;
+  --text-muted: rgba(42, 16, 18, 0.66);
+  --text-faint: rgba(42, 16, 18, 0.42);
+  --accent-text: #8a1c20;
+  --series-b: #0e8fa0;
+  --danger: #c0213f;
+  --ok: #12875a;
 }
 
 body {
   background: var(--bg-base);
 }
 
-@keyframes blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
+/* Student site: Inter, a typeface made for reading on screens */
+.st-root {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  line-height: 1.55;
+}
+/* the ID card and other older pieces use mono/display fonts; keep one readable face on this site */
+.st-root .font-mono,
+.st-root .font-display {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-@keyframes sweep {
-  0% { transform: translateY(-20vh); }
-  100% { transform: translateY(120vh); }
+@layer components {
+  .st-card {
+    @apply rounded-3xl border bg-[var(--card)] shadow-[var(--shadow)];
+    border-color: var(--line);
+  }
+  .st-inset {
+    @apply rounded-2xl bg-[var(--card-2)];
+  }
+  .st-title {
+    @apply text-base font-bold text-[var(--text-primary)];
+  }
+  .st-label {
+    @apply text-[11px] font-semibold uppercase tracking-wide text-[var(--accent-text)];
+  }
+  .st-muted {
+    @apply text-[var(--text-muted)];
+  }
+
+  .st-btn {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--gold)] px-6 text-sm font-bold
+      tracking-wide text-[var(--on-gold)] shadow-sm transition hover:brightness-105
+      active:brightness-95 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .st-btn-ghost {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-2xl border bg-transparent px-6 text-sm
+      font-semibold text-[var(--text-primary)] transition hover:bg-[var(--card-2)]
+      disabled:cursor-not-allowed disabled:opacity-50;
+    border-color: var(--line);
+  }
+  .st-btn-sm {
+    @apply inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition
+      disabled:opacity-50;
+  }
+
+  .st-input {
+    @apply h-12 w-full rounded-2xl border bg-[var(--card-2)] px-4 text-base text-[var(--text-primary)]
+      outline-none transition placeholder:text-[var(--text-faint)] focus:border-[var(--gold)];
+    border-color: var(--line);
+  }
+  .st-input:focus {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 30%, transparent);
+  }
+  .st-input.st-error {
+    border-color: var(--danger);
+  }
+  .st-chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold;
+  }
 }
 
-@keyframes flicker {
-  0%, 100% { opacity: 1; }
-  92% { opacity: 1; }
-  93% { opacity: 0.55; }
-  94% { opacity: 1; }
-  96% { opacity: 0.7; }
+.st-spin {
+  animation: st-spin 0.9s linear infinite;
 }
-
-.cursor-blink {
-  animation: blink 1s steps(1) infinite;
-}
-
-.cp-flicker {
-  animation: flicker 6s linear infinite;
-}
-
-/* RGB-split title, the cyberpunk signature. */
-.cp-glitch {
-  text-shadow:
-    1.5px 0 rgba(255, 42, 109, 0.75),
-    -1.5px 0 rgba(5, 217, 232, 0.65),
-    0 0 12px var(--glow);
-}
-
-/* Cut-corner shape: --notch is the size of the bottom-right cut, and a thin
-   diagonal is drawn along it so bordered shapes stay closed. */
-.cp-notch {
-  --notch: 12px;
-  position: relative;
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% calc(100% - var(--notch)),
-    calc(100% - var(--notch)) 100%,
-    0 100%
-  );
-}
-.cp-notch::after {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: var(--notch);
-  height: var(--notch);
-  background: linear-gradient(
-    to bottom right,
-    transparent calc(50% - 1px),
-    var(--notch-color, var(--gold)) calc(50% - 1px) calc(50% + 1px),
-    transparent calc(50% + 1px)
-  );
-}
-
-.cp-btn {
-  --notch: 12px;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-family: "Share Tech Mono", ui-monospace, monospace;
-  font-weight: 700;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: #1a0405;
-  background: var(--gold);
-  clip-path: polygon(
-    var(--notch) 0,
-    100% 0,
-    100% calc(100% - var(--notch)),
-    calc(100% - var(--notch)) 100%,
-    0 100%,
-    0 var(--notch)
-  );
-  transition: filter 0.2s, transform 0.2s, background 0.2s;
-}
-.cp-btn:hover:not(:disabled) {
-  filter: drop-shadow(0 0 8px var(--glow)) brightness(1.1);
-  transform: translateY(-1px);
-}
-.cp-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.cp-btn-ghost {
-  --notch: 10px;
-  --notch-color: var(--gold);
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-family: "Share Tech Mono", ui-monospace, monospace;
-  font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--gold);
-  border: 1px solid var(--gold);
-  background: transparent;
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% calc(100% - var(--notch)),
-    calc(100% - var(--notch)) 100%,
-    0 100%
-  );
-  transition: background 0.2s, color 0.2s;
-}
-.cp-btn-ghost::after {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  right: -1px;
-  bottom: -1px;
-  width: var(--notch);
-  height: var(--notch);
-  background: linear-gradient(
-    to bottom right,
-    transparent calc(50% - 1px),
-    var(--gold) calc(50% - 1px) calc(50% + 1px),
-    transparent calc(50% + 1px)
-  );
-}
-.cp-btn-ghost:hover:not(:disabled) {
-  background: var(--gold);
-  color: #1a0405;
-}
-
-/* Terminal-style input: mono label above, cut corner, neon focus. */
-.cp-field {
-  --notch: 12px;
-  --notch-color: var(--gold);
-  position: relative;
-  border: 1px solid var(--surface-border);
-  background: var(--surface-2);
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% calc(100% - var(--notch)),
-    calc(100% - var(--notch)) 100%,
-    0 100%
-  );
-  transition: border-color 0.2s, background 0.2s;
-}
-.cp-field::after {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  right: -1px;
-  bottom: -1px;
-  width: var(--notch);
-  height: var(--notch);
-  background: linear-gradient(
-    to bottom right,
-    transparent calc(50% - 1px),
-    var(--notch-color) calc(50% - 1px) calc(50% + 1px),
-    transparent calc(50% + 1px)
-  );
-}
-.cp-field:focus-within {
-  --notch-color: var(--neon-cyan);
-  border-color: var(--neon-cyan);
-  background: rgba(5, 217, 232, 0.06);
-}
-.cp-field.cp-error {
-  --notch-color: var(--neon-pink);
-  border-color: var(--neon-pink);
+@keyframes st-spin {
+  to { transform: rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cp-flicker,
-  .cp-sweep {
-    animation: none !important;
+  .st-spin {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
   }
 }

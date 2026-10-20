@@ -1,30 +1,24 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import PageBackground from "../../../components/student/PageBackground";
-import CyberFrame from "../../../components/student/CyberFrame";
 import aces_logo from "../../../assets/aceslogo.png";
-import oasis_logo from "../../../assets/oasislogo.gif";
+import oasis_logo from "../../../assets/oasis-logo.png";
 import { useAuth } from "../../../context/student/AuthContext";
 
-const labelClass =
-  "absolute left-4 top-2.5 font-mono text-[11px] font-bold uppercase tracking-[3px] text-[var(--gold)]";
-const inputClass =
-  "h-[68px] w-full bg-transparent px-4 pb-2 pt-7 font-mono text-base tracking-wide text-[var(--text-primary)] placeholder-[var(--text-faint)] outline-none";
-
-function Field({ id, label, error, type = "text", register, rules }) {
+function Field({ id, label, error, type = "text", register, rules, autoComplete }) {
   return (
     <div>
-      <div className={`cp-field ${error ? "cp-error" : ""}`}>
-        <label htmlFor={id} className={labelClass}>
-          &gt; {label}
-        </label>
-        <input id={id} type={type} {...register(id, rules)} className={inputClass} />
-      </div>
-      {error && (
-        <p className="mt-1.5 pl-1 font-mono text-xs font-bold uppercase tracking-[1px] text-[var(--neon-pink)]">
-          ! {error.message}
-        </p>
-      )}
+      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold">
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        autoComplete={autoComplete}
+        {...register(id, rules)}
+        className={`st-input ${error ? "st-error" : ""}`}
+      />
+      {error && <p className="mt-1.5 text-sm font-medium text-[var(--danger)]">{error.message}</p>}
     </div>
   );
 }
@@ -72,89 +66,51 @@ export default function AuthPage({ onAuthSuccess }) {
 
   return (
     <PageBackground>
-      <div className="flex min-h-dvh items-center justify-center px-4 py-8 sm:px-6 sm:py-10 lg:px-24">
-        <div className="flex w-full max-w-7xl flex-col items-center justify-center gap-8 sm:gap-12 lg:flex-row lg:gap-32">
-          <div className="flex w-full max-w-[420px] flex-col items-center text-center">
-            <img
-              src={aces_logo}
-              alt="ACES Logo"
-              className="mb-4 h-auto w-32 max-w-full object-contain sm:mb-6 sm:w-44 lg:w-72 drop-shadow-[0_0_22px_rgba(242,180,0,0.35)]"
-            />
-            <p className="mb-3 font-mono text-[10px] uppercase tracking-[4px] text-[var(--neon-cyan)]">
-              // access terminal
-            </p>
-            <h2 className="cp-glitch font-display text-xs tracking-[2px] sm:text-sm sm:tracking-[3px] text-[var(--text-primary)]">
-              DR. YANGA'S COLLEGES, INC.
-            </h2>
-            <p className="mt-3 font-mono text-[11px] uppercase tracking-[2px] text-[var(--text-muted)] sm:text-xs sm:tracking-[3px]">
-              College of Computer Studies
-            </p>
-            <p className="mt-1 font-mono text-[11px] uppercase tracking-[2px] text-[var(--text-muted)] sm:text-xs sm:tracking-[3px]">
-              Association of Computer Enthusiast Students
-            </p>
-            <div className="mt-4 flex w-full items-center gap-2 sm:mt-6" aria-hidden="true">
-              <span className="h-[2px] w-12 bg-[var(--gold)] shadow-[0_0_8px_var(--glow)]" />
-              <span className="h-px flex-1 bg-[var(--surface-border)]" />
-              <span className="h-1.5 w-1.5 rotate-45 bg-[var(--neon-pink)] shadow-[0_0_8px_var(--neon-pink)]" />
-            </div>
-          </div>
+      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
+        <div className="rounded-b-[40px] bg-gradient-to-b from-[var(--header-from)] to-[var(--header-to)] px-6 pb-16 pt-8 text-center text-white shadow-[0_10px_30px_rgba(74,13,16,0.25)]">
+          <img src={aces_logo} alt="ACES" className="mx-auto h-24 w-24 object-contain sm:h-28 sm:w-28" />
+          <h2 className="mt-4 text-base font-bold tracking-wide">Dr. Yanga's Colleges, Inc.</h2>
+          <p className="mt-1 text-xs text-white/75">
+            College of Computer Studies · Association of Computer Enthusiast Students
+          </p>
+          <img src={oasis_logo} alt="OASIS" className="mx-auto mt-5 h-12 w-auto" />
+        </div>
 
-          <CyberFrame
-            className="w-full max-w-[640px]"
-            innerClassName="px-5 pb-8 pt-6 sm:px-12 sm:pb-10 sm:pt-8"
-            cut={30}
-            tag={mode === "login" ? "sys://login" : "sys://recover"}
-          >
-            <div className="mb-8 flex flex-col items-center text-center">
-              <img
-                src={oasis_logo}
-                alt="OASIS Logo"
-                className="mb-[-28px] h-auto w-full max-w-[220px] sm:mb-[-36px] sm:max-w-[260px] object-contain drop-shadow-[0_8px_18px_rgba(0,0,0,0.5)] lg:max-w-[400px]"
-              />
-              <p className="cp-glitch mt-1 font-display text-xs uppercase tracking-[4px] text-[var(--text-primary)]">
-                {mode === "login" && "Student Login"}
-                {mode === "forgot" && "Forgot Password"}
-              </p>
-            </div>
+        <div className="-mt-10 flex-1 px-4 pb-10">
+          <div className="st-card p-6 sm:p-7">
+            <h1 className="text-xl font-bold">{mode === "login" ? "Welcome back" : "Forgot your password?"}</h1>
+            <p className="st-muted mt-1 text-sm">
+              {mode === "login"
+                ? "Log in with your student number."
+                : "Ask your admin for a new temporary password."}
+            </p>
 
             {mode === "forgot" && resetSent ? (
-              <div className="text-center">
-                <p className="font-mono text-sm leading-relaxed text-[var(--neon-cyan)]">
-                  &gt; REQUEST SENT<span className="cursor-blink">_</span>
+              <div className="mt-6">
+                <p className="rounded-2xl bg-[color-mix(in_srgb,var(--ok)_10%,transparent)] p-4 text-sm leading-relaxed text-[var(--ok)]">
+                  Request sent. Your admin will give you a new temporary password. Log in with your student
+                  number and that password, then choose a new one.
                 </p>
-                <p className="mt-3 text-sm leading-relaxed text-[var(--text-primary)]">
-                  Your admin will give you a new temporary password. Log in with your student number
-                  and that password, then choose a new one.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => switchMode("login")}
-                  className="cp-btn-ghost mt-6 px-8 py-2.5 text-xs"
-                >
-                  Back to Log In
+                <button type="button" onClick={() => switchMode("login")} className="st-btn-ghost mt-5 w-full">
+                  Back to log in
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+              <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-4">
                 {mode === "forgot" ? (
-                  <>
-                    <p className="font-mono text-xs leading-relaxed text-[var(--text-muted)]">
-                      Enter your Student ID to ask your admin for a new temporary password.
-                    </p>
-                    <Field
-                      id="studentId"
-                      label="Student ID"
-                      error={errors.studentId}
-                      register={register}
-                      rules={{ required: "Student ID is required" }}
-                    />
-                  </>
+                  <Field
+                    id="studentId"
+                    label="Student ID"
+                    error={errors.studentId}
+                    register={register}
+                    rules={{ required: "Student ID is required" }}
+                  />
                 ) : (
                   <>
                     <Field
                       id="studentNumber"
-                      label="Student Number"
-                      type="text"
+                      label="Student number"
+                      autoComplete="username"
                       error={errors.studentNumber}
                       register={register}
                       rules={{ required: "Student number is required" }}
@@ -163,6 +119,7 @@ export default function AuthPage({ onAuthSuccess }) {
                       id="password"
                       label="Password"
                       type="password"
+                      autoComplete="current-password"
                       error={errors.password}
                       register={register}
                       rules={{
@@ -174,59 +131,36 @@ export default function AuthPage({ onAuthSuccess }) {
                 )}
 
                 {errors.root && (
-                  <p className="text-center font-mono text-xs font-bold uppercase tracking-[1px] text-[var(--neon-pink)]">
-                    ! {errors.root.message}
+                  <p className="rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] p-3 text-center text-sm font-medium text-[var(--danger)]">
+                    {errors.root.message}
                   </p>
                 )}
 
-                <div className="flex justify-center pt-3">
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="cp-btn px-14 py-3.5 text-sm"
-                  >
-                    {isSubmitting
-                      ? "PLEASE WAIT..."
-                      : mode === "login"
-                      ? "LOG IN"
-                      : "REQUEST PASSWORD"}
-                  </button>
-                </div>
+                <button type="submit" disabled={isSubmitting} className="st-btn w-full">
+                  {isSubmitting ? "Please wait..." : mode === "login" ? "Log in" : "Request password"}
+                </button>
               </form>
             )}
 
             {mode === "login" && (
-              <p className="mt-6 text-center font-mono text-[11px] leading-relaxed text-[var(--text-muted)]">
-                First time here? Log in with your student number and the temporary password your admin gave
-                you. You'll be asked to set your own password.
+              <p className="st-muted mt-5 text-center text-xs leading-relaxed">
+                First time here? Use the temporary password your admin gave you. You'll be asked to set your
+                own.
               </p>
             )}
 
             {!(mode === "forgot" && resetSent) && (
-              <>
-                <div className="mx-auto mt-8 h-px w-[90%] bg-[var(--surface-border)]" />
-                <div className="mt-4 flex flex-col items-center gap-2 text-center font-mono text-xs uppercase tracking-[2px]">
-                  {mode === "login" ? (
-                    <button
-                      type="button"
-                      onClick={() => switchMode("forgot")}
-                      className="text-[var(--text-muted)] transition-colors hover:text-[var(--neon-cyan)]"
-                    >
-                      [ Forgot Password ]
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => switchMode("login")}
-                      className="text-[var(--text-muted)] transition-colors hover:text-[var(--neon-cyan)]"
-                    >
-                      [ Back to Log In ]
-                    </button>
-                  )}
-                </div>
-              </>
+              <div className="mt-5 border-t pt-4 text-center" style={{ borderColor: "var(--line)" }}>
+                <button
+                  type="button"
+                  onClick={() => switchMode(mode === "login" ? "forgot" : "login")}
+                  className="text-sm font-semibold text-[var(--accent-text)] hover:underline"
+                >
+                  {mode === "login" ? "Forgot password?" : "Back to log in"}
+                </button>
+              </div>
             )}
-          </CyberFrame>
+          </div>
         </div>
       </div>
     </PageBackground>

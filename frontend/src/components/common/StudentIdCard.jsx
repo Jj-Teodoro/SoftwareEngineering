@@ -170,7 +170,7 @@ export default function StudentIdCard({
                 className="hidden shrink-0 items-center gap-2 border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[3px] sm:flex"
                 style={{ color: GOLD, borderColor: "rgba(242,180,0,0.6)" }}
               >
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: PINK, boxShadow: `0 0 6px ${PINK}` }} />
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: PINK, boxShadow: `0 0 6px ${PINK}` }} />
                 Member ID
               </p>
             </div>

@@ -1,20 +1,17 @@
 import { useState } from "react";
 import { api } from "../../../api/client.js";
 import PageBackground from "../../../components/student/PageBackground";
-import CyberFrame from "../../../components/student/CyberFrame";
-import oasis_logo from "../../../assets/oasislogo.gif";
+import oasis_logo from "../../../assets/oasis-logo.png";
 import { useStudent } from "../../../context/student/StudentContext";
 
 const MIN_LENGTH = 8;
 
-const inputClass =
-  "h-12 w-full bg-transparent px-4 font-mono text-sm text-[var(--text-primary)] placeholder-[var(--text-faint)] outline-none";
-
-function CpInput(props) {
+function PasswordInput({ label, ...props }) {
   return (
-    <div className="cp-field">
-      <input {...props} className={inputClass} />
-    </div>
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-semibold">{label}</span>
+      <input type="password" {...props} className="st-input" />
+    </label>
   );
 }
 
@@ -72,87 +69,83 @@ export default function ForcePasswordChange({ onLogout }) {
     }
   };
 
+  const errorBox = error && (
+    <p className="rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] p-3 text-sm font-medium text-[var(--danger)]">{error}</p>
+  );
+
   return (
     <PageBackground>
-      <div className="flex min-h-dvh items-center justify-center px-4 py-10">
-        <CyberFrame className="w-full max-w-md" innerClassName="p-8" cut={26} tag="sys://new_password">
-          <img src={oasis_logo} alt="OASIS" className="mx-auto mb-2 h-auto w-[180px] object-contain" />
-          <h1 className="cp-glitch text-center font-display text-base uppercase tracking-[3px] text-[var(--panel-title)]">
-            Set a new password
-          </h1>
-          <p className="mt-3 text-center font-mono text-xs leading-relaxed text-[var(--text-muted)]">
-            Welcome{student?.name ? `, ${student.name.split(",")[0]}` : ""}. You signed in with a
-            temporary password from your admin. Choose your own password to continue — only you
-            will know it.
-          </p>
+      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
+        <div className="rounded-b-[40px] bg-gradient-to-b from-[var(--header-from)] to-[var(--header-to)] px-6 pb-14 pt-8 text-center shadow-[0_10px_30px_rgba(74,13,16,0.25)]">
+          <img src={oasis_logo} alt="OASIS" className="mx-auto h-12 w-auto" />
+        </div>
 
-          {passwordSaved ? (
-            <div className="mt-6 space-y-3">
-              {error && (
-                <p className="font-mono text-xs font-bold uppercase tracking-[1px] text-[var(--neon-pink)]">
-                  ! {error}
-                </p>
-              )}
+        <div className="-mt-9 flex-1 px-4 pb-10">
+          <div className="st-card p-6 sm:p-7">
+            <h1 className="text-xl font-bold">Set a new password</h1>
+            <p className="st-muted mt-2 text-sm leading-relaxed">
+              Welcome{student?.name ? `, ${student.name.split(",")[0]}` : ""}. You signed in with a temporary
+              password from your admin. Choose your own password to continue. Only you will know it.
+            </p>
+
+            {passwordSaved ? (
+              <div className="mt-6 space-y-3">
+                {errorBox}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setError("");
+                    setSubmitting(true);
+                    await finish();
+                    setSubmitting(false);
+                  }}
+                  disabled={submitting}
+                  className="st-btn w-full"
+                >
+                  Continue
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                <PasswordInput
+                  label="Temporary password"
+                  value={tempPassword}
+                  onChange={(e) => setTempPassword(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+                <PasswordInput
+                  label={`New password (at least ${MIN_LENGTH} characters)`}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                />
+                <PasswordInput
+                  label="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                />
+                {errorBox}
+                <button type="submit" disabled={submitting} className="st-btn w-full">
+                  {submitting ? "Saving..." : "Save password"}
+                </button>
+              </form>
+            )}
+
+            <div className="mt-5 border-t pt-4 text-center" style={{ borderColor: "var(--line)" }}>
               <button
                 type="button"
-                onClick={async () => {
-                  setError("");
-                  setSubmitting(true);
-                  await finish();
-                  setSubmitting(false);
-                }}
-                disabled={submitting}
-                className="cp-btn h-12 w-full text-sm"
+                onClick={onLogout}
+                className="text-sm font-semibold text-[var(--accent-text)] hover:underline"
               >
-                Continue
+                Log out
               </button>
             </div>
-          ) : (
-          <form onSubmit={handleSubmit} className="mt-6 space-y-3">
-            <CpInput
-              type="password"
-              value={tempPassword}
-              onChange={(e) => setTempPassword(e.target.value)}
-              placeholder="Temporary password"
-              required
-            />
-            <CpInput
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder={`New password (min. ${MIN_LENGTH} characters)`}
-              required
-            />
-            <CpInput
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new password"
-              required
-            />
-            {error && (
-                <p className="font-mono text-xs font-bold uppercase tracking-[1px] text-[var(--neon-pink)]">
-                  ! {error}
-                </p>
-              )}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="cp-btn h-12 w-full text-sm"
-            >
-              {submitting ? "Saving..." : "Save password"}
-            </button>
-          </form>
-          )}
-
-          <button
-            type="button"
-            onClick={onLogout}
-            className="mt-4 block w-full text-center font-mono text-xs uppercase tracking-[2px] text-[var(--text-muted)] transition-colors hover:text-[var(--neon-cyan)]"
-          >
-            [ Log out ]
-          </button>
-        </CyberFrame>
+          </div>
+        </div>
       </div>
     </PageBackground>
   );
