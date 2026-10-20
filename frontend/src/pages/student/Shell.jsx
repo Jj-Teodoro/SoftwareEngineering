@@ -17,7 +17,7 @@ export default function Shell({ onLogout }) {
           {activeTab === "Activity" && <ActivityPage />}
           {activeTab === "Events" && <EventsPage />}
           {activeTab === "Notifications" && <NotificationsPage />}
-          {activeTab === "Settings" && <SettingsPage onLogout={onLogout} />}
+          {activeTab === "Settings" && <SettingsPage onLogout={onLogout} onNavigate={setActiveTab} />}
         </main>
       </div>
     </PageBackground>

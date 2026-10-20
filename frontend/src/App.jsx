@@ -2,13 +2,16 @@ import { useEffect, useState } from "react";
 import { currentPortal } from "./api/portal";
 import { useSignedIn } from "./api/hooks";
 import { ConfirmProvider } from "./components/common/ConfirmDialog.jsx";
+import StaffPresenceTracker from "./components/common/StaffPresenceTracker.jsx";
 
 // staff (admin + scanner)
 import StaffLogin from "./pages/staff/Login/Login";
+import StaffForcePasswordChange from "./pages/staff/Login/ForcePasswordChange";
 import DashboardShell from "./pages/staff/Dashboard/DashboardShell";
 import ScannerShell from "./pages/staff/ScannerShell";
 import StudentKioskView from "./pages/staff/Kiosk/StudentKioskView";
 import { StaffAuthProvider, useStaffAuth } from "./context/staff/AuthContext";
+import { StaffProvider } from "./context/staff/StaffContext";
 import { StudentsProvider } from "./context/staff/StudentsContext";
 import { EventsProvider } from "./context/staff/EventsContext";
 import { RequirementsProvider } from "./context/staff/RequirementsContext";
@@ -56,18 +59,27 @@ function StaffPortal({ Shell }) {
     setCurrentUser(null);
   };
 
-  if (kioskEventId) {
-    return (
-      <StudentKioskView
-        eventId={kioskEventId}
-        currentStaff={currentUser}
-        onExit={() => setKioskEventId(null)}
-      />
-    );
-  }
-
   if (currentUser) {
-    return <Shell currentUser={currentUser} onLogout={handleLogout} onStartKiosk={setKioskEventId} />;
+    return (
+      <>
+        <StaffPresenceTracker user={currentUser} app={currentPortal()} />
+        {currentUser.mustChangePassword ? (
+          <StaffForcePasswordChange
+            staff={currentUser}
+            onDone={() => setCurrentUser({ ...currentUser, mustChangePassword: false })}
+            onLogout={handleLogout}
+          />
+        ) : kioskEventId ? (
+          <StudentKioskView
+            eventId={kioskEventId}
+            currentStaff={currentUser}
+            onExit={() => setKioskEventId(null)}
+          />
+        ) : (
+          <Shell currentUser={currentUser} onLogout={handleLogout} onStartKiosk={setKioskEventId} />
+        )}
+      </>
+    );
   }
 
   return <StaffLogin onLoginSuccess={setCurrentUser} />;
@@ -77,17 +89,19 @@ function AdminPortal() {
   return (
     <ConfirmProvider>
       <StaffAuthProvider>
-        <StudentsProvider>
-          <EventsProvider>
-            <RequirementsProvider>
-              <PointsProvider>
-                <PresenceProvider>
-                  <StaffPortal Shell={DashboardShell} />
-                </PresenceProvider>
-              </PointsProvider>
-            </RequirementsProvider>
-          </EventsProvider>
-        </StudentsProvider>
+        <StaffProvider>
+          <StudentsProvider>
+            <EventsProvider>
+              <RequirementsProvider>
+                <PointsProvider>
+                  <PresenceProvider>
+                    <StaffPortal Shell={DashboardShell} />
+                  </PresenceProvider>
+                </PointsProvider>
+              </RequirementsProvider>
+            </EventsProvider>
+          </StudentsProvider>
+        </StaffProvider>
       </StaffAuthProvider>
     </ConfirmProvider>
   );

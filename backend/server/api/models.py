@@ -66,6 +66,10 @@ class User(AbstractBaseUser):
   # heartbeat from the user site, shown as online/offline on the admin site
   last_seen = models.DateTimeField(null=True, blank=True)
   online = models.BooleanField(default=False)
+  # staff only: which site, page or kiosk event, and device (shown on the admin Settings page)
+  presence_info = models.JSONField(default=dict, blank=True)
+  # staff only: which site, page or kiosk event, and device (shown on the admin Settings page)
+  presence_info = models.JSONField(default=dict, blank=True)
 
   objects = UserManager()
 

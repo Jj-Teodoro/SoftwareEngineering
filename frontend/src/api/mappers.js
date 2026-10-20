@@ -54,6 +54,7 @@ export function toStudent(user) {
     passwordRequestedAt: toMillis(user.password_requested_at),
     lastSeen: toMillis(user.last_seen),
     online: user.online,
+    lastLogin: toMillis(user.last_login),
   };
 }
 
@@ -78,11 +79,22 @@ export function fromStudent(fields) {
 }
 
 export function toStaff(user) {
+  const info = user.presence_info || {};
   return {
     uid: user.student_id,
     username: user.student_id,
     name: [user.first_name, user.last_name].filter(Boolean).join(" ") || user.student_id,
     role: user.role,
+    mustChangePassword: Boolean(user.must_change_password),
+    passwordRequestedAt: toMillis(user.password_requested_at),
+    lastLogin: toMillis(user.last_login),
+    // live activity, shown on the admin Settings page
+    online: user.online,
+    lastSeen: toMillis(user.last_seen),
+    app: info.app || "",
+    page: info.page || "",
+    event: info.event || "",
+    device: info.device || "",
   };
 }
 

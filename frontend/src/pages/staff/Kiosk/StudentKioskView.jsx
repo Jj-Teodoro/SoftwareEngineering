@@ -7,6 +7,7 @@ import { useStudents } from "../../../context/staff/StudentsContext";
 import { useEvents, scanEventAttendance } from "../../../context/staff/EventsContext";
 import { useStaffAuth } from "../../../context/staff/AuthContext";
 import { currentPortal } from "../../../api/portal";
+import { useReportLocation } from "../../../components/common/StaffPresenceTracker.jsx";
 
 const IS_ADMIN = currentPortal() === "admin";
 
@@ -33,6 +34,7 @@ export default function StudentKioskView({ eventId, currentStaff, onExit }) {
 
   const event = events.find((e) => e.id === eventId);
   const isRestricted = event?.programFilter && event.programFilter !== "ALL";
+  useReportLocation("Kiosk", event?.title || "");
 
   useEffect(() => {
     if (!showExitForm) inputRef.current?.focus();

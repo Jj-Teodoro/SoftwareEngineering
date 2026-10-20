@@ -31,9 +31,19 @@ export function NotificationsProvider({ children }) {
     }
   };
 
+  const markAllRead = async () => {
+    if (!student) return;
+    setNotifications((list) => list.map((n) => ({ ...n, read: true })));
+    try {
+      await api.notifications.markAllRead(student.studentId);
+    } finally {
+      await refresh();
+    }
+  };
+
   return (
     <NotificationsContext.Provider
-      value={{ notifications, isRead, unreadCount, markRead }}
+      value={{ notifications, isRead, unreadCount, markRead, markAllRead }}
     >
       {children}
     </NotificationsContext.Provider>

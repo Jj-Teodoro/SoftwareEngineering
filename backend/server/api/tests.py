@@ -681,6 +681,8 @@ class LoginViewTest(TestCase):
     self.assertEqual(response.status_code, status.HTTP_200_OK)
     self.assertEqual(response.data["user"]["student_id"], "2024-00001")
     self.assertIn("access", response.data)
+    # the response already carries this sign-in (shown on the Settings pages)
+    self.assertIsNotNone(response.data["user"]["last_login"])
 
   def test_student_cannot_log_in_with_email(self):
     self.assertEqual(self.login("student@school.edu", "JMC090907", "student").status_code, status.HTTP_401_UNAUTHORIZED)
@@ -1008,3 +1010,79 @@ class SeedCommandTest(TestCase):
     self.assertFalse(User.objects.get(pk="2024-02333").has_usable_password())
     self.assertEqual(Requirement.objects.count(), 3)
     self.assertEqual(Event.objects.count(), 1)
+
+
+class StaffAccountsTest(TestCase):
+
+  def setUp(self):
+    self.admin = staff_user("admin")
+    self.client = authenticated_client(self.admin)
+
+  def create(self, **data):
+    return self.client.post("/api/staff", {"name": "Juan Dela Cruz", "username": "juan.scanner", **data}, format="json")
+
+  def test_create_scanner(self):
+    response = self.create()
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    scanner = User.objects.get(pk="juan.scanner")
+    self.assertEqual(scanner.role, "scanner")
+    self.assertEqual(scanner.first_name, "Juan Dela Cruz")
+    self.assertTrue(scanner.must_change_password)
+    self.assertTrue(scanner.check_password(response.data["temp_password"]))
+
+  def test_username_rules(self):
+    self.assertEqual(self.create(username="ab").status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertEqual(self.create(username="has space").status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertEqual(self.create(name=" ").status_code, status.HTTP_400_BAD_REQUEST)
+
+  def test_username_cannot_reuse_an_existing_login(self):
+    make_user("2024-00001")
+    self.assertEqual(self.create(username="2024-00001").status_code, status.HTTP_400_BAD_REQUEST)
+    self.create()
+    self.assertEqual(self.create(username="JUAN.SCANNER").status_code, status.HTTP_400_BAD_REQUEST)
+
+  def test_list_staff_only(self):
+    self.create()
+    make_user("2024-00001")
+    usernames = sorted(u["student_id"] for u in self.client.get("/api/staff").data)
+    self.assertEqual(usernames, ["juan.scanner", "staff-admin"])
+
+  def test_scanners_cannot_manage_staff(self):
+    scanner = authenticated_client(staff_user("scanner"))
+    self.assertEqual(scanner.get("/api/staff").status_code, status.HTTP_403_FORBIDDEN)
+    self.assertEqual(scanner.post("/api/staff", {}, format="json").status_code, status.HTTP_403_FORBIDDEN)
+
+  def test_admin_cannot_delete_self(self):
+    response = self.client.delete(f"/api/user/{self.admin.pk}")
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertTrue(User.objects.filter(pk=self.admin.pk).exists())
+
+  def test_staff_presence_reports_location(self):
+    scanner = staff_user("scanner")
+    authenticated_client(scanner).post("/api/user/me/presence", {
+      "online": True, "app": "scanner", "page": "Kiosk", "event": "Assembly", "device": "Chrome · Windows · Computer",
+    }, format="json")
+    scanner.refresh_from_db()
+    self.assertEqual(scanner.presence_info["page"], "Kiosk")
+    self.assertEqual(scanner.presence_info["event"], "Assembly")
+
+  def test_student_presence_has_no_location(self):
+    student = make_user("2024-00001")
+    authenticated_client(student).post("/api/user/me/presence", {"online": True, "page": "x"}, format="json")
+    student.refresh_from_db()
+    self.assertEqual(student.presence_info, {})
+
+  def test_staff_can_request_new_password(self):
+    staff_user("scanner")
+    APIClient().post("/api/auth/password-request", {"student_id": "STAFF-SCANNER"}, format="json")
+    self.assertIsNotNone(User.objects.get(pk="staff-scanner").password_requested_at)
+
+  def test_admin_portal_accepts_admins_only(self):
+    staff_user("scanner")
+    login = lambda username, portal: APIClient().post(
+      "/api/auth/login", {"identifier": username, "password": "StaffPass1", "portal": portal}, format="json"
+    ).status_code
+    self.assertEqual(login("staff-scanner", "admin"), status.HTTP_401_UNAUTHORIZED)
+    self.assertEqual(login("staff-scanner", "scanner"), status.HTTP_200_OK)
+    self.assertEqual(login("staff-admin", "admin"), status.HTTP_200_OK)
+    self.assertEqual(login("staff-admin", "scanner"), status.HTTP_200_OK)

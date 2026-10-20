@@ -152,9 +152,16 @@ export const api = {
       method: "POST",
       body: { current_password: currentPassword, new_password: newPassword },
     }),
-  heartbeat: (online) => request("/user/me/presence", { method: "POST", body: { online } }),
+  // staff also send where they are: { app, page, event, device }
+  heartbeat: (online, where = {}) => request("/user/me/presence", { method: "POST", body: { online, ...where } }),
+  // "forgot password" for a student number or a staff username
   requestTempPassword: (studentId) =>
     send("/auth/password-request", { method: "POST", body: { student_id: studentId }, auth: false }),
+
+  staff: {
+    list: () => request("/staff"),
+    createScanner: (name, username) => request("/staff", { method: "POST", body: { name, username } }),
+  },
 
   users: {
     list: (query) => request("/user", { query }),
@@ -163,6 +170,7 @@ export const api = {
     bulkCreate: (users) => request("/user/bulk", { method: "POST", body: users }),
     bulkDelete: (studentIds) => request("/user/bulk-delete", { method: "POST", body: { student_ids: studentIds } }),
     update: (studentId, changes) => request(`/user/${id(studentId)}`, { method: "PATCH", body: changes }),
+    remove: (studentId) => request(`/user/${id(studentId)}`, { method: "DELETE" }),
     issueAccount: (studentId) => request(`/user/${id(studentId)}/account`, { method: "POST" }),
     storedTempPassword: (studentId) => request(`/user/${id(studentId)}/account`),
     dismissPasswordRequest: (studentId) => request(`/user/${id(studentId)}/password-request`, { method: "DELETE" }),
@@ -186,6 +194,7 @@ export const api = {
     list: () => request("/notification"),
     markRead: (notificationId) =>
       request(`/notification/${notificationId}`, { method: "PATCH", body: { read_status: true } }),
+    markAllRead: (studentId) => request(`/user/${id(studentId)}/notifications/read`, { method: "POST" }),
   },
   requirements: {
     list: () => request("/requirement"),
