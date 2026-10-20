@@ -239,12 +239,19 @@ body {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
 }
+@keyframes st-cover-in {
+  from { opacity: 0; transform: scale(1.07); }
+  to { opacity: 1; transform: scale(1); }
+}
 @keyframes st-blink {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
 }
 .st-rise {
   animation: st-rise 0.6s ease-out both;
+}
+.st-cover {
+  animation: st-cover-in 1.4s ease-out both;
 }
 .st-caret {
   display: inline-block;
@@ -261,6 +268,7 @@ body {
     transition-duration: 0.01ms !important;
   }
   .st-rise,
+  .st-cover,
   .st-caret {
     animation: none !important;
   }

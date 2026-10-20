@@ -54,6 +54,51 @@ export function TypedLines({ lines, className = "" }) {
   );
 }
 
+// Event photos that crossfade behind the banner. Only the current and previous photo are in the
+// page, and the next one is fetched ahead of time, so the login screen stays light.
+const COVERS = Object.entries(
+  import.meta.glob("../../assets/cover/*.jpg", { eager: true, query: "?url", import: "default" })
+)
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([, url]) => url);
+const SLIDE_MS = 4200;
+
+function CoverSlideshow() {
+  const [index, setIndex] = useState(0);
+  const [previous, setPrevious] = useState(null);
+
+  useEffect(() => {
+    if (reducedMotion() || COVERS.length < 2) return undefined;
+    const timer = setInterval(() => {
+      setIndex((current) => {
+        setPrevious(current);
+        return (current + 1) % COVERS.length;
+      });
+    }, SLIDE_MS);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (COVERS.length > 1) new Image().src = COVERS[(index + 1) % COVERS.length];
+  }, [index]);
+
+  if (COVERS.length === 0) return null;
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+      {previous !== null && <img src={COVERS[previous]} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+      <img key={index} src={COVERS[index]} alt="" className="st-cover absolute inset-0 h-full w-full object-cover" />
+      {/* maroon wash so the logo and text stay readable over any photo */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(58,8,11,0.82) 0%, rgba(42,6,9,0.6) 45%, rgba(30,4,6,0.86) 100%)",
+        }}
+      />
+    </div>
+  );
+}
+
 const PERKS = ["see your activity points", "check upcoming events", "get event notifications"];
 
 // The OASIS name leads the banner and the school sits underneath it.
@@ -61,7 +106,7 @@ const PERKS = ["see your activity points", "check upcoming events", "get event n
 function AuthHero() {
   return (
     <div
-      className="flex flex-col items-center justify-center border-b-2 px-6 pb-16 pt-9 text-center text-white lg:min-h-dvh lg:border-b-0 lg:border-r-2 lg:px-12 lg:pb-9"
+      className="relative flex flex-col items-center justify-center overflow-hidden border-b-2 px-6 pb-16 pt-9 text-center text-white lg:min-h-dvh lg:border-b-0 lg:border-r-2 lg:px-12 lg:pb-9"
       style={{
         borderColor: "var(--gold)",
         backgroundImage:
@@ -69,12 +114,13 @@ function AuthHero() {
         backgroundSize: "32px 32px, 32px 32px, 100% 100%",
       }}
     >
-      <div className="st-rise">
+      <CoverSlideshow />
+      <div className="st-rise relative">
         <img src={oasis_logo} alt="OASIS" className="mx-auto h-16 w-auto sm:h-20 lg:h-28" />
       </div>
 
       <div
-        className="st-rise mx-auto mt-6 flex max-w-xs items-center justify-center gap-3 text-left lg:mt-10"
+        className="st-rise relative mx-auto mt-6 flex max-w-xs items-center justify-center gap-3 text-left lg:mt-10"
         style={{ animationDelay: "0.15s" }}
       >
         <img src={aces_logo} alt="ACES" className="h-12 w-12 shrink-0 object-contain lg:h-14 lg:w-14" />
@@ -85,7 +131,7 @@ function AuthHero() {
       </div>
 
       <ul
-        className="st-rise st-mono mt-10 hidden space-y-2 text-left text-sm text-white/80 lg:block"
+        className="st-rise st-mono relative mt-10 hidden space-y-2 text-left text-sm text-white/80 lg:block"
         style={{ animationDelay: "0.3s" }}
       >
         {PERKS.map((perk) => (
