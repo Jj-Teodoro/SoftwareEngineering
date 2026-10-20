@@ -3,7 +3,10 @@
 // its own tokens: signing in at /admin doesn't sign anyone in on the student site.
 import { currentPortal } from "./portal.js";
 
-const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000/api").replace(/\/$/, "");
+// Deployed on Vercel the API is served from the same domain under /api (see the
+// root vercel.json); in `npm run dev` it is the local Django server.
+const DEFAULT_API_URL = import.meta.env.DEV ? "http://localhost:8000/api" : "/api";
+const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/$/, "");
 
 const SESSION_EVENT = "oasis:session";
 
@@ -69,7 +72,8 @@ function extractMessage(data) {
 }
 
 async function send(path, { method = "GET", body, query, auth = true } = {}) {
-  const url = new URL(`${API_URL}${path}`);
+  // the base makes a same-origin API_URL like "/api" work too
+  const url = new URL(`${API_URL}${path}`, window.location.origin);
   Object.entries(query || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, value);
   });
