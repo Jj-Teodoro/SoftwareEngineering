@@ -1,3 +1,4 @@
+import re
 import secrets
 
 from django.db import transaction
@@ -65,14 +66,18 @@ class LoginView(APIView):
     if not identifier or not password:
       return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
-    if portal == "staff":
+    if portal == "admin":
+      candidates = User.objects.filter(student_id__iexact=identifier, role=UserRole.ADMIN.value)
+    elif portal in ("scanner", "staff"):
       candidates = User.objects.filter(student_id__iexact=identifier, role__in=STAFF_ROLES)
     else:
       candidates = User.objects.filter(student_id__iexact=identifier, role=UserRole.STUDENT.value)
 
     for user in candidates:
       if user.is_active and user.check_password(password):
-        User.objects.filter(pk=user.pk).update(last_login=timezone.now())
+        # record it before replying, so the response already has this sign-in time
+        user.last_login = timezone.now()
+        user.save(update_fields=["last_login"])
         return Response({**tokens_for(user), "user": UserSerializer(user).data}, status=status.HTTP_200_OK)
 
     return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
@@ -93,8 +98,8 @@ class SafeTokenRefreshView(TokenRefreshView):
 
 
 class PasswordRequestView(APIView):
-  """"I forgot my password": flags the student for an admin. Always succeeds so
-  it can't be used to find out which student IDs exist."""
+  """"I forgot my password": flags the account (student number or staff username)
+  for an admin. Always succeeds so it can't be used to find out which accounts exist."""
   permission_classes = [AllowAny]
   authentication_classes = []
 
@@ -102,9 +107,7 @@ class PasswordRequestView(APIView):
     student_id = str(request.data.get("student_id", "")).strip()
     if not student_id:
       return Response({"student_id": ["Enter your Student ID."]}, status=status.HTTP_400_BAD_REQUEST)
-    User.objects.filter(student_id__iexact=student_id, role=UserRole.STUDENT.value).update(
-      password_requested_at=timezone.now()
-    )
+    User.objects.filter(student_id__iexact=student_id).update(password_requested_at=timezone.now())
     return Response({"message": "Request sent"}, status=status.HTTP_200_OK)
 
 
@@ -177,7 +180,12 @@ class PresenceView(APIView):
 
   def post(self, request):
     online = bool(request.data.get("online", True))
-    User.objects.filter(pk=request.user.pk).update(last_seen=timezone.now(), online=online)
+    changes = {"last_seen": timezone.now(), "online": online}
+    if is_staff_member(request.user):
+      changes["presence_info"] = {
+        key: str(request.data.get(key, ""))[:120] for key in ("app", "page", "event", "device")
+      }
+    User.objects.filter(pk=request.user.pk).update(**changes)
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 class UserDetailView(APIView):
@@ -208,6 +216,8 @@ class UserDetailView(APIView):
 
   def delete(self, request, student_id):
     user = get_object_or_404(User, student_id=student_id)
+    if user == request.user:
+      return Response({"detail": "You can't remove your own account."}, status=status.HTTP_400_BAD_REQUEST)
     user.delete()
     return Response({
         "message": "User deleted successfully"
@@ -265,6 +275,40 @@ class AccountView(APIView):
     user.password_requested_at = None
     user.save(update_fields=["password", "temp_password", "must_change_password", "password_requested_at"])
     return Response({"student_id": user.student_id, "temp_password": temp_password}, status=status.HTTP_200_OK)
+
+class StaffListCreateView(APIView):
+  """Admin and scanner accounts. Admins add scanners here; each starts with a
+  temporary password and must choose their own on first sign-in."""
+  permission_classes = [IsAdmin]
+
+  USERNAME_PATTERN = re.compile(r"^[a-z0-9._-]{4,24}$")
+
+  def get(self, request):
+    staff = User.objects.filter(role__in=STAFF_ROLES).order_by("role", "first_name")
+    return Response(UserSerializer(staff, many=True).data, status=status.HTTP_200_OK)
+
+  def post(self, request):
+    name = str(request.data.get("name", "")).strip()
+    username = str(request.data.get("username", "")).strip().lower()
+    if not name:
+      return Response({"name": ["Enter the person's name."]}, status=status.HTTP_400_BAD_REQUEST)
+    if not self.USERNAME_PATTERN.match(username):
+      return Response(
+        {"username": ["Username must be 4-24 letters, numbers, dots, dashes or underscores."]},
+        status=status.HTTP_400_BAD_REQUEST,
+      )
+    # usernames share the login field with student numbers, so they must not collide
+    if User.objects.filter(student_id__iexact=username).exists():
+      return Response({"username": ["That username is already taken."]}, status=status.HTTP_400_BAD_REQUEST)
+
+    temp_password = generate_temp_password()
+    user = User.objects.create_user(
+      username, temp_password, first_name=name, role=UserRole.SCANNER.value, must_change_password=True,
+    )
+    user.temp_password = temp_password
+    user.save(update_fields=["temp_password"])
+    return Response({"username": username, "temp_password": temp_password}, status=status.HTTP_201_CREATED)
+
 
 class PasswordRequestDismissView(APIView):
   permission_classes = [IsAdmin]

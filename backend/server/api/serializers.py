@@ -50,8 +50,10 @@ class UserSerializer(ProfileValidationMixin, serializers.ModelSerializer):
 
   class Meta:
     model = User
-    exclude = ["temp_password", "last_login"]
-    read_only_fields = ["must_change_password", "password_requested_at", "last_seen", "online"]
+    exclude = ["temp_password"]
+    read_only_fields = [
+      "must_change_password", "password_requested_at", "last_seen", "online", "presence_info", "last_login",
+    ]
     list_serializer_class = UserListSerializer
 
   def get_has_account(self, user):

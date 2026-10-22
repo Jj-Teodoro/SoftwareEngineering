@@ -39,6 +39,7 @@ urlpatterns = [
     path("api/user/<str:student_id>", views.UserDetailView.as_view(), name="user_methods"),
     path("api/user/<str:student_id>/account", views.AccountView.as_view(), name="user_account"),
     path("api/user/<str:student_id>/password-request", views.PasswordRequestDismissView.as_view(), name="dismiss_password_request"),
+    path("api/staff", views.StaffListCreateView.as_view(), name="staff_list"),
     path("api/user/<str:student_id>/notifications/read", views.MarkNotificationsReadView.as_view(), name="mark_notifications_read"),
 
     # events and attendance

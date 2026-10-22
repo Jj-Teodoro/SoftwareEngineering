@@ -1,28 +1,33 @@
 import { createContext, useContext } from "react";
 import { api, hasSession, login, logout } from "../../api/client";
 import { toStaff } from "../../api/mappers";
+import { currentPortal } from "../../api/portal";
 
 const StaffAuthContext = createContext(null);
 
-const STAFF_ROLES = ["admin", "scanner"];
+const INVALID = { ok: false, message: "Invalid username or password." };
 
 // Staff accounts (admins and scanners) are separate from students: they sign in
-// with a username (e.g. "admin"), never a student ID.
+// with a username (e.g. "admin"), never a student ID. The admin portal accepts
+// admins only; the scanner portal accepts any staff account. Scanner accounts are
+// created by an admin with a temporary password, must choose their own on first
+// sign-in, and ask the admin for a new one if they forget it.
 export function StaffAuthProvider({ children }) {
+  const portal = currentPortal();
+  const allowedRoles = portal === "admin" ? ["admin"] : ["admin", "scanner"];
+
   const authenticate = async (username, password) => {
     const id = username.trim();
-    if (!id || !password) {
-      return { ok: false, message: "Invalid username or password." };
-    }
+    if (!id || !password) return INVALID;
 
     try {
-      const user = await login(id, password, "staff");
+      const user = await login(id, password, portal);
       return { ok: true, staff: toStaff(user) };
     } catch (error) {
-      return {
-        ok: false,
-        message: error.status === 401 ? "Invalid username or password." : "Unable to reach the server.",
-      };
+      if (error.status !== 401) return { ok: false, message: "Unable to reach the server." };
+      return portal === "admin"
+        ? { ok: false, message: "Invalid username or password. Scanner accounts sign in at /scanner." }
+        : INVALID;
     }
   };
 
@@ -31,7 +36,7 @@ export function StaffAuthProvider({ children }) {
     if (!hasSession()) return null;
     try {
       const user = await api.me();
-      if (STAFF_ROLES.includes(user.role)) return toStaff(user);
+      if (allowedRoles.includes(user.role)) return toStaff(user);
     } catch {
       // expired or invalid; fall through to the login page
     }
@@ -39,10 +44,22 @@ export function StaffAuthProvider({ children }) {
     return null;
   };
 
+  // Flags the account for the admin, who then issues a new temporary password.
+  const requestPassword = async (username) => {
+    const id = username.trim();
+    if (!id) return { ok: false, message: "Enter your username." };
+    try {
+      await api.requestTempPassword(id);
+      return { ok: true };
+    } catch {
+      return { ok: false, message: "Could not send your request. Please try again." };
+    }
+  };
+
   const signOut = async () => logout();
 
   return (
-    <StaffAuthContext.Provider value={{ authenticate, restoreSession, signOut }}>
+    <StaffAuthContext.Provider value={{ authenticate, restoreSession, requestPassword, signOut }}>
       {children}
     </StaffAuthContext.Provider>
   );
