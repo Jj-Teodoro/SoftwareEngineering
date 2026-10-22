@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from .serializers import (
@@ -81,6 +82,19 @@ class LoginView(APIView):
         return Response({**tokens_for(user), "user": UserSerializer(user).data}, status=status.HTTP_200_OK)
 
     return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class LogoutView(APIView):
+  """Cancels the session on the server: the refresh token can't be used again."""
+  permission_classes = [AllowAny]
+  authentication_classes = []
+
+  def post(self, request):
+    try:
+      RefreshToken(str(request.data.get("refresh", ""))).blacklist()
+    except TokenError:
+      pass  # already expired or invalid: the session is over either way
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SafeTokenRefreshSerializer(TokenRefreshSerializer):
@@ -287,13 +301,24 @@ class StaffListCreateView(APIView):
     staff = User.objects.filter(role__in=STAFF_ROLES).order_by("role", "first_name")
     return Response(UserSerializer(staff, many=True).data, status=status.HTTP_200_OK)
 
+  # Optional details, the same ones a student record has (the admin form uses them).
+  PROFILE_FIELDS = (
+    "first_name", "middle_name", "last_name", "program", "year_level", "section",
+    "status", "email", "contact_number", "address",
+  )
+
   def post(self, request):
-    name = str(request.data.get("name", "")).strip()
-    username = str(request.data.get("username", "")).strip().lower()
-    role = request.data.get("role", UserRole.SCANNER.value)
+    data = request.data
+    # scanners: a username and a name; admins: an ID number (student_id) and the student details
+    username = str(data.get("username") or data.get("student_id") or "").strip().lower()
+    role = data.get("role", UserRole.SCANNER.value)
+    profile = {field: data[field] for field in self.PROFILE_FIELDS if field in data}
+    if data.get("name"):
+      profile["first_name"] = str(data["name"]).strip()
+
     if role not in STAFF_ROLES:
       return Response({"role": ["Role must be admin or scanner."]}, status=status.HTTP_400_BAD_REQUEST)
-    if not name:
+    if not str(profile.get("first_name", "")).strip() and not str(profile.get("last_name", "")).strip():
       return Response({"name": ["Enter the person's name."]}, status=status.HTTP_400_BAD_REQUEST)
     if not self.USERNAME_PATTERN.match(username):
       return Response(
@@ -304,12 +329,16 @@ class StaffListCreateView(APIView):
     if User.objects.filter(student_id__iexact=username).exists():
       return Response({"username": ["That username is already taken."]}, status=status.HTTP_400_BAD_REQUEST)
 
+    # same validation as a student record (email format, year level 1-4, ...)
+    serializer = UserSerializer(data={**profile, "student_id": username, "role": role})
+    serializer.is_valid(raise_exception=True)
+    user = serializer.save()
+
     temp_password = generate_temp_password()
-    user = User.objects.create_user(
-      username, temp_password, first_name=name, role=role, must_change_password=True,
-    )
+    user.set_password(temp_password)
     user.temp_password = temp_password
-    user.save(update_fields=["temp_password"])
+    user.must_change_password = True
+    user.save(update_fields=["password", "temp_password", "must_change_password"])
     return Response(
       {"username": username, "role": role, "temp_password": temp_password}, status=status.HTTP_201_CREATED
     )

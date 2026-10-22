@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { FiCopy, FiKey, FiMonitor, FiPlus, FiRefreshCw, FiSmartphone, FiTrash2 } from "react-icons/fi";
 import { api } from "../../../api/client";
 import { useConfirm } from "../../../components/common/ConfirmDialog.jsx";
+import AddStudentModal from "../../../components/staff/AddStudentModal";
 import { EmptyState, PageHeader, Section } from "../../../components/common/ui.jsx";
 import { useStaff } from "../../../context/staff/StaffContext";
 import { useStudents } from "../../../context/staff/StudentsContext";
@@ -112,12 +113,12 @@ function MyAccount({ user }) {
 }
 
 function StaffAccounts({ user }) {
-  const { staff, getActivity, now, createStaff, issuePassword, removeStaff, dismissRequest } = useStaff();
+  const { staff, getActivity, now, createStaff, createAdmin, issuePassword, removeStaff, dismissRequest } = useStaff();
   const confirm = useConfirm();
 
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
-  const [role, setRole] = useState("scanner");
+  const [showAdminForm, setShowAdminForm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [issued, setIssued] = useState(null); // credentials just created or re-issued
@@ -130,14 +131,12 @@ function StaffAccounts({ user }) {
     e.preventDefault();
     setCreating(true);
     setError("");
-    const result = await createStaff({ name, username, role });
+    const result = await createStaff({ name, username, role: "scanner" });
     setCreating(false);
     if (!result.ok) return setError(result.message);
-    const label = result.role === "admin" ? "Admin" : "Scanner";
-    setIssued({ username: result.username, password: result.tempPassword, heading: `${label} account created — give these to them` });
+    setIssued({ username: result.username, password: result.tempPassword, heading: "Scanner account created — give these to them" });
     setName("");
     setUsername("");
-    setRole("scanner");
   };
 
   const handleIssue = async (member) => {
@@ -174,7 +173,13 @@ function StaffAccounts({ user }) {
       title="Staff accounts & activity"
       action={<span className="chip-green"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" /> {activeCount} active now</span>}
     >
-      <form onSubmit={handleCreate} className="surface-inset mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_150px_auto] lg:items-end">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="label">Add a scanner</p>
+        <button type="button" onClick={() => setShowAdminForm(true)} className="btn-ghost btn-sm">
+          <FiPlus size={12} /> Add admin
+        </button>
+      </div>
+      <form onSubmit={handleCreate} className="surface-inset mb-4 grid gap-3 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <div>
           <label className="label mb-1.5 block">Name</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Juan Dela Cruz" className="input" required />
@@ -183,21 +188,27 @@ function StaffAccounts({ user }) {
           <label className="label mb-1.5 block">Username</label>
           <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. juan.scanner" className="input" required />
         </div>
-        <div>
-          <label className="label mb-1.5 block">Role</label>
-          <select value={role} onChange={(e) => setRole(e.target.value)} className="input">
-            <option value="scanner" className="text-black">Scanner</option>
-            <option value="admin" className="text-black">Admin</option>
-          </select>
-        </div>
         <button type="submit" disabled={creating} className="btn-primary">
-          <FiPlus size={14} /> {creating ? "Creating..." : role === "admin" ? "Add admin" : "Add scanner"}
+          <FiPlus size={14} /> {creating ? "Creating..." : "Add scanner"}
         </button>
       </form>
-      {role === "admin" && (
-        <p className="-mt-2 mb-4 text-xs text-gold">
-          Admins can manage students, events, requirements and every staff account, including other admins.
-        </p>
+
+      {showAdminForm && (
+        <AddStudentModal
+          title="Add Admin Account"
+          idLabel="ID Number (used to sign in)"
+          emailPlaceholder="name@dyci.edu.ph"
+          submitLabel="Add Admin"
+          onClose={() => setShowAdminForm(false)}
+          onSave={async (fields) => {
+            const result = await createAdmin(fields);
+            if (result.ok) {
+              setError("");
+              setIssued({ username: result.username, password: result.tempPassword, heading: "Admin account created — give these to them" });
+            }
+            return result;
+          }}
+        />
       )}
 
       {error && <p className="mb-3 text-sm text-neon-pink">{error}</p>}

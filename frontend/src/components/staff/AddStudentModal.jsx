@@ -6,7 +6,19 @@ const inputClass = "input";
 
 const labelClass = "label mb-1.5 block";
 
-export default function AddStudentModal({ onClose }) {
+/**
+ * The "Add Student Record" form. The admin Settings page reuses it for new admin
+ * accounts (same fields), passing its own title, labels and `onSave`.
+ * onSave(data) must resolve to { ok, message }.
+ */
+export default function AddStudentModal({
+  onClose,
+  onSave,
+  title = "Add Student Record",
+  idLabel = "Student ID",
+  emailPlaceholder = "student@dyci.edu.ph",
+  submitLabel = "Add Student",
+}) {
   const { addStudent } = useStudents();
   const {
     register,
@@ -28,7 +40,7 @@ export default function AddStudentModal({ onClose }) {
   });
 
   const onSubmit = async (data) => {
-    const result = await addStudent(data);
+    const result = await (onSave || addStudent)(data);
     if (!result.ok) {
       setError("studentId", { type: "manual", message: result.message });
       return;
@@ -39,16 +51,16 @@ export default function AddStudentModal({ onClose }) {
   return (
     <Modal onClose={onClose} maxWidth="max-w-xl">
       <h2 className="page-title pr-8 mb-6">
-        Add Student Record
+        {title}
       </h2>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
         <div>
-          <label className={labelClass}>Student ID</label>
+          <label className={labelClass}>{idLabel}</label>
           <input
             className={inputClass}
             placeholder="2024-00000"
-            {...register("studentId", { required: "Student ID is required" })}
+            {...register("studentId", { required: `${idLabel} is required` })}
           />
           {errors.studentId && (
             <p className="mt-1 text-xs font-semibold text-red-300">
@@ -119,7 +131,7 @@ export default function AddStudentModal({ onClose }) {
           <input
             type="email"
             className={inputClass}
-            placeholder="student@dyci.edu.ph"
+            placeholder={emailPlaceholder}
             {...register("email", {
               pattern: { value: /^\S+@\S+\.\S+$/, message: "Invalid email" },
             })}
@@ -159,7 +171,7 @@ export default function AddStudentModal({ onClose }) {
             disabled={isSubmitting}
             className="btn-primary h-11"
           >
-            {isSubmitting ? "Adding..." : "Add Student"}
+            {isSubmitting ? "Adding..." : submitLabel}
           </button>
         </div>
       </form>

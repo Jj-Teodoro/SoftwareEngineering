@@ -1109,3 +1109,65 @@ class StaffAccountsTest(TestCase):
     self.assertEqual(login("staff-scanner", "scanner"), status.HTTP_200_OK)
     self.assertEqual(login("staff-admin", "admin"), status.HTTP_200_OK)
     self.assertEqual(login("staff-admin", "scanner"), status.HTTP_200_OK)
+
+  def test_create_admin_with_student_details(self):
+    response = self.client.post("/api/staff", {
+      "role": "admin", "student_id": "2024-09999", "last_name": "REYES", "first_name": "ANA", "middle_name": "B.",
+      "program": "BS Computer Science", "year_level": 4, "section": "BSCS-4A",
+      "email": "ana.reyes@dyci.edu.ph", "contact_number": "0917-000-0000", "address": "Bulacan",
+    }, format="json")
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    admin = User.objects.get(pk="2024-09999")
+    self.assertEqual((admin.role, admin.last_name, admin.first_name, admin.program), ("admin", "REYES", "ANA", "BS Computer Science"))
+    self.assertEqual((admin.year_level, admin.email), (4, "ana.reyes@dyci.edu.ph"))
+    self.assertTrue(admin.must_change_password)
+    self.assertTrue(admin.check_password(response.data["temp_password"]))
+
+  def test_admin_details_are_validated_like_a_student(self):
+    base = {"role": "admin", "student_id": "2024-09998", "last_name": "REYES", "first_name": "ANA"}
+    self.assertEqual(self.client.post("/api/staff", {**base, "email": "not-an-email"}, format="json").status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertEqual(self.client.post("/api/staff", {**base, "year_level": 9}, format="json").status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertFalse(User.objects.filter(pk="2024-09998").exists())
+
+
+class SessionExpiryTest(TestCase):
+
+  def setUp(self):
+    self.student = make_user("2024-00001")
+
+  def login(self):
+    return APIClient().post("/api/auth/login", {"identifier": "2024-00001", "password": "JMC090907", "portal": "student"}, format="json").data
+
+  def refresh(self, token):
+    return APIClient().post("/api/token/refresh", {"refresh": token}, format="json")
+
+  def test_tokens_have_expiry(self):
+    from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+    tokens = self.login()
+    access, refresh = AccessToken(tokens["access"]), RefreshToken(tokens["refresh"])
+    self.assertEqual(access["exp"] - access["iat"], 30 * 60)
+    self.assertEqual(refresh["exp"] - refresh["iat"], 24 * 60 * 60)
+
+  def test_logout_cancels_the_session(self):
+    tokens = self.login()
+    self.assertEqual(self.refresh(tokens["refresh"]).status_code, status.HTTP_200_OK)
+    response = APIClient().post("/api/auth/logout", {"refresh": tokens["refresh"]}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+    self.assertEqual(self.refresh(tokens["refresh"]).status_code, status.HTTP_401_UNAUTHORIZED)
+
+  def test_logout_with_bad_token_is_harmless(self):
+    response = APIClient().post("/api/auth/logout", {"refresh": "garbage"}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+  def test_refresh_does_not_extend_the_session(self):
+    tokens = self.login()
+    response = self.refresh(tokens["refresh"])
+    # no new refresh token is handed out, so the original sign-in limit still applies
+    self.assertNotIn("refresh", response.data)
+
+  def test_expired_session_is_rejected(self):
+    from datetime import timedelta
+    from rest_framework_simplejwt.tokens import RefreshToken
+    token = RefreshToken.for_user(self.student)
+    token.set_exp(lifetime=-timedelta(seconds=1))
+    self.assertEqual(self.refresh(str(token)).status_code, status.HTTP_401_UNAUTHORIZED)

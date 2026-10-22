@@ -55,9 +55,14 @@ REST_FRAMEWORK = {
   ]
 }
 
+# Sessions end: the access token lasts JWT_ACCESS_MINUTES and is renewed silently,
+# but only until the refresh token runs out JWT_SESSION_HOURS after signing in.
+# After that the person must log in again; logging out cancels it sooner.
 SIMPLE_JWT = {
-  "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
-  "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+  "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("JWT_ACCESS_MINUTES", "30"))),
+  "REFRESH_TOKEN_LIFETIME": timedelta(hours=int(os.getenv("JWT_SESSION_HOURS", "24"))),
+  # refreshing never extends the session past the original sign-in limit
+  "ROTATE_REFRESH_TOKENS": False,
   "USER_ID_FIELD": "student_id",
 }
 
@@ -73,6 +78,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     "api",
     "rest_framework",
+    # lets logout cancel refresh tokens on the server
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders"
 ]
 

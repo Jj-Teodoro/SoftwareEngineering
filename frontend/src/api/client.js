@@ -43,9 +43,48 @@ function announceSession() {
   window.dispatchEvent(new Event(SESSION_EVENT));
 }
 
-export function hasSession() {
-  return Boolean(readToken(accessKey()));
+// When a JWT stops being valid (its `exp` claim), in ms; null if unreadable.
+function tokenExpiry(token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return payload.exp * 1000;
+  } catch {
+    return null;
+  }
 }
+
+// The session lasts as long as the refresh token (24 hours from signing in by
+// default, set on the server); after that the person has to log in again.
+function sessionExpired() {
+  const expiry = tokenExpiry(readToken(refreshKey()) || "");
+  return !expiry || expiry <= Date.now();
+}
+
+let expiryTimer = null;
+
+// Signs the person out the moment their session runs out, instead of waiting
+// for the next request to fail.
+function scheduleSessionEnd() {
+  clearTimeout(expiryTimer);
+  const expiry = tokenExpiry(readToken(refreshKey()) || "");
+  if (!expiry) return;
+  // setTimeout can't wait longer than ~24.8 days; sessions are far shorter
+  expiryTimer = setTimeout(() => {
+    clearTokens();
+    announceSession();
+  }, Math.max(0, expiry - Date.now()));
+}
+
+export function hasSession() {
+  if (!readToken(accessKey())) return false;
+  if (sessionExpired()) {
+    clearTokens();
+    return false;
+  }
+  return true;
+}
+
+if (hasSession()) scheduleSessionEnd();
 
 // Calls `callback` whenever the user signs in or out (replaces onAuthStateChanged).
 export function subscribeSession(callback) {
@@ -133,11 +172,18 @@ export async function login(identifier, password, portal) {
     auth: false,
   });
   saveTokens({ access, refresh });
+  scheduleSessionEnd();
   announceSession();
   return user;
 }
 
+// Cancels the session on the server too, so the saved token can't be reused.
 export function logout() {
+  const refresh = readToken(refreshKey());
+  if (refresh) {
+    send("/auth/logout", { method: "POST", body: { refresh }, auth: false }).catch(() => {});
+  }
+  clearTimeout(expiryTimer);
   clearTokens();
   announceSession();
 }
@@ -160,7 +206,8 @@ export const api = {
 
   staff: {
     list: () => request("/staff"),
-    create: (name, username, role) => request("/staff", { method: "POST", body: { name, username, role } }),
+    // { name, username } for a scanner; an admin also sends the student-style details
+    create: (account) => request("/staff", { method: "POST", body: account }),
   },
 
   users: {

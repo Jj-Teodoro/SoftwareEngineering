@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { useSignedIn, usePolling } from "../../api/hooks";
-import { toStaff } from "../../api/mappers";
+import { fromStudent, toStaff } from "../../api/mappers";
 
 const StaffContext = createContext(null);
 
@@ -42,11 +42,27 @@ export function StaffProvider({ children }) {
       return { ok: false, message: "Username must be 4-24 letters, numbers, dots, dashes or underscores." };
     }
     try {
-      const result = await api.staff.create(name.trim(), id, role);
+      const result = await api.staff.create({ name: name.trim(), username: id, role });
       await refresh();
       return { ok: true, username: result.username, role: result.role, tempPassword: result.temp_password };
     } catch (error) {
       return { ok: false, message: error.message || "Could not create the account." };
+    }
+  };
+
+  // A new admin, entered on the same form as a student record. Their ID number
+  // becomes the username they sign in with.
+  const createAdmin = async (fields) => {
+    const id = (fields.studentId || "").trim().toLowerCase();
+    if (!USERNAME_PATTERN.test(id)) {
+      return { ok: false, message: "ID must be 4-24 letters, numbers, dots, dashes or underscores." };
+    }
+    try {
+      const result = await api.staff.create({ ...fromStudent({ ...fields, studentId: id }), role: "admin" });
+      await refresh();
+      return { ok: true, username: result.username, role: result.role, tempPassword: result.temp_password };
+    } catch (error) {
+      return { ok: false, message: error.data?.student_id ? "That ID is already used by another account." : error.message };
     }
   };
 
@@ -80,7 +96,7 @@ export function StaffProvider({ children }) {
   };
 
   return (
-    <StaffContext.Provider value={{ staff, getActivity, now, createStaff, issuePassword, removeStaff, dismissRequest }}>
+    <StaffContext.Provider value={{ staff, getActivity, now, createStaff, createAdmin, issuePassword, removeStaff, dismissRequest }}>
       {children}
     </StaffContext.Provider>
   );
