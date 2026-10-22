@@ -34,25 +34,27 @@ export function StaffProvider({ children }) {
     return { ...member, active: Boolean(member.online) && now - member.lastSeen < ACTIVE_WINDOW_MS };
   };
 
-  const createScanner = async ({ name, username }) => {
+  // role: "scanner" or "admin"
+  const createStaff = async ({ name, username, role = "scanner" }) => {
     const id = username.trim().toLowerCase();
     if (!name.trim()) return { ok: false, message: "Enter the person's name." };
     if (!USERNAME_PATTERN.test(id)) {
       return { ok: false, message: "Username must be 4-24 letters, numbers, dots, dashes or underscores." };
     }
     try {
-      const result = await api.staff.createScanner(name.trim(), id);
+      const result = await api.staff.create(name.trim(), id, role);
       await refresh();
-      return { ok: true, username: result.username, tempPassword: result.temp_password };
+      return { ok: true, username: result.username, role: result.role, tempPassword: result.temp_password };
     } catch (error) {
       return { ok: false, message: error.message || "Could not create the account." };
     }
   };
 
-  // A forgotten or lost password: a new temporary one. The scanner must choose
-  // their own again the next time they sign in.
+  // A forgotten or lost password: a new temporary one. They must choose their
+  // own again the next time they sign in. (Your own password is changed under
+  // My account instead.)
   const issuePassword = async (member) => {
-    if (!member || member.role === "admin") return { ok: false, message: "Admin accounts can't be reset here." };
+    if (!member) return { ok: false, message: "Account not found." };
     try {
       const result = await api.users.issueAccount(member.username);
       await refresh();
@@ -78,7 +80,7 @@ export function StaffProvider({ children }) {
   };
 
   return (
-    <StaffContext.Provider value={{ staff, getActivity, now, createScanner, issuePassword, removeStaff, dismissRequest }}>
+    <StaffContext.Provider value={{ staff, getActivity, now, createStaff, issuePassword, removeStaff, dismissRequest }}>
       {children}
     </StaffContext.Provider>
   );

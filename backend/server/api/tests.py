@@ -1030,6 +1030,29 @@ class StaffAccountsTest(TestCase):
     self.assertTrue(scanner.must_change_password)
     self.assertTrue(scanner.check_password(response.data["temp_password"]))
 
+  def test_create_admin(self):
+    response = self.create(username="maria.admin", role="admin")
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    self.assertEqual(response.data["role"], "admin")
+    new_admin = User.objects.get(pk="maria.admin")
+    self.assertEqual(new_admin.role, "admin")
+    self.assertTrue(new_admin.must_change_password)
+    # the new admin can sign in on the admin portal with the temporary password
+    login = APIClient().post("/api/auth/login", {
+      "identifier": "maria.admin", "password": response.data["temp_password"], "portal": "admin",
+    }, format="json")
+    self.assertEqual(login.status_code, status.HTTP_200_OK)
+
+  def test_role_must_be_staff(self):
+    self.assertEqual(self.create(role="student").status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertEqual(self.create(role="superuser").status_code, status.HTTP_400_BAD_REQUEST)
+
+  def test_admin_can_reset_and_remove_another_admin(self):
+    other = staff_user("scanner")
+    User.objects.filter(pk=other.pk).update(role="admin")
+    self.assertEqual(self.client.post(f"/api/user/{other.pk}/account").status_code, status.HTTP_200_OK)
+    self.assertEqual(self.client.delete(f"/api/user/{other.pk}").status_code, status.HTTP_200_OK)
+
   def test_username_rules(self):
     self.assertEqual(self.create(username="ab").status_code, status.HTTP_400_BAD_REQUEST)
     self.assertEqual(self.create(username="has space").status_code, status.HTTP_400_BAD_REQUEST)

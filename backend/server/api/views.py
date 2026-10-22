@@ -277,7 +277,7 @@ class AccountView(APIView):
     return Response({"student_id": user.student_id, "temp_password": temp_password}, status=status.HTTP_200_OK)
 
 class StaffListCreateView(APIView):
-  """Admin and scanner accounts. Admins add scanners here; each starts with a
+  """Admin and scanner accounts. Admins add both here; each starts with a
   temporary password and must choose their own on first sign-in."""
   permission_classes = [IsAdmin]
 
@@ -290,6 +290,9 @@ class StaffListCreateView(APIView):
   def post(self, request):
     name = str(request.data.get("name", "")).strip()
     username = str(request.data.get("username", "")).strip().lower()
+    role = request.data.get("role", UserRole.SCANNER.value)
+    if role not in STAFF_ROLES:
+      return Response({"role": ["Role must be admin or scanner."]}, status=status.HTTP_400_BAD_REQUEST)
     if not name:
       return Response({"name": ["Enter the person's name."]}, status=status.HTTP_400_BAD_REQUEST)
     if not self.USERNAME_PATTERN.match(username):
@@ -303,11 +306,13 @@ class StaffListCreateView(APIView):
 
     temp_password = generate_temp_password()
     user = User.objects.create_user(
-      username, temp_password, first_name=name, role=UserRole.SCANNER.value, must_change_password=True,
+      username, temp_password, first_name=name, role=role, must_change_password=True,
     )
     user.temp_password = temp_password
     user.save(update_fields=["temp_password"])
-    return Response({"username": username, "temp_password": temp_password}, status=status.HTTP_201_CREATED)
+    return Response(
+      {"username": username, "role": role, "temp_password": temp_password}, status=status.HTTP_201_CREATED
+    )
 
 
 class PasswordRequestDismissView(APIView):

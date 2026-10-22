@@ -160,7 +160,7 @@ export const api = {
 
   staff: {
     list: () => request("/staff"),
-    createScanner: (name, username) => request("/staff", { method: "POST", body: { name, username } }),
+    create: (name, username, role) => request("/staff", { method: "POST", body: { name, username, role } }),
   },
 
   users: {

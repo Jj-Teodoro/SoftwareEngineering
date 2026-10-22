@@ -96,8 +96,8 @@ function MyAccount({ user }) {
           <p className="text-base font-semibold">{user?.name}</p>
           <p className="font-mono text-xs muted">{user?.username} · {user?.role}</p>
           <p className="mt-3 text-xs leading-relaxed muted">
-            Admin accounts are the only ones that can change their own password. Scanner accounts get a new
-            temporary password from you (see below).
+            Change your own password here. For other admins and scanners, issue a new temporary password from
+            the staff list below.
           </p>
         </div>
         <form onSubmit={submit} className="flex flex-col gap-3">
@@ -112,11 +112,12 @@ function MyAccount({ user }) {
 }
 
 function StaffAccounts({ user }) {
-  const { staff, getActivity, now, createScanner, issuePassword, removeStaff, dismissRequest } = useStaff();
+  const { staff, getActivity, now, createStaff, issuePassword, removeStaff, dismissRequest } = useStaff();
   const confirm = useConfirm();
 
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
+  const [role, setRole] = useState("scanner");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [issued, setIssued] = useState(null); // credentials just created or re-issued
@@ -129,12 +130,14 @@ function StaffAccounts({ user }) {
     e.preventDefault();
     setCreating(true);
     setError("");
-    const result = await createScanner({ name, username });
+    const result = await createStaff({ name, username, role });
     setCreating(false);
     if (!result.ok) return setError(result.message);
-    setIssued({ username: result.username, password: result.tempPassword, heading: "Scanner account created — give these to them" });
+    const label = result.role === "admin" ? "Admin" : "Scanner";
+    setIssued({ username: result.username, password: result.tempPassword, heading: `${label} account created — give these to them` });
     setName("");
     setUsername("");
+    setRole("scanner");
   };
 
   const handleIssue = async (member) => {
@@ -171,7 +174,7 @@ function StaffAccounts({ user }) {
       title="Staff accounts & activity"
       action={<span className="chip-green"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" /> {activeCount} active now</span>}
     >
-      <form onSubmit={handleCreate} className="surface-inset mb-4 grid gap-3 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      <form onSubmit={handleCreate} className="surface-inset mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_150px_auto] lg:items-end">
         <div>
           <label className="label mb-1.5 block">Name</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Juan Dela Cruz" className="input" required />
@@ -180,8 +183,22 @@ function StaffAccounts({ user }) {
           <label className="label mb-1.5 block">Username</label>
           <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. juan.scanner" className="input" required />
         </div>
-        <button type="submit" disabled={creating} className="btn-primary"><FiPlus size={14} /> {creating ? "Creating..." : "Add scanner"}</button>
+        <div>
+          <label className="label mb-1.5 block">Role</label>
+          <select value={role} onChange={(e) => setRole(e.target.value)} className="input">
+            <option value="scanner" className="text-black">Scanner</option>
+            <option value="admin" className="text-black">Admin</option>
+          </select>
+        </div>
+        <button type="submit" disabled={creating} className="btn-primary">
+          <FiPlus size={14} /> {creating ? "Creating..." : role === "admin" ? "Add admin" : "Add scanner"}
+        </button>
       </form>
+      {role === "admin" && (
+        <p className="-mt-2 mb-4 text-xs text-gold">
+          Admins can manage students, events, requirements and every staff account, including other admins.
+        </p>
+      )}
 
       {error && <p className="mb-3 text-sm text-neon-pink">{error}</p>}
       {issued && (
@@ -201,8 +218,9 @@ function StaffAccounts({ user }) {
           const a = getActivity(m.uid);
           const isMe = m.uid === user?.uid;
           const requested = Boolean(m.passwordRequestedAt);
-          const isScanner = m.role === "scanner";
-          const pending = isScanner && m.mustChangePassword;
+          // every account except your own can be reset or removed here
+          const canManage = !isMe;
+          const pending = canManage && m.mustChangePassword;
           return (
             <div key={m.uid} className="border-b border-white/10 last:border-0">
               <div className={ROW}>
@@ -252,7 +270,7 @@ function StaffAccounts({ user }) {
                 </div>
 
                 <div className="col-span-2 flex flex-wrap gap-2 lg:col-span-1 lg:justify-end">
-                  {isScanner && !isMe && (
+                  {canManage && (
                     <>
                       <button type="button" onClick={() => handleIssue(m)} disabled={busyUid === m.uid} className="btn-ghost btn-sm">
                         <FiRefreshCw size={12} /> {busyUid === m.uid ? "Working..." : "New password"}
@@ -265,7 +283,7 @@ function StaffAccounts({ user }) {
                 </div>
               </div>
 
-              {(pending || requested) && isScanner && (
+              {(pending || requested) && canManage && (
                 <div className="space-y-2 px-4 pb-3">
                   {requested && (
                     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2">
@@ -330,7 +348,7 @@ function SystemInfo() {
 export default function SettingsPage({ currentUser }) {
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Settings" subtitle="Your account, the people who use the scanner, and how the system is set up." />
+      <PageHeader title="Settings" subtitle="Your account, the admin and scanner accounts, and how the system is set up." />
       <MyAccount user={currentUser} />
       <StaffAccounts user={currentUser} />
       <SystemInfo />
