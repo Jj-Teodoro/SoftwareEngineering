@@ -1,20 +1,18 @@
 import { useState } from "react";
 import { api } from "../../../api/client.js";
-import PageBackground from "../../../components/student/PageBackground";
-import CyberFrame from "../../../components/student/CyberFrame";
-import oasis_logo from "../../../assets/oasislogo.gif";
+import { AuthShell } from "../../../components/student/AuthHero";
 import { useStudent } from "../../../context/student/StudentContext";
 
 const MIN_LENGTH = 8;
 
-const inputClass =
-  "h-12 w-full bg-transparent px-4 font-mono text-sm text-[var(--text-primary)] placeholder-[var(--text-faint)] outline-none";
-
-function CpInput(props) {
+function PasswordInput({ label, ...props }) {
   return (
-    <div className="cp-field">
-      <input {...props} className={inputClass} />
-    </div>
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-semibold">
+        <span className="st-mono text-[var(--gold)]">&gt;</span> {label}
+      </span>
+      <input type="password" {...props} className="st-input" />
+    </label>
   );
 }
 
@@ -72,88 +70,85 @@ export default function ForcePasswordChange({ onLogout }) {
     }
   };
 
-  return (
-    <PageBackground>
-      <div className="flex min-h-screen items-center justify-center px-4 py-10">
-        <CyberFrame className="w-full max-w-md" innerClassName="p-8" cut={26} tag="sys://new_password">
-          <img src={oasis_logo} alt="OASIS" className="mx-auto mb-2 h-auto w-[180px] object-contain" />
-          <h1 className="cp-glitch text-center font-display text-base uppercase tracking-[3px] text-[var(--panel-title)]">
-            Set a new password
-          </h1>
-          <p className="mt-3 text-center font-mono text-xs leading-relaxed text-[var(--text-muted)]">
-            Welcome{student?.name ? `, ${student.name.split(",")[0]}` : ""}. You signed in with a
-            temporary password from your admin. Choose your own password to continue — only you
-            will know it.
-          </p>
+  const errorBox = error && (
+    <p className="rounded-lg border border-[var(--danger)] p-3 text-sm font-medium text-[var(--danger)]">! {error}</p>
+  );
 
-          {passwordSaved ? (
-            <div className="mt-6 space-y-3">
-              {error && (
-                <p className="font-mono text-xs font-bold uppercase tracking-[1px] text-[var(--neon-pink)]">
-                  ! {error}
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={async () => {
-                  setError("");
-                  setSubmitting(true);
-                  await finish();
-                  setSubmitting(false);
-                }}
-                disabled={submitting}
-                className="cp-btn h-12 w-full text-sm"
-              >
-                Continue
+  return (
+    <AuthShell>
+        <div className="st-card overflow-hidden">
+          <div
+            className="flex items-center gap-2 border-b bg-gradient-to-r from-[var(--header-from)] to-[var(--header-to)] px-4 py-2.5"
+            style={{ borderColor: "var(--line)" }}
+          >
+            <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+            <span className="st-mono ml-2 truncate text-[11px] text-white/80">oasis://student/new-password</span>
+          </div>
+
+          <div className="p-6 sm:p-7">
+
+            <h1 className="text-lg font-bold">Set a new password</h1>
+            <p className="st-muted mt-2 text-sm leading-relaxed">
+              Welcome{student?.name ? `, ${student.name.split(",")[0]}` : ""}. You signed in with a temporary
+              password from your admin. Choose your own password to continue. Only you will know it.
+            </p>
+
+            {passwordSaved ? (
+              <div className="mt-6 space-y-3">
+                {errorBox}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setError("");
+                    setSubmitting(true);
+                    await finish();
+                    setSubmitting(false);
+                  }}
+                  disabled={submitting}
+                  className="st-btn w-full"
+                >
+                  Continue
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                <PasswordInput
+                  label="Temporary password"
+                  value={tempPassword}
+                  onChange={(e) => setTempPassword(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+                <PasswordInput
+                  label={`New password (at least ${MIN_LENGTH} characters)`}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                />
+                <PasswordInput
+                  label="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                />
+                {errorBox}
+                <button type="submit" disabled={submitting} className="st-btn w-full">
+                  {submitting ? "Saving..." : "Save password"}
+                </button>
+              </form>
+            )}
+
+            <div className="mt-5 border-t pt-4 text-center" style={{ borderColor: "var(--line)" }}>
+              <button type="button" onClick={onLogout} className="st-mono text-sm font-bold text-[var(--accent-text)] hover:underline">
+                [ Log out ]
               </button>
             </div>
-          ) : (
-          <form onSubmit={handleSubmit} className="mt-6 space-y-3">
-            <CpInput
-              type="password"
-              value={tempPassword}
-              onChange={(e) => setTempPassword(e.target.value)}
-              placeholder="Temporary password"
-              required
-            />
-            <CpInput
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder={`New password (min. ${MIN_LENGTH} characters)`}
-              required
-            />
-            <CpInput
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new password"
-              required
-            />
-            {error && (
-                <p className="font-mono text-xs font-bold uppercase tracking-[1px] text-[var(--neon-pink)]">
-                  ! {error}
-                </p>
-              )}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="cp-btn h-12 w-full text-sm"
-            >
-              {submitting ? "Saving..." : "Save password"}
-            </button>
-          </form>
-          )}
-
-          <button
-            type="button"
-            onClick={onLogout}
-            className="mt-4 block w-full text-center font-mono text-xs uppercase tracking-[2px] text-[var(--text-muted)] transition-colors hover:text-[var(--neon-cyan)]"
-          >
-            [ Log out ]
-          </button>
-        </CyberFrame>
-      </div>
-    </PageBackground>
+          </div>
+        </div>
+    </AuthShell>
   );
 }

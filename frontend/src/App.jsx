@@ -130,8 +130,8 @@ function StudentContent() {
   if (loading) {
     return (
       <PageBackground>
-        <div className="flex min-h-screen items-center justify-center font-mono text-sm uppercase tracking-[4px] text-[var(--gold)]">
-          &gt; Loading<span className="cursor-blink">_</span>
+        <div className="flex min-h-dvh items-center justify-center text-sm font-medium text-[var(--text-muted)]">
+          Loading...
         </div>
       </PageBackground>
     );

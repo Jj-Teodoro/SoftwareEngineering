@@ -9,8 +9,6 @@ import { useNotificationPref } from "../../../context/student/NotificationPrefCo
 import { useNotifications } from "../../../context/student/NotificationsContext";
 import { useStudent } from "../../../context/student/StudentContext";
 
-const cut = "[clip-path:polygon(0_0,100%_0,100%_calc(100%-8px),calc(100%-8px)_100%,0_100%)]";
-
 function Toggle({ checked, onChange, label }) {
   return (
     <button
@@ -19,15 +17,13 @@ function Toggle({ checked, onChange, label }) {
       aria-checked={checked}
       aria-label={label}
       onClick={onChange}
-      className={`relative h-7 w-12 shrink-0 border transition-all [clip-path:polygon(0_0,100%_0,100%_70%,calc(100%-7px)_100%,0_100%)] ${
-        checked
-          ? "border-[var(--gold)] bg-[var(--gold)]/25 shadow-[0_0_10px_var(--glow)]"
-          : "border-[var(--surface-border)] bg-[var(--surface-2)]"
+      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+        checked ? "bg-[var(--gold)]" : "bg-[var(--text-faint)]"
       }`}
     >
       <span
-        className={`absolute left-0 top-0.5 h-5 w-5 transition-transform ${
-          checked ? "translate-x-6 bg-[var(--gold)] shadow-[0_0_8px_var(--gold)]" : "translate-x-1 bg-[var(--text-faint)]"
+        className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0"
         }`}
       />
     </button>
@@ -36,10 +32,13 @@ function Toggle({ checked, onChange, label }) {
 
 function Row({ title, hint, children }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-[var(--surface-border)] py-4 first:pt-0 last:border-0 last:pb-0">
+    <div
+      className="flex items-center justify-between gap-4 border-b py-4 first:pt-0 last:border-0 last:pb-0"
+      style={{ borderColor: "var(--line)" }}
+    >
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-[var(--text-primary)]">{title}</p>
-        {hint && <p className="mt-0.5 text-xs text-[var(--text-muted)]">{hint}</p>}
+        <p className="text-sm font-semibold">{title}</p>
+        {hint && <p className="st-muted mt-0.5 text-xs">{hint}</p>}
       </div>
       {children}
     </div>
@@ -49,8 +48,8 @@ function Row({ title, hint, children }) {
 function Detail({ label, value }) {
   return (
     <div className="min-w-0">
-      <p className="font-mono text-[10px] uppercase tracking-[2px] text-[var(--gold)]">{label}</p>
-      <p className="mt-0.5 break-words text-sm text-[var(--text-primary)]">{value || "—"}</p>
+      <p className="st-label">{label}</p>
+      <p className="mt-0.5 break-words text-sm">{value || "—"}</p>
     </div>
   );
 }
@@ -91,26 +90,27 @@ export default function SettingsPage({ onLogout, onNavigate }) {
       type="button"
       onClick={() => setTheme(value)}
       aria-pressed={theme === value}
-      className={`flex flex-1 items-center justify-center gap-2 border px-4 py-2 font-mono text-xs uppercase tracking-[2px] transition-all ${cut} ${
+      className={`st-btn-sm flex-1 justify-center ${
         theme === value
-          ? "border-[var(--gold)] bg-[var(--gold)]/15 text-[var(--gold)]"
-          : "border-[var(--surface-border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+          ? "border-[var(--gold)] bg-[var(--gold)] text-[var(--on-gold)]"
+          : "text-[var(--text-muted)] hover:border-[var(--gold)]"
       }`}
+      style={theme === value ? undefined : { borderColor: "var(--line)" }}
     >
       <Icon size={14} /> {label}
     </button>
   );
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <Panel title="My account">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden border-2 border-[var(--gold)] bg-[var(--surface-2)] font-display text-xl text-[var(--gold)]">
+          <div className="st-mono flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-[var(--gold)] bg-[var(--card-2)] text-xl font-bold text-[var(--accent-text)]">
             {student.photo ? <img src={student.photo} alt="" className="h-full w-full object-cover" /> : initials}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-base font-bold uppercase tracking-[1px] text-[var(--text-primary)]">{student.name}</p>
-            <p className="font-mono text-xs text-[var(--text-muted)]">{student.studentId}</p>
+            <p className="truncate text-base font-bold">{student.name}</p>
+            <p className="st-mono text-xs text-[var(--text-muted)]">{student.studentId}</p>
           </div>
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -119,22 +119,18 @@ export default function SettingsPage({ onLogout, onNavigate }) {
           <Detail label="Email" value={student.email} />
           <Detail label="Account" value="Active" />
         </div>
-        <p className="mt-4 text-xs leading-relaxed text-[var(--text-muted)]">
+        <p className="st-muted mt-4 text-xs leading-relaxed">
           Your name, ID, program and points are managed by your admin. You can edit your photo, bio, talent and
           hobbies on your ID card.
         </p>
-        <button
-          type="button"
-          onClick={() => onNavigate?.("Activity")}
-          className="cp-btn-ghost mt-4 h-10 px-5 text-xs"
-        >
+        <button type="button" onClick={() => onNavigate?.("Activity")} className="st-btn-ghost mt-4 h-10 px-5 text-xs">
           Edit my ID card
         </button>
       </Panel>
 
       <Panel title="Preferences">
         <Row title="Appearance" hint="Dark suits low light; light is easier in bright rooms.">
-          <div className="flex w-56 gap-2">
+          <div className="flex w-52 gap-2">
             {themeButton("dark", FiMoon, "Dark")}
             {themeButton("light", FiSun, "Light")}
           </div>
@@ -142,15 +138,12 @@ export default function SettingsPage({ onLogout, onNavigate }) {
         <Row title="Notification badge" hint="Show the unread count on the bell.">
           <Toggle checked={showBadge} onChange={toggleShowBadge} label="Notification badge" />
         </Row>
-        <Row
-          title="Notifications"
-          hint={unreadCount > 0 ? `${unreadCount} unread` : "You're all caught up."}
-        >
+        <Row title="Notifications" hint={unreadCount > 0 ? `${unreadCount} unread` : "You're all caught up."}>
           <button
             type="button"
             onClick={markAll}
             disabled={unreadCount === 0 || marking}
-            className="cp-btn-ghost h-9 px-4 text-[11px] disabled:cursor-not-allowed disabled:opacity-40"
+            className="st-btn-ghost h-9 px-4 text-[11px] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <FiCheck size={13} /> {marking ? "Marking..." : "Mark all read"}
           </button>
@@ -158,21 +151,21 @@ export default function SettingsPage({ onLogout, onNavigate }) {
       </Panel>
 
       <Panel title="Security">
-        <p className="text-sm leading-relaxed text-[var(--text-muted)]">
+        <p className="st-muted text-sm leading-relaxed">
           Your password is yours alone, and only your admin can issue a new temporary one. If you forgot it, ask for
           one below, then sign in with your student number and the temporary password and choose a new one.
         </p>
         {requested ? (
-          <p className="mt-4 flex items-center gap-2 font-mono text-sm text-[var(--gold)]">
+          <p className="mt-4 flex items-center gap-2 text-sm font-medium text-[var(--ok)]">
             <FiBell size={14} /> Request sent. Your admin will give you a new temporary password.
           </p>
         ) : (
-          <button type="button" onClick={requestPassword} className="cp-btn-ghost mt-4 h-10 px-5 text-xs">
+          <button type="button" onClick={requestPassword} className="st-btn-ghost mt-4 h-10 px-5 text-xs">
             <FiSend size={13} /> Ask admin for a new password
           </button>
         )}
-        {requestError && <p className="mt-2 font-mono text-xs text-[var(--neon-pink)]">! {requestError}</p>}
-        <div className="mt-5 border-t border-[var(--surface-border)] pt-4 text-xs text-[var(--text-muted)]">
+        {requestError && <p className="mt-2 text-sm font-medium text-[var(--danger)]">! {requestError}</p>}
+        <div className="st-muted mt-5 border-t pt-4 text-xs" style={{ borderColor: "var(--line)" }}>
           <p>
             This device: <span className="text-[var(--text-primary)]">{describeDevice()}</span>
           </p>
@@ -187,7 +180,7 @@ export default function SettingsPage({ onLogout, onNavigate }) {
         </div>
       </Panel>
 
-      <button type="button" onClick={onLogout} className="cp-btn-ghost h-11 w-full text-sm sm:w-auto sm:px-8">
+      <button type="button" onClick={onLogout} className="st-btn-ghost w-full sm:w-auto sm:self-start sm:px-8">
         <FiLogOut size={16} /> Log out
       </button>
     </div>
