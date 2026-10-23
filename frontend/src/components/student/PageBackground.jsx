@@ -1,6 +1,6 @@
 export default function PageBackground({ children }) {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--bg-base)] font-['Montserrat',sans-serif] transition-colors">
+    <div className="relative min-h-dvh overflow-hidden bg-[var(--bg-base)] font-['Montserrat',sans-serif] transition-colors">
       {/* neon glows */}
       <div
         className="pointer-events-none absolute inset-0"
@@ -30,7 +30,7 @@ export default function PageBackground({ children }) {
       <div className="cp-sweep pointer-events-none absolute inset-x-0 top-0 h-24 animate-[sweep_9s_linear_infinite] bg-gradient-to-b from-transparent via-[var(--neon-cyan)] to-transparent opacity-[0.06]" />
       {/* vignette */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.45))]" />
-      <div className="relative z-10 min-h-screen text-[var(--text-primary)]">{children}</div>
+      <div className="relative z-10 min-h-dvh text-[var(--text-primary)]">{children}</div>
     </div>
   );
 }
