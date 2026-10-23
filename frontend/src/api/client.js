@@ -206,7 +206,7 @@ export const api = {
 
   staff: {
     list: () => request("/staff"),
-    // { name, username } for a scanner; an admin also sends the student-style details
+    // the student-style details plus role ("admin" or "scanner")
     create: (account) => request("/staff", { method: "POST", body: account }),
   },
 

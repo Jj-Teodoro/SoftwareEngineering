@@ -1123,6 +1123,16 @@ class StaffAccountsTest(TestCase):
     self.assertTrue(admin.must_change_password)
     self.assertTrue(admin.check_password(response.data["temp_password"]))
 
+  def test_create_scanner_with_student_details(self):
+    response = self.client.post("/api/staff", {
+      "role": "scanner", "student_id": "2024-08888", "last_name": "CRUZ", "first_name": "JUAN",
+      "program": "BS Information Technology", "year_level": 2, "section": "BSIT-2B", "email": "juan.cruz@dyci.edu.ph",
+    }, format="json")
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    scanner = User.objects.get(pk="2024-08888")
+    self.assertEqual((scanner.role, scanner.last_name, scanner.section), ("scanner", "CRUZ", "BSIT-2B"))
+    self.assertTrue(scanner.must_change_password)
+
   def test_admin_details_are_validated_like_a_student(self):
     base = {"role": "admin", "student_id": "2024-09998", "last_name": "REYES", "first_name": "ANA"}
     self.assertEqual(self.client.post("/api/staff", {**base, "email": "not-an-email"}, format="json").status_code, status.HTTP_400_BAD_REQUEST)

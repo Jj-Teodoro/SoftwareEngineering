@@ -113,13 +113,10 @@ function MyAccount({ user }) {
 }
 
 function StaffAccounts({ user }) {
-  const { staff, getActivity, now, createStaff, createAdmin, issuePassword, removeStaff, dismissRequest } = useStaff();
+  const { staff, getActivity, now, createStaff, issuePassword, removeStaff, dismissRequest } = useStaff();
   const confirm = useConfirm();
 
-  const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
-  const [showAdminForm, setShowAdminForm] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [newRole, setNewRole] = useState(null); // "admin" / "scanner" while its form is open
   const [error, setError] = useState("");
   const [issued, setIssued] = useState(null); // credentials just created or re-issued
   const [busyUid, setBusyUid] = useState(null);
@@ -127,16 +124,15 @@ function StaffAccounts({ user }) {
   const members = [...staff].sort((a, b) => (a.role === b.role ? a.name.localeCompare(b.name) : a.role === "admin" ? -1 : 1));
   const activeCount = members.filter((m) => getActivity(m.uid).active).length;
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    setCreating(true);
-    setError("");
-    const result = await createStaff({ name, username, role: "scanner" });
-    setCreating(false);
-    if (!result.ok) return setError(result.message);
-    setIssued({ username: result.username, password: result.tempPassword, heading: "Scanner account created — give these to them" });
-    setName("");
-    setUsername("");
+  // Same fields as a new student record; the ID number becomes their username.
+  const handleCreate = async (fields) => {
+    const result = await createStaff(fields, newRole);
+    if (result.ok) {
+      setError("");
+      const label = newRole === "admin" ? "Admin" : "Scanner";
+      setIssued({ username: result.username, password: result.tempPassword, heading: `${label} account created — give these to them` });
+    }
+    return result;
   };
 
   const handleIssue = async (member) => {
@@ -173,41 +169,28 @@ function StaffAccounts({ user }) {
       title="Staff accounts & activity"
       action={<span className="chip-green"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" /> {activeCount} active now</span>}
     >
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <p className="label">Add a scanner</p>
-        <button type="button" onClick={() => setShowAdminForm(true)} className="btn-ghost btn-sm">
-          <FiPlus size={12} /> Add admin
-        </button>
+      <div className="surface-inset mb-4 flex flex-wrap items-center justify-between gap-3 p-4">
+        <p className="text-sm muted">
+          New accounts use the same details as a student record. Their ID number is the username they sign in with.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => setNewRole("scanner")} className="btn-primary">
+            <FiPlus size={14} /> Add scanner
+          </button>
+          <button type="button" onClick={() => setNewRole("admin")} className="btn-ghost">
+            <FiPlus size={14} /> Add admin
+          </button>
+        </div>
       </div>
-      <form onSubmit={handleCreate} className="surface-inset mb-4 grid gap-3 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-        <div>
-          <label className="label mb-1.5 block">Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Juan Dela Cruz" className="input" required />
-        </div>
-        <div>
-          <label className="label mb-1.5 block">Username</label>
-          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. juan.scanner" className="input" required />
-        </div>
-        <button type="submit" disabled={creating} className="btn-primary">
-          <FiPlus size={14} /> {creating ? "Creating..." : "Add scanner"}
-        </button>
-      </form>
 
-      {showAdminForm && (
+      {newRole && (
         <AddStudentModal
-          title="Add Admin Account"
+          title={newRole === "admin" ? "Add Admin Account" : "Add Scanner Account"}
           idLabel="ID Number (used to sign in)"
           emailPlaceholder="name@dyci.edu.ph"
-          submitLabel="Add Admin"
-          onClose={() => setShowAdminForm(false)}
-          onSave={async (fields) => {
-            const result = await createAdmin(fields);
-            if (result.ok) {
-              setError("");
-              setIssued({ username: result.username, password: result.tempPassword, heading: "Admin account created — give these to them" });
-            }
-            return result;
-          }}
+          submitLabel={newRole === "admin" ? "Add Admin" : "Add Scanner"}
+          onClose={() => setNewRole(null)}
+          onSave={handleCreate}
         />
       )}
 
