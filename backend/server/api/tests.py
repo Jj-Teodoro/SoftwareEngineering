@@ -1181,3 +1181,52 @@ class SessionExpiryTest(TestCase):
     token = RefreshToken.for_user(self.student)
     token.set_exp(lifetime=-timedelta(seconds=1))
     self.assertEqual(self.refresh(str(token)).status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class SrsComplianceTest(TestCase):
+  """Requirements from the OASIS SRS that the API itself enforces."""
+
+  def setUp(self):
+    self.student = make_user("2024-00001")
+    self.event = Event.objects.create_event(title="Assembly", date="2026-07-13")
+
+  def test_fr28_one_attendance_record_per_event_and_student(self):
+    from django.db import IntegrityError, transaction
+    Attendance.objects.create(user=self.student, event=self.event)
+    with self.assertRaises(IntegrityError), transaction.atomic():
+      Attendance.objects.create(user=self.student, event=self.event)
+    self.assertEqual(Attendance.objects.count(), 1)
+
+  def test_db05_bio_and_talent_lengths(self):
+    client = authenticated_client(self.student)
+    self.assertEqual(client.patch("/api/user/me", {"bio": "x" * 300, "talent": "y" * 80}, format="json").status_code, status.HTTP_200_OK)
+    self.assertEqual(client.patch("/api/user/me", {"bio": "x" * 301}, format="json").status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertEqual(client.patch("/api/user/me", {"talent": "y" * 81}, format="json").status_code, status.HTTP_400_BAD_REQUEST)
+
+  def test_sec06_first_login_password_needs_8_characters(self):
+    User.objects.filter(pk=self.student.pk).update(must_change_password=True)
+    self.student.refresh_from_db()
+    client = authenticated_client(self.student)
+    response = client.post("/api/user/me/password", {"current_password": "JMC090907", "new_password": "Short12"}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    response = client.post("/api/user/me/password", {"current_password": "JMC090907", "new_password": "LongEnough1"}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+  def test_fr07_staff_change_own_password_with_6_characters(self):
+    scanner = staff_user("scanner")
+    client = authenticated_client(scanner)
+    response = client.post("/api/user/me/password", {"current_password": "wrong", "new_password": "Abc123"}, format="json")
+    self.assertEqual(response.data["current_password"][0], "Current password is incorrect.")
+    response = client.post("/api/user/me/password", {"current_password": "StaffPass1", "new_password": "Abc123"}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    scanner.refresh_from_db()
+    self.assertTrue(scanner.check_password("Abc123"))
+
+  def test_sec08_only_admins_read_password_requests(self):
+    User.objects.filter(pk=self.student.pk).update(password_requested_at="2026-01-01T00:00:00Z")
+    admin_view = authenticated_client().get("/api/user", {"role": "student"}).data[0]
+    scanner_view = authenticated_client(staff_user("scanner")).get("/api/user", {"role": "student"}).data[0]
+    self.assertIsNotNone(admin_view["password_requested_at"])
+    self.assertNotIn("password_requested_at", scanner_view)
+    own_view = authenticated_client(self.student).get("/api/user/me").data
+    self.assertNotIn("password_requested_at", own_view)

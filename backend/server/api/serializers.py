@@ -30,7 +30,21 @@ class UserListSerializer(serializers.ListSerializer):
     return User.objects.bulk_create(users, batch_size=1000)
 
 
+MAX_BIO_LENGTH = 300
+MAX_TALENT_LENGTH = 80
+
+
 class ProfileValidationMixin:
+
+  def validate_bio(self, value):
+    if len(value) > MAX_BIO_LENGTH:
+      raise serializers.ValidationError(f"Bio must be at most {MAX_BIO_LENGTH} characters")
+    return value
+
+  def validate_talent(self, value):
+    if len(value) > MAX_TALENT_LENGTH:
+      raise serializers.ValidationError(f"Talent must be at most {MAX_TALENT_LENGTH} characters")
+    return value
 
   def validate_photo(self, value):
     if len(value) > MAX_PHOTO_LENGTH:
@@ -58,6 +72,15 @@ class UserSerializer(ProfileValidationMixin, serializers.ModelSerializer):
 
   def get_has_account(self, user):
     return user.has_usable_password()
+
+  def to_representation(self, user):
+    data = super().to_representation(user)
+    # SRS SEC-08: only administrators may read forgotten-password requests
+    request = self.context.get("request")
+    viewer = getattr(request, "user", None)
+    if not (viewer and viewer.is_authenticated and viewer.role == "admin"):
+      data.pop("password_requested_at", None)
+    return data
 
   def validate_year_level(self, value):
     if value > 4:
@@ -133,6 +156,9 @@ class AttendanceSerializer(serializers.ModelSerializer):
     model = Attendance
     fields = "__all__"
     read_only_fields = ["attendance_id", "timestamp"]
+    # duplicates are checked in validate() with a clearer message; the database
+    # constraint is the final guard (SRS FR-28)
+    validators = []
     extra_kwargs = {
       "user": {"required": True, "allow_null": False},
       "event": {"required": True, "allow_null": False},

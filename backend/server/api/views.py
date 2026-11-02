@@ -1,7 +1,7 @@
 import re
 import secrets
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -41,6 +41,8 @@ from .utils import UserRole
 
 TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
 MIN_PASSWORD_LENGTH = 6
+# SRS SEC-06 / FR-05: replacing a temporary password needs at least 8 characters
+MIN_FIRST_PASSWORD_LENGTH = 8
 
 
 def generate_temp_password(length=10):
@@ -175,9 +177,10 @@ class ChangePasswordView(APIView):
 
     if not user.check_password(current_password):
       return Response({"current_password": ["Current password is incorrect."]}, status=status.HTTP_400_BAD_REQUEST)
-    if len(new_password) < MIN_PASSWORD_LENGTH:
+    min_length = MIN_FIRST_PASSWORD_LENGTH if user.must_change_password else MIN_PASSWORD_LENGTH
+    if len(new_password) < min_length:
       return Response(
-        {"new_password": [f"New password must be at least {MIN_PASSWORD_LENGTH} characters."]},
+        {"new_password": [f"New password must be at least {min_length} characters."]},
         status=status.HTTP_400_BAD_REQUEST,
       )
     if new_password == current_password:
@@ -212,7 +215,7 @@ class UserDetailView(APIView):
 
   def get(self, request, student_id):
     user = get_object_or_404(User, student_id=student_id)
-    serializer = UserSerializer(user)
+    serializer = UserSerializer(user, context={"request": request})
     return Response(serializer.data, status=status.HTTP_200_OK)
 
   def patch(self, request, student_id):
@@ -299,7 +302,7 @@ class StaffListCreateView(APIView):
 
   def get(self, request):
     staff = User.objects.filter(role__in=STAFF_ROLES).order_by("role", "first_name")
-    return Response(UserSerializer(staff, many=True).data, status=status.HTTP_200_OK)
+    return Response(UserSerializer(staff, many=True, context={"request": request}).data, status=status.HTTP_200_OK)
 
   # Optional details, the same ones a student record has (the admin form uses them).
   PROFILE_FIELDS = (
@@ -475,8 +478,13 @@ class ScanAttendanceView(APIView):
     if existing is None:
       serializer = AttendanceSerializer(data={"user": student.pk, "event": str(event.pk)})
       serializer.is_valid(raise_exception=True)
-      record = serializer.save(scanned_by=request.user)
-      action = "in"
+      try:
+        with transaction.atomic():
+          record = serializer.save(scanned_by=request.user)
+        action = "in"
+      except IntegrityError:
+        # another scan of the same student just checked them in (SRS FR-28)
+        record, action = Attendance.objects.get(user=student, event=event), "already"
     elif existing.time_out is None:
       existing.time_out = timezone.now()
       existing.save(update_fields=["time_out"])
