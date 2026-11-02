@@ -359,7 +359,8 @@ class PasswordRequestDismissView(APIView):
 
 class EventListCreateView(generics.ListCreateAPIView):
   serializer_class = EventSerializer
-  permission_classes = [ReadAnyWriteStaff]
+  # anyone signed in reads events; only admins create them (scanners only scan)
+  permission_classes = [ReadAnyWriteAdmin]
 
   def get_queryset(self):
     queryset = Event.objects.select_related("created_by").order_by("-created_at")
@@ -382,7 +383,7 @@ class EventListCreateView(generics.ListCreateAPIView):
 class EventView(generics.RetrieveUpdateDestroyAPIView):
   queryset = Event.objects.select_related("created_by")
   serializer_class = EventSerializer
-  permission_classes = [ReadAnyWriteStaff]
+  permission_classes = [ReadAnyWriteAdmin]
   lookup_field = "event_id"
 
   def perform_destroy(self, instance):
@@ -394,7 +395,7 @@ class EventView(generics.RetrieveUpdateDestroyAPIView):
 
 class AnnounceEventView(APIView):
   """Sends the event to every student in its program as a fresh unread notification."""
-  permission_classes = [IsStaff]
+  permission_classes = [IsAdmin]
 
   LABELS = {"new": "New event", "update": "Updated", "reminder": "Reminder"}
 

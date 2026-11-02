@@ -13,8 +13,8 @@ export default function EventsPage({ onStartKiosk }) {
   const confirm = useConfirm();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState(null);
-  // scanners create and delete events; admins can also open one to edit, notify and see the roster
-  const canOpen = currentPortal() === "admin";
+  // only admins create, open (edit, notify, roster) and delete events; scanners just see them
+  const isAdmin = currentPortal() === "admin";
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
   if (selectedEvent) {
@@ -39,14 +39,14 @@ export default function EventsPage({ onStartKiosk }) {
         events={events}
         students={students}
         presentCounts={presentCounts}
-        onCreate={() => setShowCreateModal(true)}
-        onOpen={canOpen ? (event) => setSelectedEventId(event.id) : undefined}
-        onDelete={handleDelete}
+        onCreate={isAdmin ? () => setShowCreateModal(true) : undefined}
+        onOpen={isAdmin ? (event) => setSelectedEventId(event.id) : undefined}
+        onDelete={isAdmin ? handleDelete : undefined}
       />
-      {showCreateModal && (
+      {isAdmin && showCreateModal && (
         <CreateEventModal
           onClose={() => setShowCreateModal(false)}
-          onCreated={canOpen ? (event) => setSelectedEventId(event.id) : undefined}
+          onCreated={(event) => setSelectedEventId(event.id)}
         />
       )}
     </>

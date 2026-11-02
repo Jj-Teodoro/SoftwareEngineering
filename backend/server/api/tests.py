@@ -728,9 +728,14 @@ class RolePermissionTest(TestCase):
     response = self.client.post("/api/event", {"title": "Party", "date": "2026-07-13"}, format="json")
     self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-  def test_scanner_can_create_events_but_not_edit_students(self):
+  def test_scanner_cannot_manage_events_or_edit_students(self):
     response = self.scanner_client.post("/api/event", {"title": "Party", "date": "2026-07-13"}, format="json")
-    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    event = Event.objects.create_event(title="Assembly", date="2026-07-13")
+    self.assertEqual(self.scanner_client.get("/api/event").status_code, status.HTTP_200_OK)
+    self.assertEqual(self.scanner_client.patch(f"/api/event/{event.pk}", {"title": "X"}, format="json").status_code, status.HTTP_403_FORBIDDEN)
+    self.assertEqual(self.scanner_client.delete(f"/api/event/{event.pk}").status_code, status.HTTP_403_FORBIDDEN)
+    self.assertEqual(self.scanner_client.post(f"/api/event/{event.pk}/announce", {"kind": "new"}, format="json").status_code, status.HTTP_403_FORBIDDEN)
     self.assertEqual(self.scanner_client.get("/api/user").status_code, status.HTTP_200_OK)
     response = self.scanner_client.patch("/api/user/2024-00001", {"first_name": "X"}, format="json")
     self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -912,7 +917,7 @@ class ScanAndAnnounceTest(TestCase):
     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
   def test_announce_to_everyone(self):
-    response = self.client.post(f"/api/event/{self.event.pk}/announce", {"kind": "new"}, format="json")
+    response = authenticated_client().post(f"/api/event/{self.event.pk}/announce", {"kind": "new"}, format="json")
     self.assertEqual(response.data["notified"], 2)
     notification = Notification.objects.filter(user=self.cpe).get()
     self.assertEqual(notification.kind, "new")
@@ -922,17 +927,17 @@ class ScanAndAnnounceTest(TestCase):
 
   def test_announce_only_to_program(self):
     Event.objects.filter(pk=self.event.pk).update(program_for=["BS Computer Science"])
-    response = self.client.post(f"/api/event/{self.event.pk}/announce", {"kind": "reminder", "message": "Tomorrow!"}, format="json")
+    response = authenticated_client().post(f"/api/event/{self.event.pk}/announce", {"kind": "reminder", "message": "Tomorrow!"}, format="json")
     self.assertEqual(response.data["notified"], 1)
     self.assertEqual(Notification.objects.get().user, self.cs)
     self.assertEqual(Notification.objects.get().message, "Tomorrow!")
 
   def test_announce_invalid_kind(self):
-    response = self.client.post(f"/api/event/{self.event.pk}/announce", {"kind": "spam"}, format="json")
+    response = authenticated_client().post(f"/api/event/{self.event.pk}/announce", {"kind": "spam"}, format="json")
     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
   def test_notification_includes_event_date(self):
-    self.client.post(f"/api/event/{self.event.pk}/announce", {"kind": "new"}, format="json")
+    authenticated_client().post(f"/api/event/{self.event.pk}/announce", {"kind": "new"}, format="json")
     data = authenticated_client(self.cpe).get("/api/notification").data[0]
     self.assertEqual(data["event_date"], "2026-07-13")
     self.assertEqual(data["event"], self.event.pk)
