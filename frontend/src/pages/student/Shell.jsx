@@ -1,4 +1,4 @@
-import { useState } from "react";
+import usePersistedState from "../../hooks/usePersistedState";
 import PageBackground from "../../components/student/PageBackground";
 import Header from "../../components/student/Header";
 import ActivityPage from "./Activity/ActivityPage";
@@ -7,7 +7,8 @@ import NotificationsPage from "./Notifications/NotificationsPage";
 import SettingsPage from "./Settings/SettingsPage";
 
 export default function Shell({ onLogout }) {
-  const [activeTab, setActiveTab] = useState("Activity");
+  // the open tab survives a reload of this browser tab
+  const [activeTab, setActiveTab] = usePersistedState("oasis-user-tab", "Activity");
 
   return (
     <PageBackground>

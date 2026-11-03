@@ -1,4 +1,5 @@
 import { useState } from "react";
+import usePersistedState from "../../../hooks/usePersistedState";
 import EventsBoard from "../../../components/common/EventsBoard.jsx";
 import { useConfirm } from "../../../components/common/ConfirmDialog.jsx";
 import { useEvents } from "../../../context/staff/EventsContext";
@@ -12,7 +13,8 @@ export default function EventsPage({ onStartKiosk }) {
   const { students } = useStudents();
   const confirm = useConfirm();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState(null);
+  // the open event survives a reload of this browser tab
+  const [selectedEventId, setSelectedEventId] = usePersistedState("oasis-admin-event", null);
   // only admins create, open (edit, notify, roster) and delete events; scanners just see them
   const isAdmin = currentPortal() === "admin";
 

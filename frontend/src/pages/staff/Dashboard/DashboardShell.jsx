@@ -1,4 +1,4 @@
-import { useState } from "react";
+import usePersistedState from "../../../hooks/usePersistedState";
 import { FiCalendar, FiCamera, FiCheckSquare, FiGrid, FiSettings, FiUploadCloud, FiUsers } from "react-icons/fi";
 import AppShell from "../../../components/common/AppShell.jsx";
 import { useReportLocation } from "../../../components/common/StaffPresenceTracker.jsx";
@@ -22,7 +22,8 @@ const NAV = [
 ];
 
 export default function DashboardShell({ currentUser, onUserChange, onLogout, onStartKiosk }) {
-  const [activeTab, setActiveTab] = useState("Dashboard");
+  // the open page survives a reload of this browser tab
+  const [activeTab, setActiveTab] = usePersistedState("oasis-admin-tab", "Dashboard");
   useReportLocation(NAV.find((n) => n.id === activeTab)?.label || activeTab);
 
   return (

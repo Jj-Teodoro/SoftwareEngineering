@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { currentPortal } from "./api/portal";
 import { useSignedIn } from "./api/hooks";
+import { hasSession } from "./api/client";
+import usePersistedState from "./hooks/usePersistedState";
+import LoadingScreen from "./components/common/LoadingScreen.jsx";
 import { ConfirmProvider } from "./components/common/ConfirmDialog.jsx";
 import StaffPresenceTracker from "./components/common/StaffPresenceTracker.jsx";
 
@@ -41,10 +44,15 @@ function StaffPortal({ Shell }) {
   const { signOut, restoreSession } = useStaffAuth();
   const signedIn = useSignedIn();
   const [currentUser, setCurrentUser] = useState(null);
-  const [kioskEventId, setKioskEventId] = useState(null);
+  // a running kiosk survives a reload of this browser tab
+  const [kioskEventId, setKioskEventId] = usePersistedState(`oasis-${currentPortal()}-kiosk`, null);
+  // while a saved sign-in is being restored, show a loading screen instead of flashing the login
+  const [restoring, setRestoring] = useState(hasSession);
 
   useEffect(() => {
-    restoreSession().then((staff) => staff && setCurrentUser(staff));
+    restoreSession()
+      .then((staff) => staff && setCurrentUser(staff))
+      .finally(() => setRestoring(false));
   }, []);
 
   // the session expired (or was signed out in another tab)
@@ -82,6 +90,8 @@ function StaffPortal({ Shell }) {
       </>
     );
   }
+
+  if (restoring) return <LoadingScreen />;
 
   return <StaffLogin onLoginSuccess={setCurrentUser} />;
 }
