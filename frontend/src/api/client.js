@@ -102,12 +102,28 @@ export class ApiError extends Error {
 }
 
 // DRF errors come back as {detail: "..."} or {field: ["..."]}
+// Readable names for the fields a form can send, so an error says which field it
+// is about instead of appearing to belong to whatever input shows it.
+const FIELD_LABELS = {
+  student_id: "ID number",
+  first_name: "Name",
+  middle_name: "Name",
+  last_name: "Name",
+  program: "Course",
+  year_level: "Year level",
+  section: "Section",
+  email: "Email",
+  contact_number: "Contact number",
+  address: "Address",
+};
+
 function extractMessage(data) {
   if (!data || typeof data !== "object") return null;
   if (typeof data.detail === "string") return data.detail;
-  const first = Object.values(data)[0];
-  if (Array.isArray(first)) return String(first[0]);
-  return typeof first === "string" ? first : null;
+  const [field, first] = Object.entries(data)[0] || [];
+  const message = Array.isArray(first) ? String(first[0]) : typeof first === "string" ? first : null;
+  if (!message) return null;
+  return FIELD_LABELS[field] ? `${FIELD_LABELS[field]}: ${message}` : message;
 }
 
 async function send(path, { method = "GET", body, query, auth = true } = {}) {

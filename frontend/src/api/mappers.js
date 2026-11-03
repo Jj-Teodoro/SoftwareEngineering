@@ -13,7 +13,9 @@ export function formatName({ last_name = "", first_name = "", middle_name = "" }
 
 export function parseName(full = "") {
   const comma = full.indexOf(",");
-  if (comma === -1) return { last_name: full.trim(), first_name: "", middle_name: "" };
+  // no comma (e.g. "Juan Dela Cruz"): keep the whole name rather than leaving the
+  // required first name empty, which the server rejects as blank
+  if (comma === -1) return { last_name: "", first_name: full.trim(), middle_name: "" };
 
   const tokens = full.slice(comma + 1).trim().split(/\s+/).filter(Boolean);
   let middle = "";
