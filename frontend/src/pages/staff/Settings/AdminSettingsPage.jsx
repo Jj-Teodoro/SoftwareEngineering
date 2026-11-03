@@ -7,6 +7,7 @@ import { EmptyState, PageHeader, Section } from "../../../components/common/ui.j
 import { useStaff } from "../../../context/staff/StaffContext";
 import { useStudents } from "../../../context/staff/StudentsContext";
 import { useEvents } from "../../../context/staff/EventsContext";
+import MyAccountTab from "./MyAccountTab";
 import { useRequirements } from "../../../context/staff/RequirementsContext";
 import { formatAgo } from "../../../context/staff/PresenceContext";
 
@@ -62,50 +63,6 @@ function PendingPassword({ member }) {
   if (password === undefined) return null;
   if (!password) return <p className="text-xs muted">Waiting for first sign-in. Use "New password" to issue another.</p>;
   return <Credentials heading="Give these to them — visible until they set their own" username={member.username} password={password} />;
-}
-
-function MyAccount({ user }) {
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
-  const [status, setStatus] = useState(null);
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setStatus(null);
-    if (next.length < 8) return setStatus({ ok: false, text: "New password must be at least 8 characters." });
-    setBusy(true);
-    try {
-      await api.changePassword(current, next);
-      setStatus({ ok: true, text: "Password updated." });
-      setCurrent("");
-      setNext("");
-    } catch (error) {
-      setStatus({ ok: false, text: error.data?.current_password ? "Current password is incorrect." : error.message });
-    }
-    setBusy(false);
-  };
-
-  return (
-    <Section title="My account">
-      <div className="grid gap-6 md:grid-cols-2">
-        <div>
-          <p className="text-base font-semibold">{user?.name}</p>
-          <p className="font-mono text-xs muted">{user?.username} · {user?.role}</p>
-          <p className="mt-3 text-xs leading-relaxed muted">
-            Change your own password here. For other admins and scanners, issue a new temporary password from
-            the Staff tab.
-          </p>
-        </div>
-        <form onSubmit={submit} className="flex flex-col gap-3">
-          <input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="Current password" autoComplete="current-password" required className="input" />
-          <input type="password" value={next} onChange={(e) => setNext(e.target.value)} placeholder="New password (8+ characters)" autoComplete="new-password" required className="input" />
-          {status && <p className={`text-sm ${status.ok ? "text-green-300" : "text-neon-pink"}`}>{status.text}</p>}
-          <button type="submit" disabled={busy} className="btn-primary">{busy ? "Updating..." : "Change my password"}</button>
-        </form>
-      </div>
-    </Section>
-  );
 }
 
 function StaffAccounts({ user }) {
@@ -371,7 +328,7 @@ const TABS = [
   { id: "system", label: "System" },
 ];
 
-export default function SettingsPage({ currentUser }) {
+export default function SettingsPage({ currentUser, onUserChange }) {
   const { staff } = useStaff();
   const [tab, setTab] = useState("account");
   const requests = staff.filter((m) => m.passwordRequestedAt).length;
@@ -405,7 +362,7 @@ export default function SettingsPage({ currentUser }) {
         ))}
       </div>
 
-      {tab === "account" && <MyAccount user={currentUser} />}
+      {tab === "account" && <MyAccountTab user={currentUser} onUserChange={onUserChange} />}
       {tab === "staff" && <StaffAccounts user={currentUser} />}
       {tab === "system" && <SystemInfo />}
     </div>
