@@ -62,10 +62,8 @@ const COVERS = Object.entries(
   .map(([, url]) => url);
 
 const SHOW_MS = 3200;
-const pad2 = (n) => String(n).padStart(2, "0");
-
 // Photo showcase: the whole photo is always visible (a blurred copy fills the frame behind it),
-// a counter, automatic changing with a quick flash, and two photos peeking out behind.
+// automatic changing with a quick flash, and two photos peeking out behind.
 function PhotoShowcase() {
   const count = COVERS.length;
   const [index, setIndex] = useState(0);
@@ -110,9 +108,6 @@ function PhotoShowcase() {
         />
         <img key={index} src={at(0)} alt="OASIS event photo" className="st-flash absolute inset-0 h-full w-full object-contain" />
 
-        <span className="st-mono absolute bottom-2 left-1/2 -translate-x-1/2 rounded-md bg-black/55 px-2 py-0.5 text-[10px] font-bold text-white">
-          {pad2(index + 1)} / {pad2(count)}
-        </span>
       </div>
     </div>
   );
