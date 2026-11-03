@@ -171,6 +171,12 @@ export default function AuthPage({ onAuthSuccess }) {
                 </button>
               </div>
             )}
+
+            <p className="mt-3 text-center">
+              <a href="#" className="st-muted text-xs hover:text-[var(--accent-text)] hover:underline">
+                &larr; Back to the front page
+              </a>
+            </p>
           </div>
         </div>
     </AuthShell>

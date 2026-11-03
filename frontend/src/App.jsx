@@ -22,6 +22,7 @@ import { PresenceProvider } from "./context/staff/PresenceContext";
 import PageBackground from "./components/student/PageBackground";
 import PresenceTracker, { markOffline } from "./components/student/PresenceTracker";
 import AuthPage from "./pages/student/Login/AuthPage";
+import Landing from "./pages/student/Landing/Landing";
 import ForcePasswordChange from "./pages/student/Login/ForcePasswordChange";
 import StudentShell from "./pages/student/Shell";
 import { ThemeProvider } from "./context/student/ThemeContext";
@@ -126,6 +127,13 @@ function ScannerPortal() {
 function StudentContent() {
   const { signOut } = useAuth();
   const { student, loading } = useStudent();
+  const [showLogin, setShowLogin] = useState(() => window.location.hash === "#login");
+
+  useEffect(() => {
+    const sync = () => setShowLogin(window.location.hash === "#login");
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
 
   if (loading) {
     return (
@@ -138,12 +146,15 @@ function StudentContent() {
   }
 
   if (!student) {
-    return <AuthPage />;
+    // the front page first; "Log in" adds #login to the address, and Back returns to it
+    return showLogin ? <AuthPage /> : <Landing />;
   }
 
   const handleLogout = async () => {
     await markOffline();
     await signOut();
+    window.history.replaceState(null, "", window.location.pathname);
+    setShowLogin(false);
   };
 
   return (
