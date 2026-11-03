@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getEventPhase, scanLockMessage, todayLocal } from "../../../utils/events.js";
 import CyberKiosk, { CyberKioskNotice } from "../../../components/common/CyberKiosk.jsx";
 import aces_logo from "../../../assets/aceslogo.png";
-import oasis_logo from "../../../assets/oasislogo.gif";
+import oasis_logo from "../../../assets/oasis-logo.png";
 import { useStudents } from "../../../context/staff/StudentsContext";
 import { useEvents, scanEventAttendance } from "../../../context/staff/EventsContext";
 import { useStaffAuth } from "../../../context/staff/AuthContext";
