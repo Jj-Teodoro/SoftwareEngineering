@@ -144,8 +144,6 @@ function Dots({ className = "" }) {
 
 // Bold, poster-style left side: big headline and photos cut into a circle, an arch and a dot.
 function Poster() {
-  const focusLogin = () => document.getElementById("studentNumber")?.focus();
-
   return (
     <div className="relative flex flex-col overflow-hidden rounded-b-[40px] bg-gradient-to-br from-[var(--header-from)] to-[#2a0709] px-6 pb-12 pt-7 text-white lg:min-h-dvh lg:justify-between lg:rounded-b-none lg:rounded-r-[64px] lg:px-12 lg:pb-12 lg:pt-10 xl:px-14">
       {/* background shapes */}
@@ -184,18 +182,9 @@ function Poster() {
         </p>
       </div>
 
-      {/* photo showcase + call-to-action badge */}
+      {/* photo showcase */}
       <div className="relative mt-7 lg:mt-8">
         <PhotoShowcase />
-        <button
-          type="button"
-          onClick={focusLogin}
-          aria-label="Go to the log in form"
-          className="st-mono absolute -bottom-5 right-0 flex h-[68px] w-[68px] -rotate-12 flex-col items-center justify-center rounded-full bg-[#f2b400] text-center text-[10px] font-extrabold uppercase leading-tight text-[#2a0507] shadow-lg transition hover:scale-105 sm:h-[84px] sm:w-[84px] sm:text-xs lg:right-auto lg:left-[440px] xl:left-[520px] lg:h-[96px] lg:w-[96px] lg:text-sm"
-        >
-          Log in
-          <span aria-hidden="true">now &rarr;</span>
-        </button>
       </div>
     </div>
   );
