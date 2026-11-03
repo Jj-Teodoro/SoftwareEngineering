@@ -3,7 +3,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from io import StringIO
 from django.core.management import call_command
-from api.models import User, Event, Attendance, Notification, SubmissionLog, Requirement, RequirementCompletion
+from api.models import User, Event, Attendance, Notification, SubmissionLog, Requirement, RequirementCompletion, ActivityLog
 from api.serializers import UserSerializer, EventSerializer, AttendanceSerializer
 
 
@@ -1235,3 +1235,93 @@ class SrsComplianceTest(TestCase):
     self.assertNotIn("password_requested_at", scanner_view)
     own_view = authenticated_client(self.student).get("/api/user/me").data
     self.assertNotIn("password_requested_at", own_view)
+
+
+class ActivityTrailTest(TestCase):
+  """Sign-ins, wrong passwords and key actions of admins and scanners (the Settings > My account page)."""
+
+  def setUp(self):
+    self.admin = staff_user("admin")
+    self.client = APIClient()
+
+  def login(self, password="StaffPass1", user_agent="Mozilla/5.0 (Windows NT 10.0) Chrome/120 Safari/537"):
+    return self.client.post(
+      "/api/auth/login",
+      {"identifier": self.admin.student_id, "password": password, "portal": "admin"},
+      format="json",
+      HTTP_USER_AGENT=user_agent,
+      HTTP_X_FORWARDED_FOR="203.0.113.9, 10.0.0.1",
+    )
+
+  def test_staff_sign_in_is_recorded_with_device_and_ip(self):
+    self.assertEqual(self.login().status_code, status.HTTP_200_OK)
+    entry = ActivityLog.objects.get(user=self.admin)
+    self.assertEqual(entry.kind, "login")
+    self.assertEqual(entry.ip_address, "203.0.113.9")
+    self.assertEqual(entry.device, "Chrome · Windows · Computer")
+
+  def test_wrong_password_on_a_staff_account_is_recorded_as_failed(self):
+    self.assertEqual(self.login(password="nope").status_code, status.HTTP_401_UNAUTHORIZED)
+    entry = ActivityLog.objects.get(user=self.admin)
+    self.assertEqual(entry.kind, "failed")
+
+  def test_unknown_accounts_and_students_leave_no_trail(self):
+    make_user("2024-00500")
+    self.client.post("/api/auth/login", {"identifier": "ghost", "password": "x", "portal": "admin"}, format="json")
+    self.client.post("/api/auth/login", {"identifier": "2024-00500", "password": "JMC090907", "portal": "student"}, format="json")
+    self.client.post("/api/auth/login", {"identifier": "2024-00500", "password": "wrong", "portal": "student"}, format="json")
+    self.assertEqual(ActivityLog.objects.count(), 0)
+
+  def test_my_activity_lists_own_trail_only(self):
+    other = staff_user("scanner")
+    self.login()
+    self.login(password="nope")
+    ActivityLog.objects.create(user=other, kind="login")
+    data = authenticated_client(self.admin).get("/api/user/me/activity").data
+    self.assertEqual(len(data["sign_ins"]), 2)
+    self.assertEqual(data["failed_last_day"], 1)
+    self.assertEqual({row["kind"] for row in data["sign_ins"]}, {"login", "failed"})
+
+  def test_students_cannot_read_the_trail(self):
+    student = make_user("2024-00501")
+    self.assertEqual(authenticated_client(student).get("/api/user/me/activity").status_code, status.HTTP_403_FORBIDDEN)
+
+  def test_actions_are_recorded(self):
+    client = authenticated_client(self.admin)
+    client.post("/api/event", {"title": "Orientation", "date": "2026-08-01", "default_points": 5}, format="json")
+    client.post("/api/requirement", {"title": "ID Lace", "point_value": 5}, format="json")
+    client.post("/api/user/me/password", {"current_password": "StaffPass1", "new_password": "Another1"}, format="json")
+    actions = {row["action"]: row["detail"] for row in client.get("/api/user/me/activity").data["actions"]}
+    self.assertEqual(actions["event.created"], "Orientation")
+    self.assertEqual(actions["requirement.created"], "ID Lace")
+    self.assertIn("password.changed", actions)
+
+  def test_staff_can_change_their_own_name(self):
+    client = authenticated_client(self.admin)
+    response = client.patch("/api/user/me", {"first_name": "Maria", "last_name": "Santos"}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    self.admin.refresh_from_db()
+    self.assertEqual((self.admin.first_name, self.admin.last_name), ("Maria", "Santos"))
+    self.assertTrue(ActivityLog.objects.filter(user=self.admin, action="profile.updated").exists())
+
+  def test_a_staff_name_cannot_be_blank(self):
+    client = authenticated_client(self.admin)
+    response = client.patch("/api/user/me", {"first_name": " ", "last_name": ""}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+  def test_staff_cannot_change_role_or_points_through_their_profile(self):
+    client = authenticated_client(staff_user("scanner"))
+    client.patch("/api/user/me", {"role": "admin", "points": 999}, format="json")
+    scanner = User.objects.get(student_id="staff-scanner")
+    self.assertEqual(scanner.role, "scanner")
+    self.assertEqual(scanner.points, 0)
+
+  def test_only_the_latest_entries_are_kept(self):
+    from api import activity
+    activity.KEEP_PER_USER = 5
+    try:
+      for _ in range(8):
+        self.login()
+    finally:
+      activity.KEEP_PER_USER = 200
+    self.assertEqual(ActivityLog.objects.filter(user=self.admin).count(), 5)

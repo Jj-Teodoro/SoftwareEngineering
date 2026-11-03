@@ -21,7 +21,7 @@ const NAV = [
   { id: "Settings", label: "Settings", icon: FiSettings },
 ];
 
-export default function DashboardShell({ currentUser, onLogout, onStartKiosk }) {
+export default function DashboardShell({ currentUser, onUserChange, onLogout, onStartKiosk }) {
   const [activeTab, setActiveTab] = useState("Dashboard");
   useReportLocation(NAV.find((n) => n.id === activeTab)?.label || activeTab);
 
@@ -41,7 +41,7 @@ export default function DashboardShell({ currentUser, onLogout, onStartKiosk }) 
       {activeTab === "Event" && <EventsPage onStartKiosk={onStartKiosk} />}
       {activeTab === "Scan" && <ScanPage onStartKiosk={onStartKiosk} />}
       {activeTab === "Import" && <ImportPage />}
-      {activeTab === "Settings" && <AdminSettingsPage currentUser={currentUser} />}
+      {activeTab === "Settings" && <AdminSettingsPage currentUser={currentUser} onUserChange={onUserChange} />}
     </AppShell>
   );
 }

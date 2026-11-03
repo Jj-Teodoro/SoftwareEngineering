@@ -199,6 +199,7 @@ export const api = {
       body: { current_password: currentPassword, new_password: newPassword },
     }),
   // staff also send where they are: { app, page, event, device }
+  myActivity: () => request("/user/me/activity"),
   heartbeat: (online, where = {}) => request("/user/me/presence", { method: "POST", body: { online, ...where } }),
   // "forgot password" for a student number or a staff username
   requestTempPassword: (studentId) =>
