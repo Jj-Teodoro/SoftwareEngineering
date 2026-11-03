@@ -20,6 +20,11 @@ export function programKey(course = "") {
   return "default";
 }
 
+// The colours of a student's program, also used to tint the student pages around the card.
+export function programTheme(course) {
+  return { key: programKey(course), ...THEMES[programKey(course)] };
+}
+
 function themeVars(course) {
   const t = THEMES[programKey(course)];
   return {
