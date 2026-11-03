@@ -118,7 +118,7 @@ function Dots({ className = "" }) {
 // Bold, poster-style left side: big headline and photos cut into a circle, an arch and a dot.
 function Poster() {
   return (
-    <div className="relative flex flex-col overflow-hidden rounded-b-[40px] bg-gradient-to-br from-[var(--header-from)] to-[#2a0709] px-6 pb-12 pt-7 text-white lg:min-h-dvh lg:justify-between lg:rounded-b-none lg:rounded-r-[64px] lg:px-12 lg:pb-12 lg:pt-10 xl:px-14">
+    <div className="relative flex flex-col overflow-hidden rounded-b-[40px] bg-gradient-to-br from-[var(--header-from)] to-[#2a0709] px-6 pb-12 pt-7 text-white lg:h-full lg:justify-between lg:rounded-b-none lg:rounded-r-[64px] lg:px-12 lg:pb-12 lg:pt-10 xl:px-14">
       {/* background shapes */}
       <span className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full border-2 border-[#f2b400]/35" aria-hidden="true" />
       <span className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full border-2 border-[#f2b400]/25" aria-hidden="true" />
@@ -166,14 +166,14 @@ function Poster() {
 // Page frame for the login screens: bold poster on one side, a gold panel with the form card on the other.
 export function AuthShell({ children }) {
   return (
-    <div className="st-root min-h-dvh bg-[#f2b400] text-[var(--text-primary)] lg:grid lg:grid-cols-[1.15fr_1fr]">
+    <div className="st-root min-h-dvh bg-[#f2b400] text-[var(--text-primary)] lg:fixed lg:inset-0 lg:grid lg:min-h-0 lg:grid-cols-[1.15fr_1fr] lg:overflow-hidden">
       <Poster />
-      <div className="relative -mt-6 flex justify-center overflow-hidden px-4 pb-10 pt-0 lg:mt-0 lg:items-center lg:py-12">
+      <div className="relative -mt-6 flex flex-col items-center overflow-hidden px-4 pb-10 pt-0 lg:mt-0 lg:overflow-y-auto lg:py-12">
         <span className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full bg-[#2a0709]/10" aria-hidden="true" />
         <span className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full border-2 border-[#2a0709]/20" aria-hidden="true" />
         <Dots className="right-6 top-8 hidden h-20 w-28 text-[#2a0709]/30 lg:block" />
         <Dots className="bottom-8 left-8 hidden h-16 w-24 text-[#2a0709]/30 lg:block" />
-        <div className="relative w-full max-w-md pt-8 lg:pt-0">
+        <div className="relative my-auto w-full max-w-md pt-8 lg:pt-0">
           <div className="rounded-xl shadow-[0_24px_50px_rgba(42,7,9,0.45)]">{children}</div>
           <p className="st-mono mt-4 hidden text-center text-[11px] font-bold text-[#2a0709]/70 lg:block">
             ACES &middot; College of Computer Studies
