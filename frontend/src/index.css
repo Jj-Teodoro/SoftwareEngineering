@@ -261,6 +261,46 @@ body {
 @keyframes st-marquee {
   to { transform: translateX(-50%); }
 }
+@keyframes st-marquee-rev {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+@keyframes st-build {
+  0% { transform: scaleX(0); opacity: 0.3; }
+  25%, 80% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+@keyframes st-dash {
+  to { stroke-dashoffset: -24; }
+}
+@keyframes st-glow {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+@keyframes st-node {
+  0%, 12% { opacity: 0; transform: scale(0.2); }
+  30%, 85% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+@keyframes st-ping {
+  0% { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(4); opacity: 0; }
+}
+@keyframes st-slide {
+  0%, 8% { transform: translateX(40px); opacity: 0; }
+  22%, 80% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-20px); opacity: 0; }
+}
+@keyframes st-scan {
+  0% { transform: translateY(0); opacity: 0; }
+  12%, 88% { opacity: 1; }
+  100% { transform: translateY(150px); opacity: 0; }
+}
+@keyframes st-pop {
+  0%, 55% { transform: scale(0.6); opacity: 0; }
+  68%, 92% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1); opacity: 0; }
+}
 @keyframes st-blink {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
@@ -286,6 +326,48 @@ body {
 .st-marquee {
   animation: st-marquee 70s linear infinite;
 }
+.st-marquee-rev {
+  animation: st-marquee-rev 80s linear infinite;
+}
+.st-build,
+.st-node,
+.st-ping,
+.st-glow {
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+.st-node,
+.st-ping {
+  transform-origin: center;
+}
+.st-build {
+  animation: st-build 5.5s ease-out infinite both;
+}
+.st-dash {
+  stroke-dasharray: 6 6;
+  animation: st-dash 1s linear infinite;
+}
+.st-glow {
+  animation: st-glow 2.2s ease-in-out infinite;
+}
+.st-node {
+  animation: st-node 6.5s ease-out infinite both;
+}
+.st-ping {
+  animation: st-ping 2s ease-out infinite;
+}
+.st-slide {
+  animation: st-slide 5.4s ease-out infinite both;
+}
+.st-scan {
+  animation: st-scan 2.6s ease-in-out infinite;
+}
+.st-pop {
+  animation: st-pop 2.6s ease-out infinite both;
+}
+.st-caret-svg {
+  animation: st-blink 1s steps(1) infinite;
+}
 .st-caret {
   display: inline-block;
   width: 0.55em;
@@ -307,6 +389,16 @@ body {
   .st-float,
   .st-twinkle,
   .st-marquee,
+  .st-marquee-rev,
+  .st-build,
+  .st-dash,
+  .st-glow,
+  .st-node,
+  .st-ping,
+  .st-slide,
+  .st-scan,
+  .st-pop,
+  .st-caret-svg,
   .st-caret {
     animation: none !important;
   }
