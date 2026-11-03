@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { FiCopy, FiDownload } from "react-icons/fi";
+import { FiCopy, FiDownload, FiFileText } from "react-icons/fi";
 import Modal from "../common/Modal.jsx";
 import { useStudents } from "../../context/staff/StudentsContext";
+import { downloadPasswordsXlsx } from "../../utils/accountsExport";
 
 
 function toCsv(results) {
@@ -13,14 +14,18 @@ function toCsv(results) {
   return rows.map((row) => row.map(escape).join(",")).join("\r\n");
 }
 
-export default function ProvisionAccountsModal({ onClose }) {
+// `candidates` are the students the admin is looking at: the ones ticked in Select mode, or else
+// everyone matching the current filters. `scopeLabel` says which of the two it is.
+export default function ProvisionAccountsModal({ onClose, candidates, scopeLabel = "on the roster" }) {
   const { students, provisionAccounts } = useStudents();
   const [progress, setProgress] = useState(null);
   const [results, setResults] = useState(null);
   const [copied, setCopied] = useState(false);
 
   // students sign in with their student number, so everyone without an account is ready
-  const ready = useMemo(() => students.filter((s) => !s.authUid), [students]);
+  const pool = candidates ?? students;
+  const ready = useMemo(() => pool.filter((s) => !s.authUid), [pool]);
+  const alreadyHave = pool.length - ready.length;
 
   const handleCreate = async () => {
     setProgress({ done: 0, total: ready.length });
@@ -40,6 +45,23 @@ export default function ProvisionAccountsModal({ onClose }) {
     a.download = "oasis-temporary-passwords.csv";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const downloadXlsx = async () => {
+    const rows = results
+      .filter((r) => r.ok)
+      .map((r) => {
+        const student = students.find((s) => s.studentId === r.studentId) || {};
+        return {
+          studentId: r.studentId,
+          name: r.name,
+          course: student.course,
+          yearLevel: student.yearLevel,
+          section: student.section,
+          tempPassword: r.tempPassword,
+        };
+      });
+    await downloadPasswordsXlsx(rows);
   };
 
   const copyAll = async () => {
@@ -75,10 +97,16 @@ export default function ProvisionAccountsModal({ onClose }) {
             <p>
               <span className="font-bold">{ready.length}</span> student(s) ready for an account
             </p>
+            <p className="text-xs text-white/60">
+              Out of {pool.length} student(s) {scopeLabel}
+              {alreadyHave > 0 && `, ${alreadyHave} already have one`}. To pick other students, close this
+              window and change the filters or tick students in Select mode.
+            </p>
           </div>
           <p className="mt-3 text-xs text-gold">
-            Temporary passwords are shown once, right after creation. Save or hand them out
-            before closing this window — admins can't view them again.
+            The full list of temporary passwords is shown once, right after creation, so download the
+            Excel file before closing this window. A single student's password can still be seen in their
+            Account tab until they choose their own.
           </p>
           <div className="mt-5 flex justify-end gap-3">
             <button
@@ -150,6 +178,14 @@ export default function ProvisionAccountsModal({ onClose }) {
             </button>
             <button
               type="button"
+              onClick={downloadXlsx}
+              disabled={created === 0}
+              className="btn-primary"
+            >
+              <FiFileText size={13} /> Download Excel
+            </button>
+            <button
+              type="button"
               onClick={downloadCsv}
               disabled={created === 0}
               className="btn-ghost"
@@ -159,7 +195,7 @@ export default function ProvisionAccountsModal({ onClose }) {
             <button
               type="button"
               onClick={onClose}
-              className="btn-primary"
+              className="btn-ghost"
             >
               Done
             </button>

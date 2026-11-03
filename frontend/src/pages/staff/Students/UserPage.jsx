@@ -316,7 +316,19 @@ export default function UserPage() {
       )}
 
       {showAddModal && <AddStudentModal onClose={() => setShowAddModal(false)} />}
-      {showProvisionModal && <ProvisionAccountsModal onClose={() => setShowProvisionModal(false)} />}
+      {showProvisionModal && (
+        <ProvisionAccountsModal
+          onClose={() => setShowProvisionModal(false)}
+          candidates={selectedIds.size > 0 ? students.filter((s) => selectedIds.has(s.studentId)) : filteredStudents}
+          scopeLabel={
+            selectedIds.size > 0
+              ? "selected"
+              : activeFilters.length > 0 || search.trim()
+              ? "matching your filters"
+              : "on the roster"
+          }
+        />
+      )}
       {viewingStudentId && (
         <StudentIdCardModal studentId={viewingStudentId} onClose={() => setViewingStudentId(null)} />
       )}
