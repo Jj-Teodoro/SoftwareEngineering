@@ -26,6 +26,7 @@ const ACTION_TEXT = {
   "requirement.created": (d) => `Added the requirement "${d}"`,
   "requirement.updated": (d) => `Edited the requirement "${d}"`,
   "requirement.deleted": (d) => `Removed the requirement "${d}"`,
+  "settings.clearance": (d) => `Set the points needed for clearance to ${d}`,
   "attendance.in": (d) => `Checked in ${d}`,
   "attendance.out": (d) => `Checked out ${d}`,
 };

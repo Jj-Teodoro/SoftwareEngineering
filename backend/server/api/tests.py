@@ -3,7 +3,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from io import StringIO
 from django.core.management import call_command
-from api.models import User, Event, Attendance, Notification, SubmissionLog, Requirement, RequirementCompletion, ActivityLog
+from api.models import User, Event, Attendance, Notification, SubmissionLog, Requirement, RequirementCompletion, ActivityLog, ClearanceSetting
 from api.serializers import UserSerializer, EventSerializer, AttendanceSerializer
 
 
@@ -1341,3 +1341,40 @@ class ActivityLogFailureTest(TestCase):
         format="json",
       )
     self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class ClearanceSettingTest(TestCase):
+  """The admin decides how many points a student needs; earning more is fine."""
+
+  def test_default_is_automatic(self):
+    response = authenticated_client(make_user("2024-00600")).get("/api/settings/clearance")
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    self.assertIsNone(response.data["required_points"])
+
+  def test_admin_sets_and_clears_it_and_everyone_can_read_it(self):
+    admin = authenticated_client()
+    self.assertEqual(admin.patch("/api/settings/clearance", {"required_points": 50}, format="json").data["required_points"], 50)
+    student = authenticated_client(make_user("2024-00601"))
+    scanner = authenticated_client(staff_user("scanner"))
+    self.assertEqual(student.get("/api/settings/clearance").data["required_points"], 50)
+    self.assertEqual(scanner.get("/api/settings/clearance").data["required_points"], 50)
+    self.assertIsNone(admin.patch("/api/settings/clearance", {"required_points": None}, format="json").data["required_points"])
+    self.assertIsNone(student.get("/api/settings/clearance").data["required_points"])
+
+  def test_only_admins_can_change_it(self):
+    for client in (authenticated_client(staff_user("scanner")), authenticated_client(make_user("2024-00602"))):
+      response = client.patch("/api/settings/clearance", {"required_points": 10}, format="json")
+      self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    self.assertIsNone(ClearanceSetting.objects.filter(pk=1).values_list("required_points", flat=True).first())
+
+  def test_rejects_values_that_are_not_sensible_targets(self):
+    admin = authenticated_client()
+    for bad in (0, -5, "abc", 1.5 * 0 + 100001, True, [10]):
+      response = admin.patch("/api/settings/clearance", {"required_points": bad}, format="json")
+      self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, bad)
+
+  def test_changing_it_is_recorded_for_the_admin(self):
+    admin = staff_user("admin")
+    authenticated_client(admin).patch("/api/settings/clearance", {"required_points": 80}, format="json")
+    entry = ActivityLog.objects.get(user=admin, action="settings.clearance")
+    self.assertEqual(entry.detail, "80 points")

@@ -221,7 +221,9 @@ export default function StudentIdCard({
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           {cleared ? (
-            <span className="st-chip border border-[var(--ok)] text-[var(--ok)]">Cleared</span>
+            <span className="st-chip border border-[var(--ok)] text-[var(--ok)]">
+              Cleared{totalPoints > targetPoints ? ` · +${totalPoints - targetPoints} extra` : ""}
+            </span>
           ) : (
             <span className="st-muted text-xs">
               {Math.max(0, targetPoints - totalPoints)} points to go

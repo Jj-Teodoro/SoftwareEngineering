@@ -12,6 +12,7 @@ export function PointsProvider({ children }) {
   const [eventPoints, setEventPoints] = useState({});
   const [attendanceByStudent, setAttendanceByStudent] = useState({});
   const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [requiredPoints, setRequiredPoints] = useState(null); // null = automatic
   const { items, appliesTo, getRequirementPoints } = useRequirements();
   const { events } = useEvents();
   const { students } = useStudents();
@@ -36,13 +37,29 @@ export function PointsProvider({ children }) {
     { enabled: signedIn }
   );
 
+  usePolling(
+    async () => {
+      const setting = await api.settings.clearance();
+      setRequiredPoints(setting.required_points ?? null);
+    },
+    { enabled: signedIn, interval: 30000 }
+  );
+
+  // Saves the target the admin typed (a number), or null to go back to automatic.
+  const saveRequiredPoints = async (value) => {
+    const saved = await api.settings.setClearance(value);
+    setRequiredPoints(saved.required_points ?? null);
+  };
+
   const getTotalPoints = (studentId) =>
     (eventPoints[studentId] || 0) +
     getRequirementPoints(studentId, students.find((s) => s.studentId === studentId)?.course);
 
-  // What a student has to earn to be cleared: every requirement and event that
-  // applies to their program (events open to all programs, or to theirs).
+  // What a student has to earn to be cleared. The admin can set one number for everyone;
+  // otherwise it is every requirement and event that applies to their program (events
+  // open to all programs, or to theirs). Earning more than the target is fine.
   const getTargetPoints = (studentId) => {
+    if (requiredPoints) return requiredPoints;
     const course = students.find((s) => s.studentId === studentId)?.course;
     const fromRequirements = items
       .filter((item) => appliesTo(item, course))
@@ -67,7 +84,15 @@ export function PointsProvider({ children }) {
 
   return (
     <PointsContext.Provider
-      value={{ getTotalPoints, getClearance, getTargetPoints, getAttendanceRecords, attendanceRecords }}
+      value={{
+        getTotalPoints,
+        getClearance,
+        getTargetPoints,
+        getAttendanceRecords,
+        attendanceRecords,
+        requiredPoints,
+        saveRequiredPoints,
+      }}
     >
       {children}
     </PointsContext.Provider>

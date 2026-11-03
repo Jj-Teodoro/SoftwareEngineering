@@ -8,6 +8,7 @@ import { useStaff } from "../../../context/staff/StaffContext";
 import { useStudents } from "../../../context/staff/StudentsContext";
 import { useEvents } from "../../../context/staff/EventsContext";
 import MyAccountTab from "./MyAccountTab";
+import PointsTab from "./PointsTab";
 import { useRequirements } from "../../../context/staff/RequirementsContext";
 import { formatAgo } from "../../../context/staff/PresenceContext";
 
@@ -325,6 +326,7 @@ function SystemInfo() {
 const TABS = [
   { id: "account", label: "My account" },
   { id: "staff", label: "Staff" },
+  { id: "points", label: "Points" },
   { id: "system", label: "System" },
 ];
 
@@ -364,6 +366,7 @@ export default function SettingsPage({ currentUser, onUserChange }) {
 
       {tab === "account" && <MyAccountTab user={currentUser} onUserChange={onUserChange} />}
       {tab === "staff" && <StaffAccounts user={currentUser} />}
+      {tab === "points" && <PointsTab />}
       {tab === "system" && <SystemInfo />}
     </div>
   );
