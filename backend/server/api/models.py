@@ -151,6 +151,12 @@ class Attendance(models.Model):
   time_out = models.DateTimeField(null=True, blank=True)
   points_awarded = models.IntegerField(default=0)
 
+  class Meta:
+    # SRS FR-28 / DB-02: at most one record per event and student
+    constraints = [
+      models.UniqueConstraint(fields=["user", "event"], name="unique_attendance_per_event"),
+    ]
+
 class NotificationManager(models.Manager):
   def create_notification(self, message, **extra_fields):
     if not message:

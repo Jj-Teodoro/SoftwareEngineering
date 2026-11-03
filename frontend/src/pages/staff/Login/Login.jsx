@@ -20,8 +20,8 @@ export default function LoginPage({ onLoginSuccess }) {
       logoSrc={oasis_logo}
       acesSrc={aces_logo}
       onLogin={handleLogin}
-      // scanner accounts ask an admin for a new temporary password
-      onRequestReset={isAdmin ? undefined : requestPassword}
+      // staff ask an admin for a new temporary password
+      onRequestReset={requestPassword}
     />
   );
 }

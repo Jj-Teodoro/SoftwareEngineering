@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { FiCopy, FiKey, FiMonitor, FiPlus, FiRefreshCw, FiSmartphone, FiTrash2 } from "react-icons/fi";
 import { api } from "../../../api/client";
 import { useConfirm } from "../../../components/common/ConfirmDialog.jsx";
+import AddStudentModal from "../../../components/staff/AddStudentModal";
 import { EmptyState, PageHeader, Section } from "../../../components/common/ui.jsx";
 import { useStaff } from "../../../context/staff/StaffContext";
 import { useStudents } from "../../../context/staff/StudentsContext";
@@ -96,8 +97,8 @@ function MyAccount({ user }) {
           <p className="text-base font-semibold">{user?.name}</p>
           <p className="font-mono text-xs muted">{user?.username} · {user?.role}</p>
           <p className="mt-3 text-xs leading-relaxed muted">
-            Admin accounts are the only ones that can change their own password. Scanner accounts get a new
-            temporary password from you (see below).
+            Change your own password here. For other admins and scanners, issue a new temporary password from
+            the staff list below.
           </p>
         </div>
         <form onSubmit={submit} className="flex flex-col gap-3">
@@ -112,12 +113,10 @@ function MyAccount({ user }) {
 }
 
 function StaffAccounts({ user }) {
-  const { staff, getActivity, now, createScanner, issuePassword, removeStaff, dismissRequest } = useStaff();
+  const { staff, getActivity, now, createStaff, issuePassword, removeStaff, dismissRequest } = useStaff();
   const confirm = useConfirm();
 
-  const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
-  const [creating, setCreating] = useState(false);
+  const [newRole, setNewRole] = useState(null); // "admin" / "scanner" while its form is open
   const [error, setError] = useState("");
   const [issued, setIssued] = useState(null); // credentials just created or re-issued
   const [busyUid, setBusyUid] = useState(null);
@@ -125,16 +124,15 @@ function StaffAccounts({ user }) {
   const members = [...staff].sort((a, b) => (a.role === b.role ? a.name.localeCompare(b.name) : a.role === "admin" ? -1 : 1));
   const activeCount = members.filter((m) => getActivity(m.uid).active).length;
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    setCreating(true);
-    setError("");
-    const result = await createScanner({ name, username });
-    setCreating(false);
-    if (!result.ok) return setError(result.message);
-    setIssued({ username: result.username, password: result.tempPassword, heading: "Scanner account created — give these to them" });
-    setName("");
-    setUsername("");
+  // Same fields as a new student record; the ID number becomes their username.
+  const handleCreate = async (fields) => {
+    const result = await createStaff(fields, newRole);
+    if (result.ok) {
+      setError("");
+      const label = newRole === "admin" ? "Admin" : "Scanner";
+      setIssued({ username: result.username, password: result.tempPassword, heading: `${label} account created — give these to them` });
+    }
+    return result;
   };
 
   const handleIssue = async (member) => {
@@ -171,17 +169,30 @@ function StaffAccounts({ user }) {
       title="Staff accounts & activity"
       action={<span className="chip-green"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" /> {activeCount} active now</span>}
     >
-      <form onSubmit={handleCreate} className="surface-inset mb-4 grid gap-3 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-        <div>
-          <label className="label mb-1.5 block">Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Juan Dela Cruz" className="input" required />
+      <div className="surface-inset mb-4 flex flex-wrap items-center justify-between gap-3 p-4">
+        <p className="text-sm muted">
+          New accounts use the same details as a student record. Their ID number is the username they sign in with.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => setNewRole("scanner")} className="btn-primary">
+            <FiPlus size={14} /> Add scanner
+          </button>
+          <button type="button" onClick={() => setNewRole("admin")} className="btn-ghost">
+            <FiPlus size={14} /> Add admin
+          </button>
         </div>
-        <div>
-          <label className="label mb-1.5 block">Username</label>
-          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. juan.scanner" className="input" required />
-        </div>
-        <button type="submit" disabled={creating} className="btn-primary"><FiPlus size={14} /> {creating ? "Creating..." : "Add scanner"}</button>
-      </form>
+      </div>
+
+      {newRole && (
+        <AddStudentModal
+          title={newRole === "admin" ? "Add Admin Account" : "Add Scanner Account"}
+          idLabel="ID Number (used to sign in)"
+          emailPlaceholder="name@dyci.edu.ph"
+          submitLabel={newRole === "admin" ? "Add Admin" : "Add Scanner"}
+          onClose={() => setNewRole(null)}
+          onSave={handleCreate}
+        />
+      )}
 
       {error && <p className="mb-3 text-sm text-neon-pink">{error}</p>}
       {issued && (
@@ -201,8 +212,9 @@ function StaffAccounts({ user }) {
           const a = getActivity(m.uid);
           const isMe = m.uid === user?.uid;
           const requested = Boolean(m.passwordRequestedAt);
-          const isScanner = m.role === "scanner";
-          const pending = isScanner && m.mustChangePassword;
+          // every account except your own can be reset or removed here
+          const canManage = !isMe;
+          const pending = canManage && m.mustChangePassword;
           return (
             <div key={m.uid} className="border-b border-white/10 last:border-0">
               <div className={ROW}>
@@ -252,7 +264,7 @@ function StaffAccounts({ user }) {
                 </div>
 
                 <div className="col-span-2 flex flex-wrap gap-2 lg:col-span-1 lg:justify-end">
-                  {isScanner && !isMe && (
+                  {canManage && (
                     <>
                       <button type="button" onClick={() => handleIssue(m)} disabled={busyUid === m.uid} className="btn-ghost btn-sm">
                         <FiRefreshCw size={12} /> {busyUid === m.uid ? "Working..." : "New password"}
@@ -265,7 +277,7 @@ function StaffAccounts({ user }) {
                 </div>
               </div>
 
-              {(pending || requested) && isScanner && (
+              {(pending || requested) && canManage && (
                 <div className="space-y-2 px-4 pb-3">
                   {requested && (
                     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2">
@@ -330,7 +342,7 @@ function SystemInfo() {
 export default function SettingsPage({ currentUser }) {
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Settings" subtitle="Your account, the people who use the scanner, and how the system is set up." />
+      <PageHeader title="Settings" subtitle="Your account, the admin and scanner accounts, and how the system is set up." />
       <MyAccount user={currentUser} />
       <StaffAccounts user={currentUser} />
       <SystemInfo />
