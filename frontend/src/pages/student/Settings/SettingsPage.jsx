@@ -120,8 +120,7 @@ export default function SettingsPage({ onLogout, onNavigate }) {
           <Detail label="Account" value="Active" />
         </div>
         <p className="st-muted mt-4 text-xs leading-relaxed">
-          Your name, ID, program and points are managed by your admin. You can edit your photo, bio, talent and
-          hobbies on your ID card.
+          Your name, ID, program and points are managed by your admin. You can change your photo on your ID card.
         </p>
         <button type="button" onClick={() => onNavigate?.("Activity")} className="st-btn-ghost mt-4 h-10 px-5 text-xs">
           Edit my ID card
