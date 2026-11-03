@@ -10,10 +10,6 @@ import { useEvents } from "../../../context/staff/EventsContext";
 import { useRequirements } from "../../../context/staff/RequirementsContext";
 import { formatAgo } from "../../../context/staff/PresenceContext";
 
-// One grid for header and rows: a card on phones, a table row from lg up.
-const ROW =
-  "grid grid-cols-2 items-center gap-x-4 gap-y-2.5 px-4 py-3 lg:grid-cols-[minmax(0,1.5fr)_130px_minmax(0,2fr)_130px_minmax(0,1.2fr)]";
-
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -98,7 +94,7 @@ function MyAccount({ user }) {
           <p className="font-mono text-xs muted">{user?.username} · {user?.role}</p>
           <p className="mt-3 text-xs leading-relaxed muted">
             Change your own password here. For other admins and scanners, issue a new temporary password from
-            the staff list below.
+            the Staff tab.
           </p>
         </div>
         <form onSubmit={submit} className="flex flex-col gap-3">
@@ -120,6 +116,7 @@ function StaffAccounts({ user }) {
   const [error, setError] = useState("");
   const [issued, setIssued] = useState(null); // credentials just created or re-issued
   const [busyUid, setBusyUid] = useState(null);
+  const [filter, setFilter] = useState("all"); // all / admin / scanner
 
   const members = [...staff].sort((a, b) => (a.role === b.role ? a.name.localeCompare(b.name) : a.role === "admin" ? -1 : 1));
   const activeCount = members.filter((m) => getActivity(m.uid).active).length;
@@ -164,21 +161,49 @@ function StaffAccounts({ user }) {
     setError(result.ok ? "" : result.message);
   };
 
+  const shown = members.filter((m) => filter === "all" || m.role === filter);
+  const counts = {
+    all: members.length,
+    admin: members.filter((m) => m.role === "admin").length,
+    scanner: members.filter((m) => m.role === "scanner").length,
+  };
+
   return (
     <Section
-      title="Staff accounts & activity"
-      action={<span className="chip-green"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" /> {activeCount} active now</span>}
+      title="Staff accounts"
+      action={
+        <span className="chip-green">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" /> {activeCount} active now
+        </span>
+      }
     >
-      <div className="surface-inset mb-4 flex flex-wrap items-center justify-between gap-3 p-4">
-        <p className="text-sm muted">
-          New accounts use the same details as a student record. Their ID number is the username they sign in with.
-        </p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-1 rounded-lg border border-white/10 bg-black/30 p-1" role="tablist" aria-label="Show">
+          {[
+            ["all", "All"],
+            ["admin", "Admins"],
+            ["scanner", "Scanners"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={filter === id}
+              onClick={() => setFilter(id)}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                filter === id ? "bg-gold/15 text-gold" : "text-white/60 hover:text-white"
+              }`}
+            >
+              {label} <span className="text-white/40">{counts[id]}</span>
+            </button>
+          ))}
+        </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setNewRole("scanner")} className="btn-primary">
-            <FiPlus size={14} /> Add scanner
+          <button type="button" onClick={() => setNewRole("scanner")} className="btn-primary btn-sm">
+            <FiPlus size={13} /> Add scanner
           </button>
-          <button type="button" onClick={() => setNewRole("admin")} className="btn-ghost">
-            <FiPlus size={14} /> Add admin
+          <button type="button" onClick={() => setNewRole("admin")} className="btn-ghost btn-sm">
+            <FiPlus size={13} /> Add admin
           </button>
         </div>
       </div>
@@ -202,83 +227,84 @@ function StaffAccounts({ user }) {
       )}
 
       <div className="overflow-hidden rounded-lg border border-white/10">
-        <div className={`${ROW} hidden border-b border-white/10 bg-white/[0.03] lg:grid`}>
-          {["Person", "Status", "Using", "Account", ""].map((h, i) => <span key={i} className="label">{h}</span>)}
-        </div>
+        {shown.length === 0 && <EmptyState>No {filter === "all" ? "staff" : filter} accounts yet.</EmptyState>}
 
-        {members.length === 0 && <EmptyState>No staff accounts yet.</EmptyState>}
-
-        {members.map((m) => {
+        {shown.map((m) => {
           const a = getActivity(m.uid);
           const isMe = m.uid === user?.uid;
           const requested = Boolean(m.passwordRequestedAt);
           // every account except your own can be reset or removed here
           const canManage = !isMe;
           const pending = canManage && m.mustChangePassword;
+          const initials = m.name
+            .split(/[\s,]+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((w) => w[0])
+            .join("")
+            .toUpperCase();
           return (
             <div key={m.uid} className="border-b border-white/10 last:border-0">
-              <div className={ROW}>
-                <div className="col-span-2 min-w-0 lg:col-span-1">
-                  <p className="truncate text-sm font-semibold">{m.name}{isMe && <span className="ml-2 text-xs text-white/40">(you)</span>}</p>
-                  <p className="font-mono text-xs text-white/45">{m.username} · {m.role}</p>
-                </div>
+              <div className="flex flex-wrap items-start gap-3 px-4 py-3.5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] font-mono text-xs font-bold text-gold">
+                  {initials}
+                </span>
 
-                <div className="min-w-0">
-                  <span className={a.active ? "chip-green" : "chip-gray"}>
-                    <span className={`h-1.5 w-1.5 rounded-full bg-current ${a.active ? "animate-pulse" : ""}`} />
-                    {a.active ? "Active now" : "Offline"}
-                  </span>
-                  {!a.active && (
-                    <p className="mt-1 text-[11px] text-white/45">{a.lastSeen ? `Last seen ${formatAgo(a.lastSeen, now)}` : "Never signed in"}</p>
-                  )}
-                </div>
+                <div className="min-w-0 flex-1 basis-48">
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold">
+                    <span className="truncate">{m.name}</span>
+                    <span
+                      className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                        m.role === "admin" ? "border-gold/50 text-gold" : "border-white/20 text-white/60"
+                      }`}
+                    >
+                      {m.role}
+                    </span>
+                    {isMe && <span className="text-xs font-normal text-white/40">you</span>}
+                    {requested && <span className="chip-amber">Reset requested</span>}
+                    {pending && !requested && <span className="chip-amber">First sign-in pending</span>}
+                  </p>
+                  <p className="font-mono text-xs text-white/45">{m.username}</p>
 
-                <div className="col-span-2 min-w-0 lg:col-span-1">
-                  {a.lastSeen ? (
-                    <>
-                      <p className="flex items-center gap-1.5 text-sm">
-                        <FiMonitor size={13} className="shrink-0 text-gold" />
-                        <span className="truncate">
+                  <p className="mt-1.5 flex items-center gap-2 text-xs">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${a.active ? "animate-pulse bg-green-400" : "bg-white/25"}`} />
+                    {a.active ? (
+                      <span className="text-green-300">
+                        Active now
+                        <span className="text-white/60">
+                          {" · "}
                           {a.app === "admin" ? "Admin site" : "Scanner site"}
                           {a.page ? ` · ${a.page}` : ""}
                           {a.event ? ` · ${a.event}` : ""}
                         </span>
-                      </p>
-                      <p className="mt-0.5 flex items-center gap-1.5 text-xs text-white/50">
-                        <FiSmartphone size={12} className="shrink-0" /> <span className="truncate">{a.device || "Unknown device"}</span>
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-xs text-white/40">—</p>
+                      </span>
+                    ) : (
+                      <span className="text-white/50">
+                        {a.lastSeen ? `Offline · last seen ${formatAgo(a.lastSeen, now)}` : "Has not signed in yet"}
+                      </span>
+                    )}
+                  </p>
+                  {a.lastSeen && (
+                    <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-white/40">
+                      <FiSmartphone size={11} className="shrink-0" /> <span className="truncate">{a.device || "Unknown device"}</span>
+                    </p>
                   )}
                 </div>
 
-                <div>
-                  {requested ? (
-                    <span className="chip-amber"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" /> Reset requested</span>
-                  ) : pending ? (
-                    <span className="chip-amber">Pending</span>
-                  ) : (
-                    <span className="chip-green">Active</span>
-                  )}
-                </div>
-
-                <div className="col-span-2 flex flex-wrap gap-2 lg:col-span-1 lg:justify-end">
-                  {canManage && (
-                    <>
-                      <button type="button" onClick={() => handleIssue(m)} disabled={busyUid === m.uid} className="btn-ghost btn-sm">
-                        <FiRefreshCw size={12} /> {busyUid === m.uid ? "Working..." : "New password"}
-                      </button>
-                      <button type="button" onClick={() => handleRemove(m)} disabled={busyUid === m.uid} className="btn-danger btn-sm" aria-label={`Remove ${m.name}`}>
-                        <FiTrash2 size={12} />
-                      </button>
-                    </>
-                  )}
-                </div>
+                {canManage && (
+                  <div className="flex shrink-0 gap-2">
+                    <button type="button" onClick={() => handleIssue(m)} disabled={busyUid === m.uid} className="btn-ghost btn-sm">
+                      <FiRefreshCw size={12} /> {busyUid === m.uid ? "Working..." : "New password"}
+                    </button>
+                    <button type="button" onClick={() => handleRemove(m)} disabled={busyUid === m.uid} className="btn-danger btn-sm" aria-label={`Remove ${m.name}`}>
+                      <FiTrash2 size={12} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {(pending || requested) && canManage && (
-                <div className="space-y-2 px-4 pb-3">
+                <div className="space-y-2 px-4 pb-3.5">
                   {requested && (
                     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2">
                       <p className="flex-1 text-sm font-semibold text-gold">{m.name} asked for a new temporary password.</p>
@@ -295,8 +321,8 @@ function StaffAccounts({ user }) {
       </div>
 
       <p className="mt-3 text-xs leading-relaxed text-white/45">
-        "Using" shows the page, the event if they're running a kiosk, and the browser and device they signed in on.
-        Status updates about every 30 seconds.
+        Activity updates about every 30 seconds. New accounts use the same details as a student record, and the
+        ID number is the username they sign in with.
       </p>
     </Section>
   );
@@ -339,13 +365,49 @@ function SystemInfo() {
   );
 }
 
+const TABS = [
+  { id: "account", label: "My account" },
+  { id: "staff", label: "Staff" },
+  { id: "system", label: "System" },
+];
+
 export default function SettingsPage({ currentUser }) {
+  const { staff } = useStaff();
+  const [tab, setTab] = useState("account");
+  const requests = staff.filter((m) => m.passwordRequestedAt).length;
+
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Settings" subtitle="Your account, the admin and scanner accounts, and how the system is set up." />
-      <MyAccount user={currentUser} />
-      <StaffAccounts user={currentUser} />
-      <SystemInfo />
+      <PageHeader title="Settings" subtitle="Your account, the staff accounts, and how the system works." />
+
+      <div className="flex gap-1 rounded-lg border border-white/10 bg-black/30 p-1" role="tablist" aria-label="Settings sections">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-md py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
+              tab === t.id ? "bg-gold/15 text-gold" : "text-white/60 hover:text-white"
+            }`}
+          >
+            {t.label}
+            {t.id === "staff" && requests > 0 && (
+              <span
+                className="flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-bold text-black"
+                title="Password requests waiting"
+              >
+                {requests}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {tab === "account" && <MyAccount user={currentUser} />}
+      {tab === "staff" && <StaffAccounts user={currentUser} />}
+      {tab === "system" && <SystemInfo />}
     </div>
   );
 }
