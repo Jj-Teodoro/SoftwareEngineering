@@ -109,7 +109,6 @@ export default function ActivityCard({ student, onShowBreakdown }) {
       onShowBreakdown={onShowBreakdown}
       titleAction={titleAction}
       photoOverlay={photoOverlay}
-      showAbout={false}
     />
     {error && <p className="mt-3 text-sm font-medium text-[var(--danger)]">! {error}</p>}
     </>
