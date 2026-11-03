@@ -153,6 +153,23 @@ body {
   background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
 }
 
+/* After sign-in the whole student site takes the colour of the student's program
+   (the Shell sets --prog-* from it); buttons, labels, outlines and the header follow. */
+.st-program {
+  --gold: var(--prog-accent);
+  --on-gold: var(--prog-ink);
+  --accent-text: var(--prog-accent);
+  --header-from: var(--prog-bg1);
+  --header-to: var(--prog-bg3);
+  --line: color-mix(in srgb, var(--prog-accent) 32%, transparent);
+  --grid: color-mix(in srgb, var(--prog-accent) 6%, transparent);
+}
+html.light .st-program {
+  --accent-text: var(--prog-deep);
+  --line: color-mix(in srgb, var(--prog-deep) 24%, transparent);
+  --grid: color-mix(in srgb, var(--prog-deep) 6%, transparent);
+}
+
 @layer components {
   .st-mono {
     font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
