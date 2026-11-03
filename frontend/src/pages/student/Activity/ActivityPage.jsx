@@ -4,6 +4,9 @@ import { useStudent } from "../../../context/student/StudentContext";
 import ActivityCard from "./ActivityCard";
 import RecentActivities from "./RecentActivities";
 import RequirementsPanel from "./RequirementsPanel";
+import StatTiles from "./StatTiles";
+import UpNext from "./UpNext";
+import WelcomeBanner from "./WelcomeBanner";
 
 export default function ActivityPage() {
   const { student } = useStudent();
@@ -12,11 +15,18 @@ export default function ActivityPage() {
   if (!student) return null;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid gap-6 lg:grid-cols-[1fr_290px]">
+    <div className="flex flex-col gap-5">
+      <WelcomeBanner student={student} />
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,500px)_minmax(0,1fr)] lg:items-start">
         <ActivityCard student={student} onShowBreakdown={() => setShowBreakdown(true)} />
-        <RecentActivities />
+        <div className="flex flex-col gap-5">
+          <StatTiles />
+          <UpNext />
+          <RecentActivities />
+        </div>
       </div>
+
       <RequirementsPanel />
       {showBreakdown && <PointsBreakdownModal onClose={() => setShowBreakdown(false)} />}
     </div>
