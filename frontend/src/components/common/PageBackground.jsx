@@ -1,7 +1,7 @@
 // Dark base with a faint grid and a maroon glow. Kept subtle so content stays readable.
 export default function PageBackground({ children }) {
   return (
-    <div className="relative min-h-screen bg-ink font-['Montserrat',sans-serif] text-white">
+    <div className="relative min-h-dvh bg-ink font-['Montserrat',sans-serif] text-white">
       <div
         className="pointer-events-none fixed inset-0"
         style={{
@@ -10,7 +10,7 @@ export default function PageBackground({ children }) {
           backgroundSize: "100% 100%, 40px 40px, 40px 40px",
         }}
       />
-      <div className="relative z-10 min-h-screen">{children}</div>
+      <div className="relative z-10 min-h-dvh">{children}</div>
     </div>
   );
 }

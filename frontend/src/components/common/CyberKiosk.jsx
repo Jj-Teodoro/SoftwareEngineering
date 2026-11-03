@@ -40,7 +40,7 @@ export function formatTime(iso) {
 
 function Backdrop({ children }) {
   return (
-    <div className={`relative min-h-screen overflow-hidden bg-[#0b0203] text-white ${MONO}`}>
+    <div className={`relative min-h-dvh overflow-hidden bg-[#0b0203] text-white ${MONO}`}>
       <style>{KEYFRAMES}</style>
       <div
         className="pointer-events-none absolute inset-0"
@@ -69,7 +69,7 @@ function Backdrop({ children }) {
         style={{ animation: "kx-sweep 9s linear infinite" }}
       />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,.5))]" />
-      <div className="relative z-10 min-h-screen">{children}</div>
+      <div className="relative z-10 min-h-dvh">{children}</div>
     </div>
   );
 }
@@ -274,7 +274,7 @@ function ResultCard({ result }) {
 export function CyberKioskNotice({ title, message, buttonLabel, onExit, logoSrc }) {
   return (
     <Backdrop>
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-6 text-center">
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-6 text-center">
         {logoSrc && <img src={logoSrc} alt="OASIS" className="h-auto max-w-[200px]" />}
         <Frame className="w-full max-w-lg" innerClassName="px-8 py-10">
           <p className="mb-3 text-[10px] uppercase tracking-[4px]" style={{ color: PINK }}>
@@ -315,7 +315,7 @@ export default function CyberKiosk({
 
   return (
     <Backdrop>
-      <div className="flex min-h-screen flex-col items-center justify-center px-5 py-10">
+      <div className="flex min-h-dvh flex-col items-center justify-center px-5 py-10">
         {logoSrc && (
           <img
             src={logoSrc}

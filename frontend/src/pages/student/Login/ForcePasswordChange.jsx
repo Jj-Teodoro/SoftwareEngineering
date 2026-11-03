@@ -74,7 +74,7 @@ export default function ForcePasswordChange({ onLogout }) {
 
   return (
     <PageBackground>
-      <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="flex min-h-dvh items-center justify-center px-4 py-10">
         <CyberFrame className="w-full max-w-md" innerClassName="p-8" cut={26} tag="sys://new_password">
           <img src={oasis_logo} alt="OASIS" className="mx-auto mb-2 h-auto w-[180px] object-contain" />
           <h1 className="cp-glitch text-center font-display text-base uppercase tracking-[3px] text-[var(--panel-title)]">

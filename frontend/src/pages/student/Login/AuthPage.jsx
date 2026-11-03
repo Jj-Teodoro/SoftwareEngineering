@@ -72,27 +72,27 @@ export default function AuthPage({ onAuthSuccess }) {
 
   return (
     <PageBackground>
-      <div className="flex min-h-screen items-center justify-center px-6 py-10 lg:px-24">
-        <div className="flex w-full max-w-7xl flex-col items-center justify-center gap-12 lg:flex-row lg:gap-32">
+      <div className="flex min-h-dvh items-center justify-center px-4 py-8 sm:px-6 sm:py-10 lg:px-24">
+        <div className="flex w-full max-w-7xl flex-col items-center justify-center gap-8 sm:gap-12 lg:flex-row lg:gap-32">
           <div className="flex w-full max-w-[420px] flex-col items-center text-center">
             <img
               src={aces_logo}
               alt="ACES Logo"
-              className="mb-6 h-auto w-90 max-w-full object-contain drop-shadow-[0_0_22px_rgba(242,180,0,0.35)]"
+              className="mb-4 h-auto w-32 max-w-full object-contain sm:mb-6 sm:w-44 lg:w-72 drop-shadow-[0_0_22px_rgba(242,180,0,0.35)]"
             />
             <p className="mb-3 font-mono text-[10px] uppercase tracking-[4px] text-[var(--neon-cyan)]">
               // access terminal
             </p>
-            <h2 className="cp-glitch font-display text-sm tracking-[3px] text-[var(--text-primary)]">
+            <h2 className="cp-glitch font-display text-xs tracking-[2px] sm:text-sm sm:tracking-[3px] text-[var(--text-primary)]">
               DR. YANGA'S COLLEGES, INC.
             </h2>
-            <p className="mt-3 font-mono text-xs uppercase tracking-[3px] text-[var(--text-muted)]">
+            <p className="mt-3 font-mono text-[11px] uppercase tracking-[2px] text-[var(--text-muted)] sm:text-xs sm:tracking-[3px]">
               College of Computer Studies
             </p>
-            <p className="mt-1 font-mono text-xs uppercase tracking-[3px] text-[var(--text-muted)]">
+            <p className="mt-1 font-mono text-[11px] uppercase tracking-[2px] text-[var(--text-muted)] sm:text-xs sm:tracking-[3px]">
               Association of Computer Enthusiast Students
             </p>
-            <div className="mt-6 flex w-full items-center gap-2" aria-hidden="true">
+            <div className="mt-4 flex w-full items-center gap-2 sm:mt-6" aria-hidden="true">
               <span className="h-[2px] w-12 bg-[var(--gold)] shadow-[0_0_8px_var(--glow)]" />
               <span className="h-px flex-1 bg-[var(--surface-border)]" />
               <span className="h-1.5 w-1.5 rotate-45 bg-[var(--neon-pink)] shadow-[0_0_8px_var(--neon-pink)]" />
@@ -101,7 +101,7 @@ export default function AuthPage({ onAuthSuccess }) {
 
           <CyberFrame
             className="w-full max-w-[640px]"
-            innerClassName="px-8 pb-10 pt-8 sm:px-12"
+            innerClassName="px-5 pb-8 pt-6 sm:px-12 sm:pb-10 sm:pt-8"
             cut={30}
             tag={mode === "login" ? "sys://login" : "sys://recover"}
           >
@@ -109,7 +109,7 @@ export default function AuthPage({ onAuthSuccess }) {
               <img
                 src={oasis_logo}
                 alt="OASIS Logo"
-                className="mb-[-36px] h-auto max-w-[260px] object-contain drop-shadow-[0_8px_18px_rgba(0,0,0,0.5)] lg:max-w-[400px]"
+                className="mb-[-28px] h-auto w-full max-w-[220px] sm:mb-[-36px] sm:max-w-[260px] object-contain drop-shadow-[0_8px_18px_rgba(0,0,0,0.5)] lg:max-w-[400px]"
               />
               <p className="cp-glitch mt-1 font-display text-xs uppercase tracking-[4px] text-[var(--text-primary)]">
                 {mode === "login" && "Student Login"}
