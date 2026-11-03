@@ -61,22 +61,20 @@ const COVERS = Object.entries(
   .sort(([a], [b]) => a.localeCompare(b))
   .map(([, url]) => url);
 
+const SHOW_MS = 3200;
 const pad2 = (n) => String(n).padStart(2, "0");
 
 // Photo showcase: the whole photo is always visible (a blurred copy fills the frame behind it),
-// with arrows, a counter, autoplay that pauses on hover, and two photos peeking out behind.
+// a counter, automatic changing with a quick flash, and two photos peeking out behind.
 function PhotoShowcase() {
   const count = COVERS.length;
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
-
-  const go = (delta) => setIndex((i) => (i + delta + count) % count);
 
   useEffect(() => {
-    if (reducedMotion() || paused || count < 2) return undefined;
-    const timer = setTimeout(() => go(1), 4200);
+    if (reducedMotion() || count < 2) return undefined;
+    const timer = setTimeout(() => setIndex((i) => (i + 1) % count), SHOW_MS);
     return () => clearTimeout(timer);
-  }, [index, paused, count]);
+  }, [index, count]);
 
   useEffect(() => {
     if (count > 1) new Image().src = COVERS[(index + 2) % count];
@@ -84,16 +82,9 @@ function PhotoShowcase() {
 
   if (count === 0) return null;
   const at = (offset) => COVERS[(index + offset + count) % count];
-  const arrow =
-    "absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-lg font-bold text-white backdrop-blur transition hover:bg-[#f2b400] hover:text-[#2a0507] sm:h-10 sm:w-10";
-
   return (
     <div
       className="relative mx-auto w-full max-w-[280px] sm:max-w-[460px] lg:mx-0 lg:max-w-[500px] xl:max-w-[580px]"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
-      onBlur={() => setPaused(false)}
     >
       {/* the next photos peek out behind the frame */}
       <img
@@ -117,14 +108,8 @@ function PhotoShowcase() {
           className="st-fade absolute inset-0 h-full w-full scale-125 object-cover opacity-60 blur-xl"
           aria-hidden="true"
         />
-        <img key={index} src={at(0)} alt="OASIS event photo" className="st-fade absolute inset-0 h-full w-full object-contain" />
+        <img key={index} src={at(0)} alt="OASIS event photo" className="st-flash absolute inset-0 h-full w-full object-contain" />
 
-        <button type="button" onClick={() => go(-1)} aria-label="Previous photo" className={`${arrow} left-2`}>
-          &lsaquo;
-        </button>
-        <button type="button" onClick={() => go(1)} aria-label="Next photo" className={`${arrow} right-2`}>
-          &rsaquo;
-        </button>
         <span className="st-mono absolute bottom-2 left-1/2 -translate-x-1/2 rounded-md bg-black/55 px-2 py-0.5 text-[10px] font-bold text-white">
           {pad2(index + 1)} / {pad2(count)}
         </span>
