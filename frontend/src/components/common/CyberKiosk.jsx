@@ -1,37 +1,27 @@
 import { useEffect, useState } from "react";
-import { FiAward, FiCalendar, FiLock, FiUsers } from "react-icons/fi";
+import { FiAward, FiCalendar, FiCheckCircle, FiInfo, FiLock, FiLogOut, FiUsers, FiXCircle } from "react-icons/fi";
+import { programTheme } from "./StudentIdCard.jsx";
 
 /**
  * Student-facing check-in screen shared by the Admin and Scanner kiosks.
  * Purely presentational: the host passes the scan state and handlers.
- * Self-contained styling (keyframes below) so it looks the same in both sites.
+ * It uses the student site's design (cards on a calm dark base, Inter for reading,
+ * JetBrains Mono for short labels, the CSS variables and st- classes of index.css),
+ * so the kiosk looks like the rest of OASIS. Always dark, whatever the browser theme.
  */
 
-const GOLD = "#f2b400";
-const CYAN = "#05d9e8";
-const PINK = "#ff2a6d";
-const MINT = "#19f5b0";
 const RESULT_MS = 6000;
-
-const MONO = "font-['Share_Tech_Mono',ui-monospace,monospace]";
-const DISPLAY = "font-['Krona_One','Montserrat',sans-serif]";
-
-const poly = (c, s) =>
-  `polygon(${c}px 0, calc(100% - ${s}px) 0, 100% ${s}px, 100% calc(100% - ${c}px), calc(100% - ${c}px) 100%, ${s}px 100%, 0 calc(100% - ${s}px), 0 ${c}px)`;
+const CODES = { bsit: "BSIT", bscpe: "BSCpE", bscs: "BSCS" };
+const READ = { fontFamily: "Inter, system-ui, sans-serif" };
+const HEADLINE = { fontFamily: "Montserrat, Inter, sans-serif" };
 
 const KEYFRAMES = `
-@keyframes kx-sweep { 0% { transform: translateY(-20vh); } 100% { transform: translateY(120vh); } }
-@keyframes kx-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
 @keyframes kx-pop { 0% { opacity: 0; transform: translateY(10px) scale(.97); } 100% { opacity: 1; transform: none; } }
 @keyframes kx-drain { from { width: 100%; } to { width: 0%; } }
-@keyframes kx-scan { 0% { left: -30%; } 100% { left: 100%; } }
-@keyframes kx-flicker { 0%, 100% { opacity: 1; } 92% { opacity: 1; } 93% { opacity: .5; } 94% { opacity: 1; } 96% { opacity: .7; } }
+@keyframes kx-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes kx-pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .kx-anim { animation: none !important; } }
 `;
-
-const GLITCH = {
-  textShadow: `1.5px 0 rgba(255,42,109,.75), -1.5px 0 rgba(5,217,232,.65), 0 0 14px rgba(242,180,0,.5)`,
-};
 
 export function formatTime(iso) {
   if (!iso) return "";
@@ -40,96 +30,55 @@ export function formatTime(iso) {
 
 function Backdrop({ children }) {
   return (
-    <div className={`relative min-h-dvh overflow-hidden bg-[#0b0203] text-white ${MONO}`}>
+    <div className="relative min-h-dvh overflow-hidden text-[var(--text-primary)]" style={{ background: "var(--bg-base)", ...READ }}>
       <style>{KEYFRAMES}</style>
       <div
         className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage:
-            "radial-gradient(ellipse 70% 45% at 15% 0%, rgba(151,25,29,.55), transparent 70%), radial-gradient(ellipse 55% 40% at 100% 100%, rgba(5,217,232,.14), transparent 70%)",
+            "radial-gradient(ellipse 70% 45% at 12% 0%, var(--glow-a), transparent 70%), radial-gradient(ellipse 55% 40% at 100% 100%, var(--glow-b), transparent 70%)",
         }}
       />
       <div
-        className="pointer-events-none absolute inset-0 opacity-70 [mask-image:linear-gradient(to_bottom,rgba(0,0,0,.9),rgba(0,0,0,.15))]"
+        className="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,rgba(0,0,0,.9),rgba(0,0,0,.1))]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(242,180,0,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(242,180,0,.07) 1px, transparent 1px)",
+            "linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px)",
           backgroundSize: "44px 44px",
         }}
       />
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(0deg, rgba(0,0,0,.35) 0, rgba(0,0,0,.35) 1px, transparent 1px, transparent 4px)",
-        }}
-      />
-      <div
-        className="kx-anim pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-transparent via-[#05d9e8] to-transparent opacity-[0.07]"
-        style={{ animation: "kx-sweep 9s linear infinite" }}
-      />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,.5))]" />
       <div className="relative z-10 min-h-dvh">{children}</div>
     </div>
   );
 }
 
-function Frame({ children, color = GOLD, cut = 30, className = "", innerClassName = "" }) {
-  const small = Math.round(cut / 2.6);
+// the same "window" the student login uses: three dots, a path, then the content
+function Window({ path, right, className = "", children }) {
   return (
-    <div className={className} style={{ filter: `drop-shadow(0 0 9px ${color}66)` }}>
-      <div style={{ clipPath: poly(cut, small), background: color }} className="p-[2px]">
-        <div
-          className={`relative ${innerClassName}`}
-          style={{
-            clipPath: poly(cut - 2, small - 1),
-            backgroundImage: `linear-gradient(rgba(242,180,0,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(242,180,0,.07) 1px, transparent 1px), linear-gradient(160deg, #3d0a0d 0%, #1f0506 55%, #120304 100%)`,
-            backgroundSize: "18px 18px, 18px 18px, 100% 100%",
-          }}
-        >
-          <div
-            className="pointer-events-none absolute inset-0 opacity-40"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(0deg, rgba(0,0,0,.35) 0, rgba(0,0,0,.35) 1px, transparent 1px, transparent 3px)",
-            }}
-          />
-          <div className="relative">{children}</div>
-        </div>
+    <div
+      className={`overflow-hidden rounded-2xl border shadow-[var(--shadow)] ${className}`}
+      style={{ borderColor: "var(--line)", background: "var(--card)" }}
+    >
+      <div
+        className="flex items-center gap-2 px-4 py-2.5"
+        style={{ background: "linear-gradient(90deg, var(--header-from), var(--header-to))" }}
+      >
+        <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+        <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+        <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+        <span className="st-mono ml-2 min-w-0 truncate whitespace-nowrap text-xs font-bold text-white/80">{path}</span>
+        {right && <span className="ml-auto shrink-0 whitespace-nowrap">{right}</span>}
+      </div>
+      <div
+        style={{
+          backgroundImage:
+            "linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+        }}
+      >
+        {children}
       </div>
     </div>
-  );
-}
-
-function Slashes({ className = "", color = GOLD }) {
-  return (
-    <span className={`pointer-events-none absolute flex gap-1 ${className}`} aria-hidden="true">
-      {[0, 1, 2].map((i) => (
-        <i
-          key={i}
-          className="h-3.5 w-1 -skew-x-[30deg]"
-          style={{ background: color, opacity: 1 - i * 0.28 }}
-        />
-      ))}
-    </span>
-  );
-}
-
-function CyberButton({ children, onClick, disabled }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`${MONO} px-10 py-3 text-sm font-bold uppercase tracking-[3px] text-[#1a0405] transition-[filter,transform] hover:-translate-y-px hover:brightness-110 disabled:opacity-50`}
-      style={{
-        background: GOLD,
-        clipPath:
-          "polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)",
-      }}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -155,118 +104,95 @@ function Avatar({ student, color }) {
     .join("");
   return (
     <div
-      className="mx-auto h-28 w-28 p-[2px]"
-      style={{
-        background: color,
-        clipPath: "polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px)",
-        filter: `drop-shadow(0 0 8px ${color})`,
-      }}
+      className="mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl border-2 bg-[var(--card-2)] text-3xl font-extrabold"
+      style={{ borderColor: color }}
     >
-      <div
-        className="flex h-full w-full items-center justify-center bg-[#2a0709] text-2xl font-bold"
-        style={{
-          clipPath:
-            "polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px)",
-        }}
-      >
-        {student.photo ? (
-          <img src={student.photo} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <span style={{ color }}>{initials}</span>
-        )}
-      </div>
+      {student.photo ? (
+        <img src={student.photo} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span className="st-mono" style={{ color }}>
+          {initials}
+        </span>
+      )}
     </div>
   );
 }
 
 const RESULT_THEME = {
-  in: { color: MINT, label: "Access granted", sub: "Welcome! You're checked in." },
-  out: { color: GOLD, label: "Checked out", sub: "Thank you! You're checked out." },
-  already: { color: CYAN, label: "Already done", sub: "You're already checked out." },
-  error: { color: PINK, label: "Access denied", sub: "" },
+  in: { color: "var(--ok)", label: "Access granted", sub: "Welcome! You're checked in.", Icon: FiCheckCircle },
+  out: { color: "var(--gold)", label: "Checked out", sub: "Thank you! You're checked out.", Icon: FiLogOut },
+  already: { color: "var(--series-b)", label: "Already done", sub: "You're already checked out.", Icon: FiInfo },
+  error: { color: "var(--danger)", label: "Access denied", sub: "", Icon: FiXCircle },
 };
 
 function ResultCard({ result }) {
   const theme =
     result.type === "error" ? RESULT_THEME.error : RESULT_THEME[result.action] || RESULT_THEME.in;
-  const { color } = theme;
+  const { color, Icon } = theme;
+  const program = result.student ? programTheme(result.student.course) : null;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
-    <div
-      key={result.id}
-      className="kx-anim max-h-full w-full max-w-xl overflow-y-auto"
-      style={{ animation: "kx-pop .35s ease-out", filter: `drop-shadow(0 0 16px ${color}99)` }}
-    >
       <div
-        className="p-[2px]"
-        style={{ background: color, clipPath: poly(22, 8) }}
+        key={result.id}
+        className="kx-anim relative max-h-full w-full max-w-xl overflow-y-auto overflow-x-hidden rounded-3xl border-2 px-6 pb-8 pt-6 text-center shadow-[var(--shadow)]"
+        style={{
+          animation: "kx-pop .35s ease-out",
+          borderColor: color,
+          backgroundColor: "var(--card)",
+          backgroundImage: `linear-gradient(160deg, color-mix(in srgb, ${color} 18%, transparent), transparent 65%)`,
+        }}
       >
-        <div
-          className="relative overflow-hidden px-6 pb-7 pt-6 text-center"
-          style={{
-            clipPath: poly(20, 7),
-            backgroundColor: "#0c0304",
-            backgroundImage: `linear-gradient(160deg, ${color}33, transparent 70%)`,
-          }}
-        >
-          <p
-            className={`${DISPLAY} text-base uppercase tracking-[4px] sm:text-xl`}
-            style={{ color, textShadow: `0 0 12px ${color}` }}
-          >
-            {theme.label}
-          </p>
+        <p className="st-mono flex items-center justify-center gap-2 text-lg font-bold uppercase tracking-wide sm:text-2xl" style={{ color }}>
+          <Icon size={24} /> {theme.label}
+        </p>
 
-          {result.student ? (
-            <>
-              <div className="mt-5">
-                <Avatar student={result.student} color={color} />
+        {result.student ? (
+          <>
+            <div className="mt-5">
+              <Avatar student={result.student} color={color} />
+            </div>
+            <p className="mt-4 text-balance text-2xl font-extrabold leading-tight sm:text-3xl" style={HEADLINE}>
+              {result.student.name}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+              {result.student.section && (
+                <span className="st-mono text-sm text-[var(--text-muted)]">{result.student.section}</span>
+              )}
+              {program && CODES[program.key] && (
+                <span className="st-chip text-[11px]" style={{ background: program.accent, color: program.ink }}>
+                  {CODES[program.key]}
+                </span>
+              )}
+            </div>
+
+            <div className="st-inset mx-auto mt-5 max-w-[340px] space-y-1.5 px-4 py-3 text-base">
+              <div className="flex justify-between">
+                <span className="text-[var(--text-muted)]">Time in</span>
+                <span className="st-mono font-bold" style={{ color }}>
+                  {formatTime(result.record.timeIn)}
+                </span>
               </div>
-              <p className="mt-4 text-2xl font-bold uppercase tracking-[2px] text-white sm:text-4xl">
-                {result.student.name}
-              </p>
-              <p className="mt-1 text-base uppercase tracking-[3px] text-white/60">
-                {result.student.section}
-              </p>
-
-              <div className="mx-auto mt-5 max-w-[340px] space-y-1 border-y border-dashed border-white/20 py-3 text-base">
-                <div className="flex justify-between uppercase tracking-[2px]">
-                  <span className="text-white/60">Time in</span>
-                  <span className="font-bold" style={{ color }}>
-                    {formatTime(result.record.timeIn)}
+              {result.record.timeOut && (
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Time out</span>
+                  <span className="st-mono font-bold" style={{ color }}>
+                    {formatTime(result.record.timeOut)}
                   </span>
                 </div>
-                {result.record.timeOut && (
-                  <div className="flex justify-between uppercase tracking-[2px]">
-                    <span className="text-white/60">Time out</span>
-                    <span className="font-bold" style={{ color }}>
-                      {formatTime(result.record.timeOut)}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <p className="mt-4 text-sm uppercase tracking-[3px] text-white/80">{theme.sub}</p>
-            </>
-          ) : (
-            <p className="mt-5 text-xl font-bold uppercase leading-relaxed tracking-[1px] text-white">
-              {result.message}
-            </p>
-          )}
+              )}
+            </div>
+            <p className="mt-4 text-base text-[var(--text-primary)]">{theme.sub}</p>
+          </>
+        ) : (
+          <p className="mt-5 text-xl font-bold leading-relaxed sm:text-2xl">{result.message}</p>
+        )}
 
-          {/* time left before the card clears */}
-          <div className="absolute inset-x-0 bottom-0 h-[3px] bg-white/10">
-            <div
-              className="kx-anim h-full"
-              style={{
-                background: color,
-                boxShadow: `0 0 8px ${color}`,
-                animation: `kx-drain ${RESULT_MS}ms linear forwards`,
-              }}
-            />
-          </div>
+        {/* time left before the card clears */}
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-white/10">
+          <div className="kx-anim h-full" style={{ background: color, animation: `kx-drain ${RESULT_MS}ms linear forwards` }} />
         </div>
       </div>
-    </div>
     </div>
   );
 }
@@ -276,25 +202,20 @@ export function CyberKioskNotice({ title, message, buttonLabel, onExit, logoSrc 
     <Backdrop>
       <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-6 text-center">
         {logoSrc && <img src={logoSrc} alt="OASIS" className="h-auto max-w-[200px]" />}
-        <Frame className="w-full max-w-lg" innerClassName="px-8 py-10">
-          <p className="mb-3 text-[10px] uppercase tracking-[4px]" style={{ color: PINK }}>
-            // session offline
-          </p>
-          <h2
-            className={`${DISPLAY} text-lg uppercase leading-snug tracking-[3px]`}
-            style={GLITCH}
-          >
-            {title}
-          </h2>
-          {message && (
-            <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-white/70">{message}</p>
-          )}
-          <div className="mt-8 flex justify-center">
-            <CyberButton onClick={onExit}>{buttonLabel}</CyberButton>
+        <Window path="oasis://kiosk/offline" className="w-full max-w-lg">
+          <div className="px-8 py-10">
+            <p className="st-mono text-xs font-bold uppercase tracking-wide text-[var(--danger)]">// session offline</p>
+            <h2 className="mt-3 text-2xl font-extrabold leading-snug" style={HEADLINE}>
+              {title}
+            </h2>
+            {message && <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-[var(--text-muted)]">{message}</p>}
+            <div className="mt-8 flex justify-center">
+              <button type="button" onClick={onExit} className="st-btn px-8">
+                {buttonLabel}
+              </button>
+            </div>
           </div>
-          <Slashes className="bottom-3 left-5" />
-          <Slashes className="right-5 top-3" />
-        </Frame>
+        </Window>
       </div>
     </Backdrop>
   );
@@ -320,71 +241,48 @@ export default function CyberKiosk({
           <img
             src={logoSrc}
             alt="OASIS Logo"
-            className="mb-6 h-auto max-w-[260px] object-contain drop-shadow-[0_8px_18px_rgba(0,0,0,.5)] lg:max-w-[320px]"
+            className="mb-6 h-auto max-w-[220px] object-contain lg:max-w-[260px]"
           />
         )}
 
-        <Frame className="w-full max-w-3xl" cut={40} innerClassName="px-6 pb-12 pt-9 sm:px-14">
-          <div className="mb-4 flex items-center justify-between pr-14 text-xs uppercase tracking-[3px]">
-            <span style={{ color: CYAN }}>// check-in terminal</span>
-            <span className="flex items-center gap-1.5" style={{ color: GOLD }}>
+        <Window
+          path="oasis://kiosk/check-in"
+          className="w-full max-w-3xl"
+          right={
+            <span className="st-mono flex items-center gap-2 text-xs font-bold text-white/85">
               <span
-                className="kx-anim h-1.5 w-1.5 rounded-full"
-                style={{
-                  background: PINK,
-                  boxShadow: `0 0 6px ${PINK}`,
-                  animation: "kx-flicker 3s linear infinite",
-                }}
+                className="kx-anim h-2 w-2 rounded-full bg-[var(--danger)]"
+                style={{ animation: "kx-pulse 2s ease-in-out infinite" }}
               />
-              live · <Clock />
+              <span className="hidden sm:inline">LIVE ·</span> <Clock />
             </span>
-          </div>
+          }
+        >
+          <div className="px-6 pb-10 pt-8 sm:px-12">
+            <h1 className="text-center text-3xl font-extrabold leading-tight sm:text-5xl" style={HEADLINE}>
+              {event.title}
+            </h1>
 
-          <h1
-            className={`${DISPLAY} text-center text-2xl uppercase leading-snug tracking-[3px] sm:text-4xl`}
-            style={GLITCH}
-          >
-            {event.title}
-          </h1>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
+              <span className="st-chip border text-xs text-[var(--text-muted)]" style={{ borderColor: "var(--line)" }}>
+                <FiCalendar size={13} /> {event.date}
+              </span>
+              <span className="st-chip bg-[var(--gold)] text-xs text-[var(--on-gold)]">
+                <FiAward size={13} /> {event.pointValue} pts
+              </span>
+              <span className="st-chip border text-xs text-[var(--text-muted)]" style={{ borderColor: "var(--line)" }}>
+                <FiUsers size={13} /> {isRestricted ? event.programFilter : "All programs"}
+              </span>
+            </div>
 
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-sm uppercase tracking-[2px]">
-            <span className="flex items-center gap-1.5 border border-white/20 bg-black/30 px-4 py-1.5 text-white/80">
-              <FiCalendar size={12} /> {event.date}
-            </span>
-            <span
-              className="flex items-center gap-1.5 px-4 py-1.5 font-bold text-[#1a0405]"
-              style={{
-                background: GOLD,
-                clipPath: "polygon(0 0, 100% 0, 100% 60%, 88% 100%, 0 100%)",
-              }}
+            <div className="my-7 h-px" style={{ background: "var(--line)" }} aria-hidden="true" />
+
+            <label
+              htmlFor="kiosk-scan"
+              className="st-mono mb-3 block text-center text-base font-bold text-[var(--accent-text)] sm:text-lg"
             >
-              <FiAward size={12} /> {event.pointValue} pts
-            </span>
-            <span className="flex items-center gap-1.5 border border-white/20 bg-black/30 px-4 py-1.5 text-white/80">
-              <FiUsers size={12} /> {isRestricted ? event.programFilter : "All programs"}
-            </span>
-          </div>
-
-          <div className="my-6 flex items-center gap-1" aria-hidden="true">
-            <span className="h-[2px] w-12" style={{ background: GOLD, boxShadow: `0 0 6px ${GOLD}` }} />
-            <span className="h-px flex-1 bg-[#f2b400]/30" />
-            <span className="h-1.5 w-1.5 rotate-45" style={{ background: GOLD }} />
-          </div>
-
-          <label
-            htmlFor="kiosk-scan"
-            className="mb-4 block text-center text-sm font-bold uppercase tracking-[4px] sm:text-base"
-            style={{ color: GOLD }}
-          >
-            &gt; Tap / scan your student ID
-          </label>
-          <div
-            className="relative overflow-hidden border border-[#05d9e8]/60 bg-black/40 focus-within:border-[#05d9e8] focus-within:shadow-[0_0_18px_rgba(5,217,232,.35)]"
-            style={{
-              clipPath:
-                "polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%)",
-            }}
-          >
+              &gt; Tap / scan your student ID
+            </label>
             <input
               id="kiosk-scan"
               ref={inputRef}
@@ -394,30 +292,19 @@ export default function CyberKiosk({
               onKeyDown={(e) => {
                 if (e.key === "Enter") onScan();
               }}
-              placeholder="STUDENT ID"
-              className={`${MONO} h-24 w-full bg-transparent px-5 text-center text-4xl uppercase tracking-[6px] text-white placeholder-white/25 outline-none`}
+              placeholder="Student ID"
+              className="st-input !h-20 !rounded-xl text-center !text-3xl tracking-widest sm:!h-24 sm:!text-4xl"
               autoFocus
               autoComplete="off"
             />
-            <div
-              className="kx-anim pointer-events-none absolute bottom-0 h-[2px] w-1/3"
-              style={{
-                background: `linear-gradient(90deg, transparent, ${CYAN}, transparent)`,
-                boxShadow: `0 0 8px ${CYAN}`,
-                animation: "kx-scan 2.4s linear infinite",
-              }}
-            />
+            <p className="st-mono mt-3 text-center text-xs text-[var(--text-faint)]">
+              waiting for a student ID
+              <span className="kx-anim" style={{ animation: "kx-blink 1s steps(1) infinite" }}>
+                _
+              </span>
+            </p>
           </div>
-          <p className="mt-3 text-center text-xs uppercase tracking-[3px] text-white/40">
-            waiting for input
-            <span className="kx-anim" style={{ animation: "kx-blink 1s steps(1) infinite" }}>
-              _
-            </span>
-          </p>
-
-          <Slashes className="bottom-3 left-6" />
-          <Slashes className="right-6 top-3.5" />
-        </Frame>
+        </Window>
 
         {result && <ResultCard result={result} />}
 
@@ -427,12 +314,12 @@ export default function CyberKiosk({
             <button
               type="button"
               onClick={exit.onOpen}
-              className="flex items-center gap-2 text-[11px] uppercase tracking-[3px] text-white/30 transition-colors hover:text-[#05d9e8]"
+              className="st-mono flex items-center gap-2 text-xs text-[var(--text-faint)] transition-colors hover:text-[var(--accent-text)]"
             >
-              <FiLock size={12} /> [ Officer exit ]
+              <FiLock size={13} /> [ Officer exit ]
             </button>
           ) : (
-            <div className="flex items-center gap-2 border border-[#f2b400]/40 bg-black/50 px-4 py-2">
+            <div className="flex flex-wrap items-center justify-center gap-2 rounded-xl border bg-[var(--card)] px-3 py-2.5" style={{ borderColor: "var(--line)" }}>
               <input
                 type="password"
                 value={exit.password}
@@ -442,40 +329,20 @@ export default function CyberKiosk({
                 }}
                 placeholder={exit.placeholder}
                 autoFocus
-                className={`${MONO} h-9 w-44 bg-transparent text-sm text-white placeholder-white/30 outline-none`}
+                className="st-input !h-10 !w-48 !text-sm"
               />
-              <button
-                type="button"
-                onClick={exit.onSubmit}
-                disabled={exit.busy}
-                className="px-4 py-1.5 text-xs font-bold uppercase tracking-[2px] text-[#1a0405] transition-all hover:brightness-110 disabled:opacity-50"
-                style={{ background: GOLD }}
-              >
+              <button type="button" onClick={exit.onSubmit} disabled={exit.busy} className="st-btn !h-10 px-5 !text-xs">
                 Exit
               </button>
-              <button
-                type="button"
-                onClick={exit.onCancel}
-                className="text-xs uppercase tracking-[2px] text-white/50 hover:text-white"
-              >
+              <button type="button" onClick={exit.onCancel} className="st-btn-ghost !h-10 px-4 !text-xs">
                 Cancel
               </button>
             </div>
           )}
-          {exit.error && (
-            <p className="mt-2 text-center text-xs font-bold uppercase tracking-[1px]" style={{ color: PINK }}>
-              ! {exit.error}
-            </p>
-          )}
+          {exit.error && <p className="st-mono mt-2 text-center text-xs font-bold text-[var(--danger)]">! {exit.error}</p>}
         </div>
 
-        {acesSrc && (
-          <img
-            src={acesSrc}
-            alt="ACES Logo"
-            className="mt-8 h-auto max-w-[72px] object-contain opacity-60"
-          />
-        )}
+        {acesSrc && <img src={acesSrc} alt="ACES Logo" className="mt-8 h-auto max-w-[72px] object-contain opacity-70" />}
       </div>
     </Backdrop>
   );
