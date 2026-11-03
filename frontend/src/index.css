@@ -79,13 +79,13 @@
  * Colours come from the variables below; .st-* classes are the shared pieces.
  * =================================================================== */
 :root {
-  --bg-base: #0c0506;
-  --card: #150a0b;
-  --card-2: #1d1011;
-  --line: rgba(242, 180, 0, 0.2);
-  --track: rgba(255, 255, 255, 0.13);
-  --grid: rgba(242, 180, 0, 0.05);
-  --shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  --bg-base: #080304;
+  --card: #2b1618;
+  --card-2: #3a2022;
+  --line: rgba(242, 180, 0, 0.32);
+  --track: rgba(255, 255, 255, 0.16);
+  --grid: rgba(242, 180, 0, 0.055);
+  --shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
   --text-primary: #f6efec;
   --text-muted: rgba(246, 239, 236, 0.7);
   --text-faint: rgba(246, 239, 236, 0.45);
@@ -103,13 +103,13 @@
 }
 
 html.light {
-  --bg-base: #f3eeea;
+  --bg-base: #e9e0da;
   --card: #ffffff;
   --card-2: #f8f2ef;
   --line: rgba(122, 19, 23, 0.2);
   --track: rgba(74, 13, 16, 0.12);
   --grid: rgba(122, 19, 23, 0.05);
-  --shadow: 0 8px 24px rgba(74, 13, 16, 0.09);
+  --shadow: 0 10px 28px rgba(74, 13, 16, 0.14);
   --text-primary: #2a1012;
   --text-muted: rgba(42, 16, 18, 0.68);
   --text-faint: rgba(42, 16, 18, 0.45);
