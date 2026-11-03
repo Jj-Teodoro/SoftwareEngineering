@@ -3,20 +3,6 @@ import Barcode from "./Barcode.jsx";
 import QrCode from "./QrCode.jsx";
 
 const GOLD = "#f2b400";
-const LABEL = "#e8b43a"; // warm gold for small captions
-const GREEN = "#19f5b0"; // only used for the CLEARED stamp
-const PINK = "#ff2a6d";
-
-// Cut-corner outline (top-left and bottom-right are the big cuts).
-const poly = (big, small) =>
-  `polygon(${big}px 0, calc(100% - ${small}px) 0, 100% ${small}px, 100% calc(100% - ${big}px), calc(100% - ${big}px) 100%, ${small}px 100%, 0 calc(100% - ${small}px), 0 ${big}px)`;
-
-const GRID =
-  "linear-gradient(rgba(242,180,0,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(242,180,0,0.06) 1px, transparent 1px)";
-
-// faint circuit traces behind the personal details
-const CIRCUIT_BG =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='220' viewBox='0 0 420 220' fill='none' stroke='%23f2b400' stroke-opacity='0.16' stroke-width='1.2'%3E%3Cpath d='M200 20h60l20 20h80'/%3E%3Cpath d='M240 60h90l20 20h50'/%3E%3Cpath d='M280 100h50l20 20h60'/%3E%3Cpath d='M220 150h80l20-20h80'/%3E%3Cpath d='M300 190h60l20-20h40'/%3E%3Ccircle cx='260' cy='20' r='3'/%3E%3Ccircle cx='360' cy='40' r='3'/%3E%3Ccircle cx='330' cy='60' r='3'/%3E%3Ccircle cx='380' cy='120' r='3'/%3E%3Ccircle cx='320' cy='150' r='3'/%3E%3C/svg%3E\")";
 
 export function splitName(full = "") {
   const [lastRaw, restRaw = ""] = full.split(",");
@@ -25,29 +11,12 @@ export function splitName(full = "") {
   if (tokens.length > 1 && /^[A-Za-z]\.?$/.test(tokens[tokens.length - 1])) {
     middle = tokens.pop();
   }
-  return { last: lastRaw.trim(), first: tokens.join(" "), middle: middle || "—" };
-}
-
-function Field({ label, value, className = "", plain = false }) {
-  return (
-    <div className={className}>
-      <p className="font-mono text-[10px] uppercase tracking-[2px]" style={{ color: LABEL }}>
-        {label}
-      </p>
-      <p
-        className={`mt-1 whitespace-pre-line break-words text-[13px] font-semibold text-white ${
-          plain ? "tracking-[0.5px]" : "uppercase tracking-[1.5px]"
-        }`}
-      >
-        {value || "—"}
-      </p>
-    </div>
-  );
+  return { last: lastRaw.trim(), first: tokens.join(" "), middle: middle || "" };
 }
 
 function SmartChip() {
   return (
-    <svg width="42" height="32" viewBox="0 0 42 32" aria-hidden="true">
+    <svg width="38" height="29" viewBox="0 0 42 32" aria-hidden="true">
       <defs>
         <linearGradient id="chip-gold" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#fbe08a" />
@@ -63,48 +32,131 @@ function SmartChip() {
   );
 }
 
-function PointsBar({ total, target }) {
-  const segments = target > 0 ? Math.min(target, 40) : 10;
-  const filled = target > 0 ? Math.round((Math.min(total, target) / target) * segments) : 0;
+/**
+ * The card itself: a landscape, credit-card shaped student ID. Front only:
+ * school header, photo, name, student number, program, barcode and QR code.
+ */
+export function IdCardFront({ student, photoOverlay }) {
+  const { last, first, middle } = splitName(student.name);
+  const program = (student.course || "").replace(/^BS\s+/i, "Bachelor of Science in ");
+  const initials = `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+  const yearSection = [student.yearLevel, student.section].filter(Boolean).join(" · ");
+
   return (
     <div
-      role="img"
-      aria-label={`${total} of ${target} points`}
-      className="flex flex-1 gap-[3px] border border-[#f2b400]/50 bg-black/40 p-[3px]"
+      className="mx-auto w-full max-w-[460px] rounded-2xl p-[2px] shadow-[0_14px_34px_rgba(0,0,0,0.45)]"
+      style={{ background: "linear-gradient(135deg, #fbe08a, #f2b400 40%, #b98500 70%, #f2b400)" }}
     >
-      {Array.from({ length: segments }).map((_, i) => (
+      <div
+        className="relative overflow-hidden rounded-[14px] text-white"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(242,180,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(242,180,0,0.05) 1px, transparent 1px), linear-gradient(150deg, #6b1015 0%, #3a0a0d 55%, #1f0506 100%)",
+          backgroundSize: "18px 18px, 18px 18px, 100% 100%",
+        }}
+      >
+        {/* lanyard slot */}
         <span
-          key={i}
-          className="h-4 flex-1 -skew-x-[18deg]"
-          style={{
-            background: i < filled ? GOLD : "rgba(255,255,255,0.1)",
-            boxShadow: i < filled ? "0 0 6px rgba(242,180,0,0.7)" : "none",
-          }}
+          className="absolute left-1/2 top-1.5 z-10 h-2 w-12 -translate-x-1/2 rounded-full bg-black/80 shadow-[inset_0_1px_2px_rgba(0,0,0,0.9),0_0_0_1px_rgba(242,180,0,0.5)]"
+          aria-hidden="true"
         />
-      ))}
+        {/* gold sash behind the photo */}
+        <span
+          className="pointer-events-none absolute -left-8 top-[58px] h-24 w-[150%] -rotate-12 opacity-25"
+          style={{ background: "linear-gradient(90deg, transparent, #f2b400 30%, transparent)" }}
+          aria-hidden="true"
+        />
+
+        {/* header */}
+        <div className="relative flex items-center gap-2.5 border-b border-[#f2b400]/60 bg-black/25 px-4 pb-2 pt-4">
+          <img
+            src={aces_logo}
+            alt="ACES"
+            className="h-9 w-9 shrink-0 rounded-full border-2 border-[#f2b400] bg-white object-contain"
+          />
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="truncate text-[12px] font-extrabold uppercase tracking-wide sm:text-[13px]">
+              Dr. Yanga's Colleges, Inc.
+            </p>
+            <p className="st-mono mt-0.5 truncate text-[9.5px] font-bold uppercase tracking-wide text-[#f2b400] sm:text-[10px]">
+              College of Computer Studies
+            </p>
+          </div>
+          <span className="st-mono shrink-0 rounded bg-[#f2b400] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#2a0507]">
+            Student
+          </span>
+        </div>
+
+        {/* body */}
+        <div className="relative flex gap-3.5 px-4 pb-3 pt-3.5 sm:gap-4">
+          <div className="relative h-[108px] w-[84px] shrink-0 overflow-hidden rounded-md border-[3px] border-white bg-gradient-to-b from-[#8c1a1f] to-[#3a0a0d] shadow-[0_4px_12px_rgba(0,0,0,0.5)] sm:h-[124px] sm:w-[96px]">
+            {student.photo ? (
+              <img src={student.photo} alt={`${student.name} photo`} className="h-full w-full object-cover" />
+            ) : (
+              <span className="st-mono flex h-full w-full items-center justify-center text-3xl font-bold text-white/90">
+                {initials}
+              </span>
+            )}
+            {photoOverlay}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="st-mono text-[9px] font-bold uppercase tracking-wider text-[#f2b400]">Name</p>
+            <p className="break-words text-[17px] font-extrabold uppercase leading-tight sm:text-xl">{last || "—"}</p>
+            <p className="break-words text-[13px] font-semibold uppercase leading-tight text-white/90 sm:text-sm">
+              {[first, middle].filter(Boolean).join(" ")}
+            </p>
+
+            <p className="st-mono mt-2 text-[9px] font-bold uppercase tracking-wider text-[#f2b400]">Student no.</p>
+            <p className="st-mono text-[17px] font-bold leading-tight tracking-wide text-[#f2b400] sm:text-xl">
+              {student.studentId}
+            </p>
+
+            <p className="mt-2 text-[11px] font-medium leading-snug text-white/85 sm:text-xs">{program || "—"}</p>
+            {yearSection && <p className="st-mono mt-0.5 text-[10px] text-white/60 sm:text-[11px]">{yearSection}</p>}
+          </div>
+        </div>
+
+        {/* barcode strip: dark bars on a light background so scanners can read it */}
+        <div className="relative flex items-center gap-3 border-t-2 border-[#f2b400] bg-[#fff8ea] px-4 py-2">
+          <div className="hidden shrink-0 sm:block">
+            <SmartChip />
+          </div>
+          <div className="min-w-0 flex-1 text-center">
+            <Barcode value={student.studentId} color="#1a0a0b" className="mx-auto h-8 w-full" />
+            <p className="st-mono mt-0.5 text-[9px] font-bold tracking-[3px] text-[#3a0a0d]">{student.studentId}</p>
+          </div>
+          <QrCode value={student.studentId} color="#1a0a0b" className="h-11 w-11 shrink-0" />
+        </div>
+
+        <p className="relative bg-black/40 py-1 text-center text-[8.5px] font-semibold uppercase tracking-[1.5px] text-white/65">
+          This ID remains the property of DYCI-CCS ACES
+        </p>
+      </div>
     </div>
   );
 }
 
-// Four L-shaped brackets framing the photo.
-function Brackets() {
-  const corner = "pointer-events-none absolute h-3.5 w-3.5 border-[#f2b400]";
+function PointsMeter({ total, target }) {
+  const pct = target > 0 ? Math.min(100, Math.round((total / target) * 100)) : 0;
   return (
-    <>
-      <span className={`${corner} -left-1.5 -top-1.5 border-l-2 border-t-2`} />
-      <span className={`${corner} -right-1.5 -top-1.5 border-r-2 border-t-2`} />
-      <span className={`${corner} -bottom-1.5 -left-1.5 border-b-2 border-l-2`} />
-      <span className={`${corner} -bottom-1.5 -right-1.5 border-b-2 border-r-2`} />
-    </>
+    <div
+      role="img"
+      aria-label={`${total} of ${target} points`}
+      className="h-3 flex-1 overflow-hidden rounded-md bg-[var(--track)]"
+    >
+      <div className="h-full rounded-md bg-[var(--gold)]" style={{ width: `${pct}%` }} />
+    </div>
   );
 }
 
 /**
- * The student ID card, shared by the User site (student view, with edit
- * controls passed in through the slots) and the Admin site (read-only view).
+ * The ID card plus what sits behind it: activity points and the about block.
+ * Shared by the User site (student view, with edit controls passed in through
+ * the slots) and the Admin site (read-only view).
  *
- * Slots: `titleAction` (button beside the title), `photoOverlay` (rendered
- * inside the photo frame), `aboutSlot` (replaces the bio/talent/hobbies block).
+ * Slots: `titleAction` (button in the points header), `photoOverlay` (inside
+ * the photo frame), `aboutSlot` (replaces the bio/talent/hobbies block).
  */
 export default function StudentIdCard({
   student,
@@ -116,193 +168,72 @@ export default function StudentIdCard({
   photoOverlay,
   aboutSlot,
 }) {
-  const { last, first, middle } = splitName(student.name);
-  const program = (student.course || "").replace(/^BS\s+/i, "Bachelor of Science in ");
-  const initials = `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
   const hobbies = student.hobbies || [];
 
   return (
-    <div style={{ filter: "drop-shadow(0 0 12px rgba(242,180,0,0.3))" }}>
-      <div
-        className="p-[2px]"
-        style={{
-          clipPath: poly(30, 12),
-          background: "linear-gradient(135deg, #fbe08a, #f2b400 35%, #b98500 65%, #f2b400)",
-        }}
-      >
-        <div
-          className="relative overflow-hidden text-white"
-          style={{
-            clipPath: poly(28, 11),
-            backgroundImage: `${GRID}, linear-gradient(165deg, #3a0a0d 0%, #1b0506 50%, #0e0304 100%)`,
-            backgroundSize: "20px 20px, 20px 20px, 100% 100%",
-          }}
-        >
-          {/* scanlines */}
-          <div
-            className="pointer-events-none absolute inset-0 opacity-40"
-            style={{ backgroundImage: "repeating-linear-gradient(0deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 1px, transparent 1px, transparent 3px)" }}
-            aria-hidden="true"
-          />
-          {/* lanyard slot */}
-          <span
-            className="absolute left-1/2 top-2 z-10 h-2.5 w-16 -translate-x-1/2 rounded-full bg-black shadow-[inset_0_2px_3px_rgba(0,0,0,0.9),0_0_0_1px_rgba(242,180,0,0.45)]"
-            aria-hidden="true"
-          />
+    <div className="flex flex-col gap-4">
+      <IdCardFront student={student} photoOverlay={photoOverlay} />
 
-          <div className="relative">
-            {/* header band */}
-            <div className="flex items-center gap-3 border-b border-[#f2b400]/50 bg-gradient-to-r from-[#7a1317]/80 via-[#4a0d10]/80 to-transparent px-5 pb-3 pt-6">
-              <img
-                src={aces_logo}
-                alt="ACES"
-                className="h-11 w-11 shrink-0 rounded-full border-2 border-[#f2b400] bg-white object-contain shadow-[0_0_10px_rgba(242,180,0,0.5)]"
-              />
-              <div className="min-w-0 flex-1 leading-tight">
-                <p className="text-[11px] font-extrabold uppercase tracking-[2px] sm:text-xs">
-                  Dr. Yanga's Colleges, Inc.
-                </p>
-                <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[1.5px] text-white/70">
-                  College of Computer Studies · ACES
-                </p>
-              </div>
-              <p
-                className="hidden shrink-0 items-center gap-2 border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[3px] sm:flex"
-                style={{ color: GOLD, borderColor: "rgba(242,180,0,0.6)" }}
-              >
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: PINK, boxShadow: `0 0 6px ${PINK}` }} />
-                Member ID
-              </p>
+      <section className="st-card p-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="st-title">Activity points</h3>
+          {titleAction}
+        </div>
+        <div className="flex items-center gap-3">
+          <PointsMeter total={totalPoints} target={targetPoints} />
+          <span className="st-mono shrink-0 text-sm font-bold text-[var(--accent-text)]">
+            {totalPoints}/{targetPoints}
+          </span>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          {cleared ? (
+            <span className="st-chip border border-[var(--ok)] text-[var(--ok)]">Cleared</span>
+          ) : (
+            <span className="st-muted text-xs">
+              {Math.max(0, targetPoints - totalPoints)} points to go
+            </span>
+          )}
+          {onShowBreakdown && (
+            <button
+              type="button"
+              onClick={onShowBreakdown}
+              className="st-mono text-xs font-bold text-[var(--accent-text)] hover:underline"
+            >
+              [ view breakdown ]
+            </button>
+          )}
+        </div>
+      </section>
+
+      <section className="st-card p-5">
+        <h3 className="st-title mb-3">About</h3>
+        {aboutSlot ?? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <p className="st-label">Bio</p>
+              <p className="mt-1 whitespace-pre-line break-words text-sm">{student.bio || "—"}</p>
             </div>
-
-            <div className="bg-right-top bg-no-repeat px-5 pb-4 pt-5 sm:px-6" style={{ backgroundImage: CIRCUIT_BG }}>
-              <div className="flex items-start justify-between gap-3">
-                <h2
-                  className="font-display text-lg tracking-[3px] sm:text-2xl"
-                  style={{ textShadow: "1.5px 0 rgba(255,42,109,.6), 0 0 14px rgba(242,180,0,.55)" }}
-                >
-                  ACTIVITY CARD POINTS
-                </h2>
-                {titleAction}
-              </div>
-              <div className="mb-5 mt-2 flex items-center gap-1" aria-hidden="true">
-                <span className="h-[2px] w-12" style={{ background: GOLD, boxShadow: `0 0 6px ${GOLD}` }} />
-                <span className="h-px flex-1 bg-[#f2b400]/30" />
-                <span className="h-1.5 w-1.5 rotate-45" style={{ background: GOLD }} />
-              </div>
-
-              <div className="flex flex-col gap-5 sm:flex-row">
-                {/* photo */}
-                <div className="relative shrink-0 self-start">
-                  <Brackets />
-                  <div className="bg-gradient-to-br from-[#fbe08a] via-[#f2b400] to-[#b98500] p-[2px] shadow-[0_0_14px_rgba(242,180,0,0.35)]">
-                    <div className="relative flex h-[150px] w-[128px] items-center justify-center overflow-hidden bg-gradient-to-b from-[#7a1317] to-[#2b0a0c] font-display text-4xl">
-                      {student.photo ? (
-                        <img src={student.photo} alt={`${student.name} photo`} className="h-full w-full object-cover" />
-                      ) : (
-                        initials
-                      )}
-                      {/* faint scan line over the photo */}
-                      <span
-                        className="pointer-events-none absolute inset-0"
-                        style={{ backgroundImage: "repeating-linear-gradient(0deg, rgba(242,180,0,0.06) 0, rgba(242,180,0,0.06) 1px, transparent 1px, transparent 4px)" }}
-                      />
-                      {photoOverlay}
-                    </div>
-                  </div>
+            <div>
+              <p className="st-label">Talent</p>
+              <p className="mt-1 text-sm">{student.talent || "—"}</p>
+            </div>
+            <div>
+              <p className="st-label">Hobbies</p>
+              {hobbies.length > 0 ? (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {hobbies.map((h) => (
+                    <span key={h} className="st-chip border border-[var(--line)] bg-[var(--card-2)]">
+                      {h}
+                    </span>
+                  ))}
                 </div>
-
-                <div className="grid flex-1 grid-cols-3 content-start gap-x-4 gap-y-4">
-                  <Field label="Last Name" value={last} />
-                  <Field label="First Name" value={first} />
-                  <Field label="Middle Name" value={middle} />
-                  <Field label="Program" value={program} className="col-span-3" />
-                  <Field label="Year" value={student.yearLevel} />
-                  <Field label="Student ID" value={student.studentId} />
-                  <Field label="Role" value="Student" />
-                </div>
-              </div>
-
-              <div className="mt-5 border-t border-dashed border-[#f2b400]/30 pt-4">
-                {aboutSlot ?? (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label="Bio" value={student.bio} plain className="sm:col-span-2" />
-                    <Field label="Talent" value={student.talent} plain />
-                    <div>
-                      <p className="font-mono text-[10px] uppercase tracking-[2px]" style={{ color: LABEL }}>
-                        Hobbies
-                      </p>
-                      {hobbies.length > 0 ? (
-                        <div className="mt-1.5 flex flex-wrap gap-1.5">
-                          {hobbies.map((h) => (
-                            <span
-                              key={h}
-                              className="border border-[#f2b400]/50 bg-[#f2b400]/10 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[1px]"
-                              style={{ color: GOLD }}
-                            >
-                              {h}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="mt-1 text-[13px] font-semibold">—</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-5 flex items-end justify-between gap-3">
-                <p className="font-mono text-[10px] uppercase tracking-[2px]" style={{ color: LABEL }}>
-                  Activity Points
-                </p>
-                {cleared && (
-                  <span
-                    className="-rotate-3 border-2 px-2 py-0.5 font-display text-[10px] uppercase tracking-[2px]"
-                    style={{ color: GREEN, borderColor: GREEN, boxShadow: "0 0 8px rgba(25,245,176,0.5)" }}
-                  >
-                    Cleared
-                  </span>
-                )}
-              </div>
-              <div className="mt-2 flex items-center gap-3">
-                <PointsBar total={totalPoints} target={targetPoints} />
-                <span className="shrink-0 font-mono text-sm font-bold tracking-[1px]" style={{ color: GOLD }}>
-                  {totalPoints}/{targetPoints}
-                </span>
-              </div>
-
-              {onShowBreakdown && (
-                <button
-                  type="button"
-                  onClick={onShowBreakdown}
-                  className="mt-3 block w-full text-center font-mono text-[10px] uppercase tracking-[2px] text-white/45 transition-colors hover:text-[#f2b400]"
-                >
-                  [ tap to view the breakdown of points ]
-                </button>
+              ) : (
+                <p className="mt-1 text-sm">—</p>
               )}
             </div>
-
-            {/* footer: chip on the left, barcode in the middle, QR code on the right */}
-            <div className="flex items-center gap-4 border-t border-dashed border-[#f2b400]/30 bg-black/30 px-5 py-4 sm:gap-6 sm:px-6">
-              <div className="shrink-0">
-                <SmartChip />
-              </div>
-              <div className="min-w-0 flex-1 text-center">
-                <Barcode value={student.studentId} color={GOLD} className="mx-auto h-11 w-full" />
-                <p className="mt-1.5 font-mono text-[10px] tracking-[4px]" style={{ color: LABEL }}>
-                  {student.studentId}
-                </p>
-              </div>
-              <QrCode value={student.studentId} color={GOLD} className="h-14 w-14 shrink-0" />
-            </div>
-
-            <p className="border-t border-[#f2b400]/40 bg-[#3d0a0d] py-1.5 text-center font-mono text-[9px] uppercase tracking-[2px] text-white/70">
-              This ID remains the property of DYCI-CCS ACES
-            </p>
           </div>
-        </div>
-      </div>
+        )}
+      </section>
     </div>
   );
 }

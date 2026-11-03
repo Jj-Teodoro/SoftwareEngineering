@@ -23,12 +23,10 @@ export default function NotificationsPage() {
     <Panel title="Notifications">
       {visible.length === 0 ? (
         <div className="flex min-h-[160px] flex-col items-center justify-center gap-3 text-center">
-          <div className="flex h-14 w-14 items-center justify-center border border-[var(--surface-border)] bg-[var(--surface-2)] [clip-path:polygon(25%_0,75%_0,100%_25%,100%_75%,75%_100%,25%_100%,0_75%,0_25%)]">
-            <FiBell size={24} className="text-[var(--gold)]" />
-          </div>
-          <p className="font-mono text-sm text-[var(--text-muted)]">
-            &gt; NO NOTIFICATIONS YET<span className="cursor-blink">_</span>
-          </p>
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--card-2)] text-[var(--accent-text)]">
+            <FiBell size={24} />
+          </span>
+          <p className="st-muted text-sm">No notifications yet.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -40,58 +38,47 @@ export default function NotificationsPage() {
                 key={n.id}
                 type="button"
                 onClick={() => !read && markRead(n.id)}
-                style={{
-                  "--notch": "16px",
-                  "--notch-color": read ? "var(--surface-border)" : "var(--neon-cyan)",
-                }}
-                className={`cp-notch block w-full overflow-hidden border text-left transition-all ${
-                  read
-                    ? "border-[var(--surface-border)] bg-[var(--surface-2)]"
-                    : "border-[var(--neon-cyan)] bg-[var(--surface-strong)] shadow-[0_0_14px_rgba(5,217,232,0.18)]"
+                className={`st-inset block w-full overflow-hidden border text-left transition ${
+                  read ? "border-transparent" : "border-[color-mix(in_srgb,var(--gold)_60%,transparent)]"
                 }`}
               >
-                {event?.image && (
-                  <img src={event.image} alt="" className="h-40 w-full object-cover" />
-                )}
-                <div className="flex items-start gap-3 px-4 py-3">
-                  {!read && (
-                    <span className="mt-1.5 h-2 w-2 shrink-0 animate-pulse bg-[var(--neon-cyan)] shadow-[0_0_8px_var(--neon-cyan)]" />
-                  )}
+                {event?.image && <img src={event.image} alt="" className="h-40 w-full object-cover" />}
+                <div className="flex items-start gap-3 p-4">
+                  <span
+                    className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${
+                      read ? "bg-transparent" : "bg-[var(--gold)]"
+                    }`}
+                    aria-label={read ? undefined : "Unread"}
+                  />
                   <div className="min-w-0 flex-1">
                     {event ? (
                       <>
-                        <p className="font-mono text-[10px] font-bold uppercase tracking-[3px] text-[var(--neon-pink)]">
+                        <p className="st-label">
                           {n.kind === "reminder"
                             ? "Reminder"
                             : n.kind === "update"
                             ? "Event updated"
                             : "New event"}
                         </p>
-                        <p className="mt-0.5 text-sm font-bold uppercase tracking-[1px] text-[var(--text-primary)]">
-                          {event.title}
-                        </p>
-                        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-[var(--text-muted)]">
+                        <p className="mt-0.5 text-sm font-bold">{event.title}</p>
+                        <p className="st-muted mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                           <span className="inline-flex items-center gap-1">
-                            <FiCalendar size={11} /> {formatEventDate(event.date)}
+                            <FiCalendar size={12} /> {formatEventDate(event.date)}
                           </span>
                           <span className="inline-flex items-center gap-1">
-                            <FiAward size={11} /> {event.pointValue} pts
+                            <FiAward size={12} /> {event.pointValue} pts
                           </span>
                         </p>
                         {event.description && (
-                          <p className="mt-2 whitespace-pre-line text-xs leading-relaxed text-[var(--text-muted)]">
+                          <p className="st-muted mt-2 whitespace-pre-line text-xs leading-relaxed">
                             {event.description}
                           </p>
                         )}
                       </>
                     ) : (
-                      <p className="text-sm font-semibold text-[var(--text-primary)]">
-                        {n.message}
-                      </p>
+                      <p className="text-sm font-semibold">{n.message}</p>
                     )}
-                    <p className="mt-2 font-mono text-[11px] text-[var(--text-faint)]">
-                      {formatDate(n.createdAt)}
-                    </p>
+                    <p className="mt-2 text-[11px] text-[var(--text-faint)]">{formatDate(n.createdAt)}</p>
                   </div>
                 </div>
               </button>

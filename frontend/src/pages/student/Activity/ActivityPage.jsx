@@ -15,7 +15,7 @@ export default function ActivityPage() {
     <div className="flex flex-col gap-6">
       <div className="grid gap-6 lg:grid-cols-[1fr_290px]">
         <ActivityCard student={student} onShowBreakdown={() => setShowBreakdown(true)} />
-        <RecentActivities onShowBreakdown={() => setShowBreakdown(true)} />
+        <RecentActivities />
       </div>
       <RequirementsPanel />
       {showBreakdown && <PointsBreakdownModal onClose={() => setShowBreakdown(false)} />}
