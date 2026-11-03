@@ -24,6 +24,7 @@ urlpatterns = [
 
     # auth
     path("api/auth/login", views.LoginView.as_view(), name="login"),
+    path("api/auth/logout", views.LogoutView.as_view(), name="logout"),
     path("api/auth/password-request", views.PasswordRequestView.as_view(), name="password_request"),
     path("api/token", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh", views.SafeTokenRefreshView.as_view(), name="token_refresh"),

@@ -728,9 +728,14 @@ class RolePermissionTest(TestCase):
     response = self.client.post("/api/event", {"title": "Party", "date": "2026-07-13"}, format="json")
     self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-  def test_scanner_can_create_events_but_not_edit_students(self):
+  def test_scanner_cannot_manage_events_or_edit_students(self):
     response = self.scanner_client.post("/api/event", {"title": "Party", "date": "2026-07-13"}, format="json")
-    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    event = Event.objects.create_event(title="Assembly", date="2026-07-13")
+    self.assertEqual(self.scanner_client.get("/api/event").status_code, status.HTTP_200_OK)
+    self.assertEqual(self.scanner_client.patch(f"/api/event/{event.pk}", {"title": "X"}, format="json").status_code, status.HTTP_403_FORBIDDEN)
+    self.assertEqual(self.scanner_client.delete(f"/api/event/{event.pk}").status_code, status.HTTP_403_FORBIDDEN)
+    self.assertEqual(self.scanner_client.post(f"/api/event/{event.pk}/announce", {"kind": "new"}, format="json").status_code, status.HTTP_403_FORBIDDEN)
     self.assertEqual(self.scanner_client.get("/api/user").status_code, status.HTTP_200_OK)
     response = self.scanner_client.patch("/api/user/2024-00001", {"first_name": "X"}, format="json")
     self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -912,7 +917,7 @@ class ScanAndAnnounceTest(TestCase):
     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
   def test_announce_to_everyone(self):
-    response = self.client.post(f"/api/event/{self.event.pk}/announce", {"kind": "new"}, format="json")
+    response = authenticated_client().post(f"/api/event/{self.event.pk}/announce", {"kind": "new"}, format="json")
     self.assertEqual(response.data["notified"], 2)
     notification = Notification.objects.filter(user=self.cpe).get()
     self.assertEqual(notification.kind, "new")
@@ -922,17 +927,17 @@ class ScanAndAnnounceTest(TestCase):
 
   def test_announce_only_to_program(self):
     Event.objects.filter(pk=self.event.pk).update(program_for=["BS Computer Science"])
-    response = self.client.post(f"/api/event/{self.event.pk}/announce", {"kind": "reminder", "message": "Tomorrow!"}, format="json")
+    response = authenticated_client().post(f"/api/event/{self.event.pk}/announce", {"kind": "reminder", "message": "Tomorrow!"}, format="json")
     self.assertEqual(response.data["notified"], 1)
     self.assertEqual(Notification.objects.get().user, self.cs)
     self.assertEqual(Notification.objects.get().message, "Tomorrow!")
 
   def test_announce_invalid_kind(self):
-    response = self.client.post(f"/api/event/{self.event.pk}/announce", {"kind": "spam"}, format="json")
+    response = authenticated_client().post(f"/api/event/{self.event.pk}/announce", {"kind": "spam"}, format="json")
     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
   def test_notification_includes_event_date(self):
-    self.client.post(f"/api/event/{self.event.pk}/announce", {"kind": "new"}, format="json")
+    authenticated_client().post(f"/api/event/{self.event.pk}/announce", {"kind": "new"}, format="json")
     data = authenticated_client(self.cpe).get("/api/notification").data[0]
     self.assertEqual(data["event_date"], "2026-07-13")
     self.assertEqual(data["event"], self.event.pk)
@@ -1030,6 +1035,29 @@ class StaffAccountsTest(TestCase):
     self.assertTrue(scanner.must_change_password)
     self.assertTrue(scanner.check_password(response.data["temp_password"]))
 
+  def test_create_admin(self):
+    response = self.create(username="maria.admin", role="admin")
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    self.assertEqual(response.data["role"], "admin")
+    new_admin = User.objects.get(pk="maria.admin")
+    self.assertEqual(new_admin.role, "admin")
+    self.assertTrue(new_admin.must_change_password)
+    # the new admin can sign in on the admin portal with the temporary password
+    login = APIClient().post("/api/auth/login", {
+      "identifier": "maria.admin", "password": response.data["temp_password"], "portal": "admin",
+    }, format="json")
+    self.assertEqual(login.status_code, status.HTTP_200_OK)
+
+  def test_role_must_be_staff(self):
+    self.assertEqual(self.create(role="student").status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertEqual(self.create(role="superuser").status_code, status.HTTP_400_BAD_REQUEST)
+
+  def test_admin_can_reset_and_remove_another_admin(self):
+    other = staff_user("scanner")
+    User.objects.filter(pk=other.pk).update(role="admin")
+    self.assertEqual(self.client.post(f"/api/user/{other.pk}/account").status_code, status.HTTP_200_OK)
+    self.assertEqual(self.client.delete(f"/api/user/{other.pk}").status_code, status.HTTP_200_OK)
+
   def test_username_rules(self):
     self.assertEqual(self.create(username="ab").status_code, status.HTTP_400_BAD_REQUEST)
     self.assertEqual(self.create(username="has space").status_code, status.HTTP_400_BAD_REQUEST)
@@ -1086,3 +1114,124 @@ class StaffAccountsTest(TestCase):
     self.assertEqual(login("staff-scanner", "scanner"), status.HTTP_200_OK)
     self.assertEqual(login("staff-admin", "admin"), status.HTTP_200_OK)
     self.assertEqual(login("staff-admin", "scanner"), status.HTTP_200_OK)
+
+  def test_create_admin_with_student_details(self):
+    response = self.client.post("/api/staff", {
+      "role": "admin", "student_id": "2024-09999", "last_name": "REYES", "first_name": "ANA", "middle_name": "B.",
+      "program": "BS Computer Science", "year_level": 4, "section": "BSCS-4A",
+      "email": "ana.reyes@dyci.edu.ph", "contact_number": "0917-000-0000", "address": "Bulacan",
+    }, format="json")
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    admin = User.objects.get(pk="2024-09999")
+    self.assertEqual((admin.role, admin.last_name, admin.first_name, admin.program), ("admin", "REYES", "ANA", "BS Computer Science"))
+    self.assertEqual((admin.year_level, admin.email), (4, "ana.reyes@dyci.edu.ph"))
+    self.assertTrue(admin.must_change_password)
+    self.assertTrue(admin.check_password(response.data["temp_password"]))
+
+  def test_create_scanner_with_student_details(self):
+    response = self.client.post("/api/staff", {
+      "role": "scanner", "student_id": "2024-08888", "last_name": "CRUZ", "first_name": "JUAN",
+      "program": "BS Information Technology", "year_level": 2, "section": "BSIT-2B", "email": "juan.cruz@dyci.edu.ph",
+    }, format="json")
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    scanner = User.objects.get(pk="2024-08888")
+    self.assertEqual((scanner.role, scanner.last_name, scanner.section), ("scanner", "CRUZ", "BSIT-2B"))
+    self.assertTrue(scanner.must_change_password)
+
+  def test_admin_details_are_validated_like_a_student(self):
+    base = {"role": "admin", "student_id": "2024-09998", "last_name": "REYES", "first_name": "ANA"}
+    self.assertEqual(self.client.post("/api/staff", {**base, "email": "not-an-email"}, format="json").status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertEqual(self.client.post("/api/staff", {**base, "year_level": 9}, format="json").status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertFalse(User.objects.filter(pk="2024-09998").exists())
+
+
+class SessionExpiryTest(TestCase):
+
+  def setUp(self):
+    self.student = make_user("2024-00001")
+
+  def login(self):
+    return APIClient().post("/api/auth/login", {"identifier": "2024-00001", "password": "JMC090907", "portal": "student"}, format="json").data
+
+  def refresh(self, token):
+    return APIClient().post("/api/token/refresh", {"refresh": token}, format="json")
+
+  def test_tokens_have_expiry(self):
+    from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+    tokens = self.login()
+    access, refresh = AccessToken(tokens["access"]), RefreshToken(tokens["refresh"])
+    self.assertEqual(access["exp"] - access["iat"], 30 * 60)
+    self.assertEqual(refresh["exp"] - refresh["iat"], 24 * 60 * 60)
+
+  def test_logout_cancels_the_session(self):
+    tokens = self.login()
+    self.assertEqual(self.refresh(tokens["refresh"]).status_code, status.HTTP_200_OK)
+    response = APIClient().post("/api/auth/logout", {"refresh": tokens["refresh"]}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+    self.assertEqual(self.refresh(tokens["refresh"]).status_code, status.HTTP_401_UNAUTHORIZED)
+
+  def test_logout_with_bad_token_is_harmless(self):
+    response = APIClient().post("/api/auth/logout", {"refresh": "garbage"}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+  def test_refresh_does_not_extend_the_session(self):
+    tokens = self.login()
+    response = self.refresh(tokens["refresh"])
+    # no new refresh token is handed out, so the original sign-in limit still applies
+    self.assertNotIn("refresh", response.data)
+
+  def test_expired_session_is_rejected(self):
+    from datetime import timedelta
+    from rest_framework_simplejwt.tokens import RefreshToken
+    token = RefreshToken.for_user(self.student)
+    token.set_exp(lifetime=-timedelta(seconds=1))
+    self.assertEqual(self.refresh(str(token)).status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class SrsComplianceTest(TestCase):
+  """Requirements from the OASIS SRS that the API itself enforces."""
+
+  def setUp(self):
+    self.student = make_user("2024-00001")
+    self.event = Event.objects.create_event(title="Assembly", date="2026-07-13")
+
+  def test_fr28_one_attendance_record_per_event_and_student(self):
+    from django.db import IntegrityError, transaction
+    Attendance.objects.create(user=self.student, event=self.event)
+    with self.assertRaises(IntegrityError), transaction.atomic():
+      Attendance.objects.create(user=self.student, event=self.event)
+    self.assertEqual(Attendance.objects.count(), 1)
+
+  def test_db05_bio_and_talent_lengths(self):
+    client = authenticated_client(self.student)
+    self.assertEqual(client.patch("/api/user/me", {"bio": "x" * 300, "talent": "y" * 80}, format="json").status_code, status.HTTP_200_OK)
+    self.assertEqual(client.patch("/api/user/me", {"bio": "x" * 301}, format="json").status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertEqual(client.patch("/api/user/me", {"talent": "y" * 81}, format="json").status_code, status.HTTP_400_BAD_REQUEST)
+
+  def test_sec06_first_login_password_needs_8_characters(self):
+    User.objects.filter(pk=self.student.pk).update(must_change_password=True)
+    self.student.refresh_from_db()
+    client = authenticated_client(self.student)
+    response = client.post("/api/user/me/password", {"current_password": "JMC090907", "new_password": "Short12"}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    response = client.post("/api/user/me/password", {"current_password": "JMC090907", "new_password": "LongEnough1"}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+  def test_fr07_staff_change_own_password_with_6_characters(self):
+    scanner = staff_user("scanner")
+    client = authenticated_client(scanner)
+    response = client.post("/api/user/me/password", {"current_password": "wrong", "new_password": "Abc123"}, format="json")
+    self.assertEqual(response.data["current_password"][0], "Current password is incorrect.")
+    response = client.post("/api/user/me/password", {"current_password": "StaffPass1", "new_password": "Abc123"}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    scanner.refresh_from_db()
+    self.assertTrue(scanner.check_password("Abc123"))
+
+  def test_sec08_only_admins_read_password_requests(self):
+    User.objects.filter(pk=self.student.pk).update(password_requested_at="2026-01-01T00:00:00Z")
+    admin_view = authenticated_client().get("/api/user", {"role": "student"}).data[0]
+    scanner_view = authenticated_client(staff_user("scanner")).get("/api/user", {"role": "student"}).data[0]
+    self.assertIsNotNone(admin_view["password_requested_at"])
+    self.assertNotIn("password_requested_at", scanner_view)
+    own_view = authenticated_client(self.student).get("/api/user/me").data
+    self.assertNotIn("password_requested_at", own_view)

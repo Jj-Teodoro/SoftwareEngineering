@@ -1,7 +1,7 @@
 import re
 import secrets
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from .serializers import (
@@ -40,6 +41,8 @@ from .utils import UserRole
 
 TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
 MIN_PASSWORD_LENGTH = 6
+# SRS SEC-06 / FR-05: replacing a temporary password needs at least 8 characters
+MIN_FIRST_PASSWORD_LENGTH = 8
 
 
 def generate_temp_password(length=10):
@@ -81,6 +84,19 @@ class LoginView(APIView):
         return Response({**tokens_for(user), "user": UserSerializer(user).data}, status=status.HTTP_200_OK)
 
     return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class LogoutView(APIView):
+  """Cancels the session on the server: the refresh token can't be used again."""
+  permission_classes = [AllowAny]
+  authentication_classes = []
+
+  def post(self, request):
+    try:
+      RefreshToken(str(request.data.get("refresh", ""))).blacklist()
+    except TokenError:
+      pass  # already expired or invalid: the session is over either way
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SafeTokenRefreshSerializer(TokenRefreshSerializer):
@@ -161,9 +177,10 @@ class ChangePasswordView(APIView):
 
     if not user.check_password(current_password):
       return Response({"current_password": ["Current password is incorrect."]}, status=status.HTTP_400_BAD_REQUEST)
-    if len(new_password) < MIN_PASSWORD_LENGTH:
+    min_length = MIN_FIRST_PASSWORD_LENGTH if user.must_change_password else MIN_PASSWORD_LENGTH
+    if len(new_password) < min_length:
       return Response(
-        {"new_password": [f"New password must be at least {MIN_PASSWORD_LENGTH} characters."]},
+        {"new_password": [f"New password must be at least {min_length} characters."]},
         status=status.HTTP_400_BAD_REQUEST,
       )
     if new_password == current_password:
@@ -198,7 +215,7 @@ class UserDetailView(APIView):
 
   def get(self, request, student_id):
     user = get_object_or_404(User, student_id=student_id)
-    serializer = UserSerializer(user)
+    serializer = UserSerializer(user, context={"request": request})
     return Response(serializer.data, status=status.HTTP_200_OK)
 
   def patch(self, request, student_id):
@@ -277,7 +294,7 @@ class AccountView(APIView):
     return Response({"student_id": user.student_id, "temp_password": temp_password}, status=status.HTTP_200_OK)
 
 class StaffListCreateView(APIView):
-  """Admin and scanner accounts. Admins add scanners here; each starts with a
+  """Admin and scanner accounts. Admins add both here; each starts with a
   temporary password and must choose their own on first sign-in."""
   permission_classes = [IsAdmin]
 
@@ -285,12 +302,26 @@ class StaffListCreateView(APIView):
 
   def get(self, request):
     staff = User.objects.filter(role__in=STAFF_ROLES).order_by("role", "first_name")
-    return Response(UserSerializer(staff, many=True).data, status=status.HTTP_200_OK)
+    return Response(UserSerializer(staff, many=True, context={"request": request}).data, status=status.HTTP_200_OK)
+
+  # Optional details, the same ones a student record has (the admin form uses them).
+  PROFILE_FIELDS = (
+    "first_name", "middle_name", "last_name", "program", "year_level", "section",
+    "status", "email", "contact_number", "address",
+  )
 
   def post(self, request):
-    name = str(request.data.get("name", "")).strip()
-    username = str(request.data.get("username", "")).strip().lower()
-    if not name:
+    data = request.data
+    # scanners: a username and a name; admins: an ID number (student_id) and the student details
+    username = str(data.get("username") or data.get("student_id") or "").strip().lower()
+    role = data.get("role", UserRole.SCANNER.value)
+    profile = {field: data[field] for field in self.PROFILE_FIELDS if field in data}
+    if data.get("name"):
+      profile["first_name"] = str(data["name"]).strip()
+
+    if role not in STAFF_ROLES:
+      return Response({"role": ["Role must be admin or scanner."]}, status=status.HTTP_400_BAD_REQUEST)
+    if not str(profile.get("first_name", "")).strip() and not str(profile.get("last_name", "")).strip():
       return Response({"name": ["Enter the person's name."]}, status=status.HTTP_400_BAD_REQUEST)
     if not self.USERNAME_PATTERN.match(username):
       return Response(
@@ -301,13 +332,19 @@ class StaffListCreateView(APIView):
     if User.objects.filter(student_id__iexact=username).exists():
       return Response({"username": ["That username is already taken."]}, status=status.HTTP_400_BAD_REQUEST)
 
+    # same validation as a student record (email format, year level 1-4, ...)
+    serializer = UserSerializer(data={**profile, "student_id": username, "role": role})
+    serializer.is_valid(raise_exception=True)
+    user = serializer.save()
+
     temp_password = generate_temp_password()
-    user = User.objects.create_user(
-      username, temp_password, first_name=name, role=UserRole.SCANNER.value, must_change_password=True,
-    )
+    user.set_password(temp_password)
     user.temp_password = temp_password
-    user.save(update_fields=["temp_password"])
-    return Response({"username": username, "temp_password": temp_password}, status=status.HTTP_201_CREATED)
+    user.must_change_password = True
+    user.save(update_fields=["password", "temp_password", "must_change_password"])
+    return Response(
+      {"username": username, "role": role, "temp_password": temp_password}, status=status.HTTP_201_CREATED
+    )
 
 
 class PasswordRequestDismissView(APIView):
@@ -322,7 +359,8 @@ class PasswordRequestDismissView(APIView):
 
 class EventListCreateView(generics.ListCreateAPIView):
   serializer_class = EventSerializer
-  permission_classes = [ReadAnyWriteStaff]
+  # anyone signed in reads events; only admins create them (scanners only scan)
+  permission_classes = [ReadAnyWriteAdmin]
 
   def get_queryset(self):
     queryset = Event.objects.select_related("created_by").order_by("-created_at")
@@ -345,7 +383,7 @@ class EventListCreateView(generics.ListCreateAPIView):
 class EventView(generics.RetrieveUpdateDestroyAPIView):
   queryset = Event.objects.select_related("created_by")
   serializer_class = EventSerializer
-  permission_classes = [ReadAnyWriteStaff]
+  permission_classes = [ReadAnyWriteAdmin]
   lookup_field = "event_id"
 
   def perform_destroy(self, instance):
@@ -357,7 +395,7 @@ class EventView(generics.RetrieveUpdateDestroyAPIView):
 
 class AnnounceEventView(APIView):
   """Sends the event to every student in its program as a fresh unread notification."""
-  permission_classes = [IsStaff]
+  permission_classes = [IsAdmin]
 
   LABELS = {"new": "New event", "update": "Updated", "reminder": "Reminder"}
 
@@ -441,8 +479,13 @@ class ScanAttendanceView(APIView):
     if existing is None:
       serializer = AttendanceSerializer(data={"user": student.pk, "event": str(event.pk)})
       serializer.is_valid(raise_exception=True)
-      record = serializer.save(scanned_by=request.user)
-      action = "in"
+      try:
+        with transaction.atomic():
+          record = serializer.save(scanned_by=request.user)
+        action = "in"
+      except IntegrityError:
+        # another scan of the same student just checked them in (SRS FR-28)
+        record, action = Attendance.objects.get(user=student, event=event), "already"
     elif existing.time_out is None:
       existing.time_out = timezone.now()
       existing.save(update_fields=["time_out"])

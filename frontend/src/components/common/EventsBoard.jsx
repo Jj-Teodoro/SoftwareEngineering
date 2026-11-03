@@ -78,14 +78,16 @@ export default function EventsBoard({ events, students, presentCounts, onCreate,
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Events" subtitle={`${events.length} in total`}>
-        <button type="button" onClick={onCreate} className="btn-primary">
-          <FiPlus size={14} /> New event
-        </button>
+        {onCreate && (
+          <button type="button" onClick={onCreate} className="btn-primary">
+            <FiPlus size={14} /> New event
+          </button>
+        )}
       </PageHeader>
 
       {events.length === 0 && (
         <div className="surface">
-          <EmptyState>No events yet. Create one to start taking attendance.</EmptyState>
+          <EmptyState>{onCreate ? "No events yet. Create one to start taking attendance." : "No events yet."}</EmptyState>
         </div>
       )}
 
