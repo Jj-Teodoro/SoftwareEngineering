@@ -191,6 +191,7 @@ export default function ActivityCard({ student, onShowBreakdown }) {
       titleAction={titleAction}
       photoOverlay={photoOverlay}
       aboutSlot={aboutSlot}
+      showAbout={editing}
     />
   );
 }

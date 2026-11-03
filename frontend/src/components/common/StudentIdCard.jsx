@@ -156,7 +156,8 @@ function PointsMeter({ total, target }) {
  * the slots) and the Admin site (read-only view).
  *
  * Slots: `titleAction` (button in the points header), `photoOverlay` (inside
- * the photo frame), `aboutSlot` (replaces the bio/talent/hobbies block).
+ * the photo frame), `aboutSlot` (replaces the bio/talent/hobbies block), and
+ * `showAbout` (set to false to leave that block out).
  */
 export default function StudentIdCard({
   student,
@@ -167,6 +168,7 @@ export default function StudentIdCard({
   titleAction,
   photoOverlay,
   aboutSlot,
+  showAbout = true,
 }) {
   const hobbies = student.hobbies || [];
 
@@ -205,6 +207,7 @@ export default function StudentIdCard({
         </div>
       </section>
 
+      {showAbout && (
       <section className="st-card p-5">
         <h3 className="st-title mb-3">About</h3>
         {aboutSlot ?? (
@@ -234,6 +237,7 @@ export default function StudentIdCard({
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }
