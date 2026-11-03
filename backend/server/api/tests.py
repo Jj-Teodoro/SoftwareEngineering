@@ -1378,3 +1378,13 @@ class ClearanceSettingTest(TestCase):
     authenticated_client(admin).patch("/api/settings/clearance", {"required_points": 80}, format="json")
     entry = ActivityLog.objects.get(user=admin, action="settings.clearance")
     self.assertEqual(entry.detail, "80 points")
+
+
+class ClearanceSettingUnmigratedTest(TestCase):
+  def test_saving_says_what_is_wrong_when_the_table_is_missing(self):
+    from unittest import mock
+    from django.db import DatabaseError
+    with mock.patch("api.views.ClearanceSetting.objects.update_or_create", side_effect=DatabaseError("no such table")):
+      response = authenticated_client().patch("/api/settings/clearance", {"required_points": 40}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+    self.assertIn("migrate", response.data["detail"])

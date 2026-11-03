@@ -272,7 +272,14 @@ class ClearanceSettingView(APIView):
         return Response(
           {"required_points": [f"Enter a number from 1 to {self.MAX_POINTS}."]}, status=status.HTTP_400_BAD_REQUEST
         )
-    ClearanceSetting.objects.update_or_create(pk=1, defaults={"required_points": value})
+    try:
+      ClearanceSetting.objects.update_or_create(pk=1, defaults={"required_points": value})
+    except DatabaseError:
+      # most likely the migration for this table has not been applied on this database yet
+      return Response(
+        {"detail": "The database needs its update first (python manage.py migrate). Ask whoever runs the system."},
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+      )
     log_activity(
       request, request.user, ACTION, "settings.clearance", "automatic" if value is None else f"{value} points"
     )

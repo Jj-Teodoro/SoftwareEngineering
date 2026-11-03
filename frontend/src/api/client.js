@@ -93,9 +93,18 @@ export function subscribeSession(callback) {
   return () => window.removeEventListener(SESSION_EVENT, handler);
 }
 
+// What to say when the server answered with an error but no readable message.
+function describeStatus(status) {
+  if (status === 404) return "The server doesn't have this yet. It may still be updating, so try again in a minute.";
+  if (status >= 500) {
+    return "The server had a problem. If the system was just updated, its database may need the update too. Tell the person who runs the system.";
+  }
+  return `Request failed with status ${status}`;
+}
+
 export class ApiError extends Error {
   constructor(status, data) {
-    super(extractMessage(data) || `Request failed with status ${status}`);
+    super(extractMessage(data) || describeStatus(status));
     this.status = status;
     this.data = data;
   }
@@ -144,8 +153,17 @@ async function send(path, { method = "GET", body, query, auth = true } = {}) {
   });
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!response.ok) throw new ApiError(response.status, data);
+  let data = null;
+  let readable = true;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      readable = false; // an error page or something else that is not data
+    }
+  }
+  if (!response.ok) throw new ApiError(response.status, readable ? data : null);
+  if (!readable) throw new ApiError(502, { detail: "The server sent back something unexpected. Try again in a minute." });
   return data;
 }
 
