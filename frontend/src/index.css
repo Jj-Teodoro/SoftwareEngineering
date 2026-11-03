@@ -126,6 +126,12 @@ body {
   background: var(--bg-base);
 }
 
+/* no rubber-band bounce when scrolling past the top or bottom of a page */
+html,
+body {
+  overscroll-behavior: none;
+}
+
 /* Student site: Inter for reading, JetBrains Mono only for short labels, titles and IDs */
 .st-root {
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
