@@ -261,3 +261,12 @@ class ActivityLog(models.Model):
 
   class Meta:
     ordering = ["-created_at"]
+
+
+class ClearanceSetting(models.Model):
+  """One row (pk=1): how many points a student needs to be cleared.
+
+  Empty (null) means automatic: the total of every requirement and event that applies to the
+  student's program. A number set by an admin replaces that for everyone; earning more than
+  the target is fine and still counts as cleared."""
+  required_points = models.PositiveIntegerField(null=True, blank=True)

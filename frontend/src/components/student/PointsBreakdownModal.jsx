@@ -254,7 +254,8 @@ export default function PointsBreakdownModal({ onClose }) {
     },
   ];
 
-  const overall = pctOf(totalPoints, targetPoints);
+  const overall = Math.min(100, pctOf(totalPoints, targetPoints));
+  const extra = Math.max(0, totalPoints - targetPoints);
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-3xl">
@@ -273,7 +274,7 @@ export default function PointsBreakdownModal({ onClose }) {
               color: cleared ? "var(--ok)" : "var(--on-gold)",
             }}
           >
-            {cleared ? "Cleared" : `${remaining} pts to clear`}
+            {cleared ? `Cleared${extra > 0 ? ` · +${extra} extra` : ""}` : `${remaining} pts to clear`}
           </span>
         </p>
 

@@ -2,11 +2,11 @@ from datetime import timedelta
 import re
 import secrets
 
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, IntegrityError, transaction
 from django.db.models import F, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from .models import User, Event, Attendance, Notification, SubmissionLog, Requirement, RequirementCompletion, Hobby, ActivityLog
+from .models import User, Event, Attendance, Notification, SubmissionLog, Requirement, RequirementCompletion, Hobby, ActivityLog, ClearanceSetting
 from .activity import record as log_activity, ACTION, FAILED, LOGIN
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -239,6 +239,44 @@ class MyActivityView(APIView):
       "actions": rows(own.filter(kind=ACTION)[:30]),
       "failed_last_day": own.filter(kind=FAILED, created_at__gte=day_ago).count(),
     }, status=status.HTTP_200_OK)
+
+class ClearanceSettingView(APIView):
+  """The points a student must earn to be cleared. Anyone signed in can read it; only admins
+  change it. `required_points: null` means automatic (every requirement and event that applies
+  to the student's program)."""
+  permission_classes = [IsAuthenticated]
+
+  MAX_POINTS = 100000
+
+  def get(self, request):
+    try:
+      value = ClearanceSetting.objects.filter(pk=1).values_list("required_points", flat=True).first()
+    except DatabaseError:
+      value = None  # the migration is not applied yet: behave as automatic
+    return Response({"required_points": value}, status=status.HTTP_200_OK)
+
+  def patch(self, request):
+    if not is_admin(request.user):
+      self.permission_denied(request)
+    raw = request.data.get("required_points")
+    if raw is None or raw == "":
+      value = None
+    else:
+      try:
+        if isinstance(raw, bool):
+          raise ValueError
+        value = int(raw)
+      except (TypeError, ValueError):
+        return Response({"required_points": ["Enter a whole number of points."]}, status=status.HTTP_400_BAD_REQUEST)
+      if value < 1 or value > self.MAX_POINTS:
+        return Response(
+          {"required_points": [f"Enter a number from 1 to {self.MAX_POINTS}."]}, status=status.HTTP_400_BAD_REQUEST
+        )
+    ClearanceSetting.objects.update_or_create(pk=1, defaults={"required_points": value})
+    log_activity(
+      request, request.user, ACTION, "settings.clearance", "automatic" if value is None else f"{value} points"
+    )
+    return Response({"required_points": value}, status=status.HTTP_200_OK)
 
 class PresenceView(APIView):
   permission_classes = [IsAuthenticated]

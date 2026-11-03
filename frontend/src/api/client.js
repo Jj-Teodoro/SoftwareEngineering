@@ -269,6 +269,12 @@ export const api = {
     toggle: (studentId, requirementId) =>
       request("/requirement/completion/toggle", { method: "POST", body: { student: studentId, requirement: requirementId } }),
   },
+  settings: {
+    // null means "automatic": the sum of every requirement and event that applies to the student
+    clearance: () => request("/settings/clearance"),
+    setClearance: (requiredPoints) =>
+      request("/settings/clearance", { method: "PATCH", body: { required_points: requiredPoints } }),
+  },
   hobbies: {
     list: () => request("/hobby"),
   },

@@ -34,6 +34,7 @@ urlpatterns = [
     path("api/user/me", views.CurrentUserView.as_view(), name="current_user"),
     path("api/user/me/password", views.ChangePasswordView.as_view(), name="change_password"),
     path("api/user/me/activity", views.MyActivityView.as_view(), name="my_activity"),
+    path("api/settings/clearance", views.ClearanceSettingView.as_view(), name="clearance_setting"),
     path("api/user/me/presence", views.PresenceView.as_view(), name="presence"),
     path("api/user/register", views.CreateUserView.as_view(), name="register"),
     path("api/user/bulk", views.CreateUserBulkView.as_view(), name="import_user"),
