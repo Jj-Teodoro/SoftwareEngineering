@@ -62,7 +62,7 @@ const COVERS = Object.entries(
   .map(([, url]) => url);
 
 const SHOW_MS = 3200;
-// Photo showcase: the whole photo is always visible (a blurred copy fills the frame behind it),
+// Photo showcase: each photo is cropped to fill the frame exactly,
 // automatic changing with a quick flash, and two photos peeking out behind.
 function PhotoShowcase() {
   const count = COVERS.length;
@@ -99,14 +99,7 @@ function PhotoShowcase() {
       />
 
       <div className="relative aspect-[3/2] overflow-hidden rounded-2xl border-[5px] border-white bg-[#1c0507] shadow-[0_18px_40px_rgba(0,0,0,0.5)]">
-        <img
-          key={`bg-${index}`}
-          src={at(0)}
-          alt=""
-          className="st-fade absolute inset-0 h-full w-full scale-125 object-cover opacity-60 blur-xl"
-          aria-hidden="true"
-        />
-        <img key={index} src={at(0)} alt="OASIS event photo" className="st-flash absolute inset-0 h-full w-full object-contain" />
+        <img key={index} src={at(0)} alt="OASIS event photo" className="st-flash absolute inset-0 h-full w-full object-cover" />
 
       </div>
     </div>
