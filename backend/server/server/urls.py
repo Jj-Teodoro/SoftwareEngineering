@@ -33,6 +33,7 @@ urlpatterns = [
     path("api/user", views.UserListView.as_view(), name="user_list"),
     path("api/user/me", views.CurrentUserView.as_view(), name="current_user"),
     path("api/user/me/password", views.ChangePasswordView.as_view(), name="change_password"),
+    path("api/user/me/activity", views.MyActivityView.as_view(), name="my_activity"),
     path("api/user/me/presence", views.PresenceView.as_view(), name="presence"),
     path("api/user/register", views.CreateUserView.as_view(), name="register"),
     path("api/user/bulk", views.CreateUserBulkView.as_view(), name="import_user"),

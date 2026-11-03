@@ -77,7 +77,7 @@ function StaffPortal({ Shell }) {
             onExit={() => setKioskEventId(null)}
           />
         ) : (
-          <Shell currentUser={currentUser} onLogout={handleLogout} onStartKiosk={setKioskEventId} />
+          <Shell currentUser={currentUser} onUserChange={setCurrentUser} onLogout={handleLogout} onStartKiosk={setKioskEventId} />
         )}
       </>
     );

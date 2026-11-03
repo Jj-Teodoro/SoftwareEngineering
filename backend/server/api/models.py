@@ -68,8 +68,6 @@ class User(AbstractBaseUser):
   online = models.BooleanField(default=False)
   # staff only: which site, page or kiosk event, and device (shown on the admin Settings page)
   presence_info = models.JSONField(default=dict, blank=True)
-  # staff only: which site, page or kiosk event, and device (shown on the admin Settings page)
-  presence_info = models.JSONField(default=dict, blank=True)
 
   objects = UserManager()
 
@@ -248,3 +246,18 @@ class Hobby(models.Model):
 
   def __str__(self):
     return self.label
+
+
+class ActivityLog(models.Model):
+  """Sign-ins, wrong-password attempts and key actions of admin and scanner accounts."""
+  log_id = models.UUIDField(default=uuid.uuid4, primary_key=True)
+  user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="activity_log")
+  kind = models.CharField(max_length=10)  # "login", "failed" or "action"
+  action = models.CharField(max_length=40, blank=True)  # e.g. "event.created"
+  detail = models.CharField(max_length=200, blank=True)
+  ip_address = models.GenericIPAddressField(null=True, blank=True)
+  device = models.CharField(max_length=160, blank=True)
+  created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+  class Meta:
+    ordering = ["-created_at"]

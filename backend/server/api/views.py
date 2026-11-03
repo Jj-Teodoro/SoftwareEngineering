@@ -1,3 +1,4 @@
+from datetime import timedelta
 import re
 import secrets
 
@@ -5,7 +6,8 @@ from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from .models import User, Event, Attendance, Notification, SubmissionLog, Requirement, RequirementCompletion, Hobby
+from .models import User, Event, Attendance, Notification, SubmissionLog, Requirement, RequirementCompletion, Hobby, ActivityLog
+from .activity import record as log_activity, ACTION, FAILED, LOGIN
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,6 +19,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .serializers import (
   UserSerializer,
   ProfileSerializer,
+  StaffSelfSerializer,
   EventSerializer,
   AttendanceSerializer,
   NotificationSerializer,
@@ -81,8 +84,14 @@ class LoginView(APIView):
         # record it before replying, so the response already has this sign-in time
         user.last_login = timezone.now()
         user.save(update_fields=["last_login"])
+        if user.role in STAFF_ROLES:
+          log_activity(request, user, LOGIN, detail=f"{portal} site")
         return Response({**tokens_for(user), "user": UserSerializer(user).data}, status=status.HTTP_200_OK)
 
+    # a wrong password on a real admin or scanner account goes in that account's security trail
+    tried = candidates.first()
+    if tried is not None and tried.role in STAFF_ROLES:
+      log_activity(request, tried, FAILED, detail=f"Wrong password on the {portal} site")
     return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
 
@@ -134,6 +143,10 @@ class CreateUserView(generics.CreateAPIView):
   serializer_class = UserSerializer
   permission_classes = [IsAdmin]
 
+  def perform_create(self, serializer):
+    student = serializer.save()
+    log_activity(self.request, self.request.user, ACTION, "student.added", student.student_id)
+
 class UserListView(generics.ListAPIView):
   serializer_class = UserSerializer
   permission_classes = [IsStaff]
@@ -162,9 +175,14 @@ class CurrentUserView(APIView):
     return Response(UserSerializer(request.user).data, status=status.HTTP_200_OK)
 
   def patch(self, request):
-    serializer = ProfileSerializer(request.user, data=request.data, partial=True)
+    # admins and scanners change their name and email; students change their card details
+    staff = is_staff_member(request.user)
+    serializer_class = StaffSelfSerializer if staff else ProfileSerializer
+    serializer = serializer_class(request.user, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     serializer.save()
+    if staff:
+      log_activity(request, request.user, ACTION, "profile.updated")
     return Response(UserSerializer(request.user).data, status=status.HTTP_200_OK)
 
 class ChangePasswordView(APIView):
@@ -190,7 +208,37 @@ class ChangePasswordView(APIView):
     user.must_change_password = False
     user.temp_password = ""
     user.save(update_fields=["password", "must_change_password", "temp_password"])
+    if is_staff_member(user):
+      log_activity(request, user, ACTION, "password.changed")
     return Response({"message": "Password updated"}, status=status.HTTP_200_OK)
+
+class MyActivityView(APIView):
+  """The signed-in admin's or scanner's own security trail: recent sign-ins (and wrong-password
+  attempts) and recent actions."""
+  permission_classes = [IsStaff]
+
+  def get(self, request):
+    def rows(queryset):
+      return [
+        {
+          "id": str(entry.log_id),
+          "kind": entry.kind,
+          "action": entry.action,
+          "detail": entry.detail,
+          "ip": entry.ip_address,
+          "device": entry.device,
+          "at": entry.created_at,
+        }
+        for entry in queryset
+      ]
+
+    own = ActivityLog.objects.filter(user=request.user)
+    day_ago = timezone.now() - timedelta(hours=24)
+    return Response({
+      "sign_ins": rows(own.filter(kind__in=[LOGIN, FAILED])[:15]),
+      "actions": rows(own.filter(kind=ACTION)[:30]),
+      "failed_last_day": own.filter(kind=FAILED, created_at__gte=day_ago).count(),
+    }, status=status.HTTP_200_OK)
 
 class PresenceView(APIView):
   permission_classes = [IsAuthenticated]
@@ -223,6 +271,7 @@ class UserDetailView(APIView):
     serializer = UserSerializer(user, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     serializer.save()
+    log_activity(request, request.user, ACTION, "student.updated", user.student_id)
     return Response({
         **serializer.data,
         "message": f"User {serializer.data["student_id"]} updated successfully"
@@ -235,6 +284,7 @@ class UserDetailView(APIView):
     user = get_object_or_404(User, student_id=student_id)
     if user == request.user:
       return Response({"detail": "You can't remove your own account."}, status=status.HTTP_400_BAD_REQUEST)
+    log_activity(request, request.user, ACTION, "staff.removed" if user.role in STAFF_ROLES else "student.deleted", user.student_id)
     user.delete()
     return Response({
         "message": "User deleted successfully"
@@ -258,6 +308,7 @@ class CreateUserBulkView(generics.CreateAPIView):
     serializer = self.get_serializer(data = request.data, many = True)
     serializer.is_valid(raise_exception = True)
     self.perform_create(serializer)
+    log_activity(request, request.user, ACTION, "students.imported", f"{len(request.data)} students")
     headers = self.get_success_headers(serializer.data)
     return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
@@ -270,6 +321,7 @@ class DeleteUserBulkView(APIView):
       return Response({"student_ids": ["Expected a list of student IDs"]}, status=status.HTTP_400_BAD_REQUEST)
     # attendance, requirement progress and notifications go with the user (CASCADE)
     deleted, _ = User.objects.filter(student_id__in=student_ids).exclude(pk=request.user.pk).delete()
+    log_activity(request, request.user, ACTION, "students.deleted", f"{len(student_ids)} students")
     return Response({"message": f"{deleted} record(s) deleted"}, status=status.HTTP_200_OK)
 
 class AccountView(APIView):
@@ -291,6 +343,7 @@ class AccountView(APIView):
     user.must_change_password = True
     user.password_requested_at = None
     user.save(update_fields=["password", "temp_password", "must_change_password", "password_requested_at"])
+    log_activity(request, request.user, ACTION, "password.issued", user.student_id)
     return Response({"student_id": user.student_id, "temp_password": temp_password}, status=status.HTTP_200_OK)
 
 class StaffListCreateView(APIView):
@@ -342,6 +395,7 @@ class StaffListCreateView(APIView):
     user.temp_password = temp_password
     user.must_change_password = True
     user.save(update_fields=["password", "temp_password", "must_change_password"])
+    log_activity(request, request.user, ACTION, "staff.created", f"{username} ({role})")
     return Response(
       {"username": username, "role": role, "temp_password": temp_password}, status=status.HTTP_201_CREATED
     )
@@ -378,7 +432,9 @@ class EventListCreateView(generics.ListCreateAPIView):
     return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
   def perform_create(self, serializer):
-    serializer.save(created_by=self.request.user)
+    saved = serializer.save(created_by=self.request.user)
+    for event in saved if isinstance(saved, list) else [saved]:
+      log_activity(self.request, self.request.user, ACTION, "event.created", event.title)
 
 class EventView(generics.RetrieveUpdateDestroyAPIView):
   queryset = Event.objects.select_related("created_by")
@@ -386,7 +442,12 @@ class EventView(generics.RetrieveUpdateDestroyAPIView):
   permission_classes = [ReadAnyWriteAdmin]
   lookup_field = "event_id"
 
+  def perform_update(self, serializer):
+    event = serializer.save()
+    log_activity(self.request, self.request.user, ACTION, "event.updated", event.title)
+
   def perform_destroy(self, instance):
+    log_activity(self.request, self.request.user, ACTION, "event.deleted", instance.title)
     # take back the points awarded at this event before its attendance is removed
     with transaction.atomic():
       for attendance in instance.event.all():
@@ -493,6 +554,8 @@ class ScanAttendanceView(APIView):
     else:
       record, action = existing, "already"
 
+    if action != "already":
+      log_activity(request, request.user, ACTION, f"attendance.{action}", f"{student.student_id} · {event.title}")
     return Response({"action": action, "record": AttendanceSerializer(record).data}, status=status.HTTP_200_OK)
 
 
@@ -559,11 +622,23 @@ class RequirementListCreateView(generics.ListCreateAPIView):
   serializer_class = RequirementSerializer
   permission_classes = [ReadAnyWriteAdmin]
 
+  def perform_create(self, serializer):
+    requirement = serializer.save()
+    log_activity(self.request, self.request.user, ACTION, "requirement.created", requirement.title)
+
 class RequirementView(generics.RetrieveUpdateDestroyAPIView):
   queryset = Requirement.objects.all()
   serializer_class = RequirementSerializer
   permission_classes = [ReadAnyWriteAdmin]
   lookup_field = "requirement_id"
+
+  def perform_update(self, serializer):
+    requirement = serializer.save()
+    log_activity(self.request, self.request.user, ACTION, "requirement.updated", requirement.title)
+
+  def perform_destroy(self, instance):
+    log_activity(self.request, self.request.user, ACTION, "requirement.deleted", instance.title)
+    instance.delete()
 
 class RequirementCompletionListView(generics.ListAPIView):
   serializer_class = RequirementCompletionSerializer

@@ -110,6 +110,21 @@ class ProfileSerializer(ProfileValidationMixin, serializers.ModelSerializer):
     fields = ["bio", "hobbies", "talent", "photo"]
 
 
+class StaffSelfSerializer(serializers.ModelSerializer):
+  """What an admin or scanner may change about their own account."""
+
+  class Meta:
+    model = User
+    fields = ["first_name", "middle_name", "last_name", "email"]
+
+  def validate(self, attrs):
+    first = attrs.get("first_name", self.instance.first_name)
+    last = attrs.get("last_name", self.instance.last_name)
+    if not str(first).strip() and not str(last).strip():
+      raise serializers.ValidationError({"first_name": ["Enter your name."]})
+    return attrs
+
+
 class EventSerializer(serializers.ModelSerializer):
   created_by_name = serializers.SerializerMethodField()
   created_by_role = serializers.SerializerMethodField()
