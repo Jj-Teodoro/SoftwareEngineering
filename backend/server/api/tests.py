@@ -1325,3 +1325,19 @@ class ActivityTrailTest(TestCase):
     finally:
       activity.KEEP_PER_USER = 200
     self.assertEqual(ActivityLog.objects.filter(user=self.admin).count(), 5)
+
+
+class ActivityLogFailureTest(TestCase):
+  """The security trail must never stop someone from signing in or working."""
+
+  def test_sign_in_still_works_when_the_log_cannot_be_written(self):
+    from unittest import mock
+    from django.db import DatabaseError
+    admin = staff_user("admin")
+    with mock.patch("api.activity.ActivityLog.objects.create", side_effect=DatabaseError("no such table")):
+      response = APIClient().post(
+        "/api/auth/login",
+        {"identifier": admin.student_id, "password": "StaffPass1", "portal": "admin"},
+        format="json",
+      )
+    self.assertEqual(response.status_code, status.HTTP_200_OK)

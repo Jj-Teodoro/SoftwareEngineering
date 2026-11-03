@@ -1,10 +1,15 @@
 """Security trail for admin and scanner accounts: sign-ins (and wrong-password attempts)
 and the important things each account did. Shown on the admin's Settings page."""
 import ipaddress
+import logging
+
+from django.db import DatabaseError, transaction
 
 from .models import ActivityLog
 
 KEEP_PER_USER = 200
+
+logger = logging.getLogger(__name__)
 
 LOGIN = "login"
 FAILED = "failed"
@@ -42,16 +47,22 @@ def device_label(request):
 
 def record(request, user, kind, action="", detail=""):
   """Adds one entry for `user` and keeps only their latest KEEP_PER_USER."""
-  ActivityLog.objects.create(
-    user=user,
-    kind=kind,
-    action=action,
-    detail=str(detail)[:200],
-    ip_address=client_ip(request),
-    device=device_label(request)[:160],
-  )
-  old = list(
-    ActivityLog.objects.filter(user=user).order_by("-created_at").values_list("pk", flat=True)[KEEP_PER_USER:]
-  )
-  if old:
-    ActivityLog.objects.filter(pk__in=old).delete()
+  # The trail must never get in the way of the action itself: if the table is not there
+  # yet (migration not applied) or the database hiccups, carry on without it.
+  try:
+    with transaction.atomic():  # a savepoint, so a failure cannot spoil the caller's transaction
+      ActivityLog.objects.create(
+        user=user,
+        kind=kind,
+        action=action,
+        detail=str(detail)[:200],
+        ip_address=client_ip(request),
+        device=device_label(request)[:160],
+      )
+      old = list(
+        ActivityLog.objects.filter(user=user).order_by("-created_at").values_list("pk", flat=True)[KEEP_PER_USER:]
+      )
+      if old:
+        ActivityLog.objects.filter(pk__in=old).delete()
+  except DatabaseError:
+    logger.warning("Could not record %s %s for %s", kind, action, user.pk, exc_info=True)
