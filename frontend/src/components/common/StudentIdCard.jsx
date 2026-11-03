@@ -151,13 +151,12 @@ function PointsMeter({ total, target }) {
 }
 
 /**
- * The ID card plus what sits behind it: activity points and the about block.
+ * The ID card plus its activity points.
  * Shared by the User site (student view, with edit controls passed in through
  * the slots) and the Admin site (read-only view).
  *
  * Slots: `titleAction` (button in the points header), `photoOverlay` (inside
- * the photo frame), `aboutSlot` (replaces the bio/talent/hobbies block), and
- * `showAbout` (set to false to leave that block out).
+ * the photo frame).
  */
 export default function StudentIdCard({
   student,
@@ -167,11 +166,7 @@ export default function StudentIdCard({
   onShowBreakdown,
   titleAction,
   photoOverlay,
-  aboutSlot,
-  showAbout = true,
 }) {
-  const hobbies = student.hobbies || [];
-
   return (
     <div className="flex flex-col gap-4">
       <IdCardFront student={student} photoOverlay={photoOverlay} />
@@ -207,37 +202,6 @@ export default function StudentIdCard({
         </div>
       </section>
 
-      {showAbout && (
-      <section className="st-card p-5">
-        <h3 className="st-title mb-3">About</h3>
-        {aboutSlot ?? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <p className="st-label">Bio</p>
-              <p className="mt-1 whitespace-pre-line break-words text-sm">{student.bio || "—"}</p>
-            </div>
-            <div>
-              <p className="st-label">Talent</p>
-              <p className="mt-1 text-sm">{student.talent || "—"}</p>
-            </div>
-            <div>
-              <p className="st-label">Hobbies</p>
-              {hobbies.length > 0 ? (
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {hobbies.map((h) => (
-                    <span key={h} className="st-chip border border-[var(--line)] bg-[var(--card-2)]">
-                      {h}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-1 text-sm">—</p>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-      )}
     </div>
   );
 }
