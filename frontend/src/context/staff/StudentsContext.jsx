@@ -14,6 +14,7 @@ const ADMIN_EDITABLE_FIELDS = [
   "address",
 ];
 
+const IMPORT_BATCH = 400;
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 
 const StudentsContext = createContext(null);
@@ -160,12 +161,22 @@ export function StudentsProvider({ children }) {
       toAdd.push(row);
     });
 
-    if (toAdd.length > 0) {
-      await api.users.bulkCreate(toAdd.map(newStudentPayload));
-      await refresh();
+    // the API takes at most 500 students per request, so a big class list goes up in batches
+    let added = 0;
+    try {
+      for (let i = 0; i < toAdd.length; i += IMPORT_BATCH) {
+        const batch = toAdd.slice(i, i + IMPORT_BATCH);
+        await api.users.bulkCreate(batch.map(newStudentPayload));
+        added += batch.length;
+      }
+    } catch (error) {
+      error.added = added; // lets the page say how many made it before the problem
+      throw error;
+    } finally {
+      if (added > 0) await refresh();
     }
 
-    return { added: toAdd.length, skipped };
+    return { added, skipped };
   };
 
   return (
