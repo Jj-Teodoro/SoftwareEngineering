@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { FiCheck, FiCheckCircle, FiEdit2, FiPlus, FiTrash2, FiUsers, FiX } from "react-icons/fi";
+import { FiCheck, FiCheckCircle, FiEdit2, FiPlus, FiSearch, FiTrash2, FiUsers, FiX } from "react-icons/fi";
+import { DirectionToggle, MiniSelect, sortBy } from "../../../components/common/SortControls.jsx";
 import { useConfirm } from "../../../components/common/ConfirmDialog.jsx";
 import Modal from "../../../components/common/Modal.jsx";
 import { EmptyState, PageHeader, Section } from "../../../components/common/ui.jsx";
@@ -19,6 +20,28 @@ function ProgramSelect({ value, onChange, programs, className = "input" }) {
         <option key={p} value={p} className="text-black">{p}</option>
       ))}
     </select>
+  );
+}
+
+const REQUIREMENT_SORTS = [
+  { value: "title", label: "Name" },
+  { value: "points", label: "Points" },
+  { value: "completion", label: "Completion" },
+  { value: "program", label: "Program" },
+];
+const STUDENT_SORTS = [
+  { value: "name", label: "Name" },
+  { value: "studentId", label: "Student ID" },
+  { value: "section", label: "Section" },
+];
+
+// A search box for the compact filter toolbars on this page.
+function SearchBox({ value, onChange, placeholder }) {
+  return (
+    <div className="relative min-w-[160px] flex-1">
+      <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={14} />
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="input pl-9" />
+    </div>
   );
 }
 
@@ -46,6 +69,12 @@ export default function RequirementsPage() {
 
   const [managingId, setManagingId] = useState(null);
   const managing = items.find((i) => i.id === managingId);
+
+  // filters and sorting for the list
+  const [query, setQuery] = useState("");
+  const [programFilter, setProgramFilter] = useState("ANY");
+  const [sortKey, setSortKey] = useState("title");
+  const [sortDir, setSortDir] = useState("asc");
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -97,6 +126,27 @@ export default function RequirementsPage() {
     return { eligible: eligible.length, done };
   };
 
+  const shownItems = (() => {
+    const q = query.trim().toLowerCase();
+    const list = items.filter((item) => {
+      if (q && !item.title.toLowerCase().includes(q)) return false;
+      if (programFilter === "ANY") return true;
+      const forProgram = item.programFilter && item.programFilter !== "ALL" ? item.programFilter : "ALL";
+      return forProgram === programFilter;
+    });
+    const valueOf = {
+      title: (item) => item.title,
+      points: (item) => Number(item.pointValue) || 0,
+      completion: (item) => {
+        const { eligible, done } = stats(item);
+        return eligible > 0 ? done / eligible : 0;
+      },
+      program: (item) => programLabel(item),
+    }[sortKey];
+    return sortBy(list, valueOf, sortDir);
+  })();
+  const filtering = query.trim() || programFilter !== "ANY";
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader title="Requirements" subtitle="Items every student works toward, each worth points toward clearance.">
@@ -134,6 +184,29 @@ export default function RequirementsPage() {
         </form>
       </Section>
 
+      {items.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <SearchBox value={query} onChange={setQuery} placeholder="Search requirements" />
+          <MiniSelect
+            label="Program"
+            value={programFilter}
+            onChange={setProgramFilter}
+            options={[
+              { value: "ANY", label: "Any program" },
+              { value: "ALL", label: "For all programs" },
+              ...programs.map((p) => ({ value: p, label: p })),
+            ]}
+          />
+          <MiniSelect label="Sort requirements by" value={sortKey} onChange={setSortKey} options={REQUIREMENT_SORTS} />
+          <DirectionToggle dir={sortDir} onChange={setSortDir} />
+          {filtering && (
+            <span className="text-xs muted">
+              Showing {shownItems.length} of {items.length}
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="surface overflow-hidden">
         <div className={`${ROW} hidden border-b border-white/10 bg-white/[0.03] md:grid`}>
           {["Requirement", "For", "Points", "Completed", ""].map((h, i) => (
@@ -142,8 +215,9 @@ export default function RequirementsPage() {
         </div>
 
         {items.length === 0 && <EmptyState>No requirements yet. Add one above.</EmptyState>}
+        {items.length > 0 && shownItems.length === 0 && <EmptyState>No requirements match.</EmptyState>}
 
-        {items.map((item) => {
+        {shownItems.map((item) => {
           const { eligible, done } = stats(item);
           const pct = eligible > 0 ? Math.round((done / eligible) * 100) : 0;
           const editing = editingId === item.id;
@@ -233,13 +307,23 @@ function RequirementRosterModal({ item, onClose }) {
   const { isCompleted, toggleCompleted, appliesTo } = useRequirements();
   const { students } = useStudents();
   const [search, setSearch] = useState("");
+  const [state, setState] = useState("ALL"); // ALL | DONE | NOT_DONE
+  const [section, setSection] = useState("ALL");
+  const [sortKey, setSortKey] = useState("name");
+  const [sortDir, setSortDir] = useState("asc");
 
   const eligible = students.filter((s) => appliesTo(item, s.course));
   const done = eligible.filter((s) => isCompleted(s.studentId, item.id)).length;
+  const sections = [...new Set(eligible.map((s) => s.section).filter(Boolean))].sort();
   const query = search.trim().toLowerCase();
-  const shown = eligible.filter(
-    (s) => !query || s.name.toLowerCase().includes(query) || s.studentId.toLowerCase().includes(query)
-  );
+  const matching = eligible.filter((s) => {
+    if (query && !s.name.toLowerCase().includes(query) && !s.studentId.toLowerCase().includes(query)) return false;
+    if (section !== "ALL" && s.section !== section) return false;
+    if (state === "ALL") return true;
+    return isCompleted(s.studentId, item.id) === (state === "DONE");
+  });
+  const valueOf = { name: (s) => s.name, studentId: (s) => s.studentId, section: (s) => s.section }[sortKey];
+  const shown = sortBy(matching, valueOf, sortDir);
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-2xl">
@@ -248,12 +332,28 @@ function RequirementRosterModal({ item, onClose }) {
         {done} of {eligible.length} completed · {item.pointValue} pts each · {programLabel(item)}
       </p>
 
-      <input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search student ID or name"
-        className="input mt-4"
-      />
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <SearchBox value={search} onChange={setSearch} placeholder="Search student ID or name" />
+        <MiniSelect
+          label="Completion"
+          value={state}
+          onChange={setState}
+          options={[
+            { value: "ALL", label: "Everyone" },
+            { value: "DONE", label: "Done" },
+            { value: "NOT_DONE", label: "Not done" },
+          ]}
+        />
+        <MiniSelect
+          label="Section"
+          value={section}
+          onChange={setSection}
+          options={[{ value: "ALL", label: "All sections" }, ...sections.map((x) => ({ value: x, label: x }))]}
+        />
+        <MiniSelect label="Sort students by" value={sortKey} onChange={setSortKey} options={STUDENT_SORTS} />
+        <DirectionToggle dir={sortDir} onChange={setSortDir} />
+      </div>
+      <p className="mt-2 text-xs muted">Showing {shown.length} of {eligible.length}</p>
 
       <div className="mt-3 max-h-[50vh] space-y-2 overflow-y-auto pr-1">
         {shown.length === 0 && <EmptyState>No students found.</EmptyState>}
