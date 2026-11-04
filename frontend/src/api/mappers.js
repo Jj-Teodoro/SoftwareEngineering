@@ -111,6 +111,10 @@ export function toEvent(event) {
     description: event.description || "",
     image: event.image || "",
     pointValue: event.default_points,
+    // "HH:MM" (the server sends "HH:MM:SS")
+    startTime: event.start_time ? event.start_time.slice(0, 5) : "",
+    endTime: event.end_time ? event.end_time.slice(0, 5) : "",
+    closedAt: event.closed_at || null,
     programFilter: event.program_for?.[0] || "ALL",
     createdBy: event.created_by,
     createdByName: event.created_by_name,
@@ -120,10 +124,12 @@ export function toEvent(event) {
   };
 }
 
-export function fromEvent({ title, date, description, image, pointValue, programFilter }) {
+export function fromEvent({ title, date, startTime, endTime, description, image, pointValue, programFilter }) {
   return {
     title,
     date,
+    start_time: startTime || null,
+    end_time: endTime || null,
     description,
     image: image || "",
     default_points: Number(pointValue) || 0,

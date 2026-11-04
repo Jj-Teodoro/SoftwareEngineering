@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { FiAward, FiCalendar, FiCheckCircle, FiLock, FiMonitor, FiUsers } from "react-icons/fi";
-import { formatEventDate, getEventPhase, scanLockMessage, todayLocal } from "../../utils/events.js";
+import { formatEventDate, getEventPhase, scanLockMessage, todayLocal, formatEventWhen } from "../../utils/events.js";
 import { EmptyState, PageHeader } from "./ui.jsx";
 
 const PHASE_ORDER = { today: 0, upcoming: 1, done: 2 };
@@ -69,7 +69,7 @@ export default function ScanPicker({ events, students, presentCounts, onStartKio
                     )}
                   </div>
                   <p className="flex items-center gap-1.5 font-mono text-xs muted">
-                    <FiCalendar size={12} /> {formatEventDate(event.date)}
+                    <FiCalendar size={12} /> {formatEventWhen(event)}
                   </p>
                   <p className="label">{restricted ? event.programFilter : "All programs"}</p>
                   {open ? (
@@ -78,7 +78,7 @@ export default function ScanPicker({ events, students, presentCounts, onStartKio
                     </p>
                   ) : (
                     <p className="flex items-center gap-2 text-xs text-yellow-200/90">
-                      <FiLock size={12} /> {phase === "upcoming" ? `Opens ${formatEventDate(event.date)}` : "Event ended"}
+                      <FiLock size={12} /> {phase === "upcoming" ? scanLockMessage(event, today) : "Closed"}
                     </p>
                   )}
                 </button>
@@ -96,7 +96,7 @@ export default function ScanPicker({ events, students, presentCounts, onStartKio
           <div>
             <p className="text-base font-bold uppercase tracking-wide">{selected.title}</p>
             <p className="mt-1 font-mono text-xs muted">
-              {formatEventDate(selected.date)} · {selected.pointValue} pts ·{" "}
+              {formatEventWhen(selected)} · {selected.pointValue} pts ·{" "}
               {selected.programFilter && selected.programFilter !== "ALL" ? selected.programFilter : "All programs"}
             </p>
           </div>

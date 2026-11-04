@@ -116,6 +116,17 @@ export function StudentsProvider({ children }) {
     return issueAccount(studentId);
   };
 
+  // Makes a student an admin. The student list is not reloaded here (they would vanish
+  // from it at once); call refreshStudents when the admin is done reading the result.
+  const makeAdmin = async (studentId) => {
+    try {
+      const { temp_password: tempPassword } = await api.users.makeAdmin(studentId);
+      return { ok: true, tempPassword };
+    } catch (error) {
+      return { ok: false, message: error.message || "Could not change the role." };
+    }
+  };
+
   const dismissRequest = async (studentId) => {
     await api.users.dismissPasswordRequest(studentId);
     await refresh();
@@ -239,6 +250,8 @@ export function StudentsProvider({ children }) {
         dismissRequest,
         resetRequests,
         provisionAccounts,
+        makeAdmin,
+        refreshStudents: refresh,
       }}
     >
       {children}

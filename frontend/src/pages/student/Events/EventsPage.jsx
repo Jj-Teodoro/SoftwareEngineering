@@ -1,5 +1,5 @@
 import { FiAward, FiCalendar, FiCheckCircle, FiClock, FiZap } from "react-icons/fi";
-import { daysUntil, formatEventDate, getEventPhase } from "../../../utils/events.js";
+import { daysUntil, formatEventDate, getEventPhase, formatEventWhen } from "../../../utils/events.js";
 import Panel from "../../../components/student/Panel";
 import { useEvents } from "../../../context/student/EventsContext";
 
@@ -43,7 +43,7 @@ export function EventCard({ event, attended }) {
         </div>
         <p className="text-sm font-bold">{event.title}</p>
         <p className="st-muted mt-1 flex items-center gap-1.5 text-xs">
-          <FiCalendar size={12} /> {formatEventDate(event.date)}
+          <FiCalendar size={12} /> {formatEventWhen(event)}
         </p>
         {event.description && (
           <p className="st-muted mt-2 whitespace-pre-line text-xs leading-relaxed">{event.description}</p>

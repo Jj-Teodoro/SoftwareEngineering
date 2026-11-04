@@ -25,6 +25,8 @@ export default function CreateEventModal({
   const [form, setForm] = useState({
     title: event?.title ?? "",
     date: event?.date ?? todayLocal(),
+    startTime: event?.startTime ?? "08:00",
+    endTime: event?.endTime ?? "17:00",
     pointValue: event?.pointValue ?? 10,
     programFilter: event?.programFilter ?? "ALL",
     description: event?.description ?? "",
@@ -56,6 +58,8 @@ export default function CreateEventModal({
     e.preventDefault();
     if (!form.title.trim()) return setError("Event name is required.");
     if (!form.date) return setError("Date is required.");
+    if (!form.startTime || !form.endTime) return setError("Start and end time are required.");
+    if (form.endTime <= form.startTime) return setError("The end time must be after the start time.");
     if (!form.description.trim() && !image) {
       return setError(
         "Add a description or a background picture. Students receive it in their notification."
@@ -107,7 +111,6 @@ export default function CreateEventModal({
           <div>
             <label className={labelClass}>Date</label>
             <input type="date" className={inputClass} value={form.date} onChange={set("date")} />
-            <p className="mt-1 text-[10px] text-white/45">Scanning opens on this date.</p>
           </div>
           <div>
             <label className={labelClass}>Points</label>
@@ -119,6 +122,21 @@ export default function CreateEventModal({
               onChange={set("pointValue")}
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>Start time</label>
+            <input type="time" className={inputClass} value={form.startTime} onChange={set("startTime")} />
+          </div>
+          <div>
+            <label className={labelClass}>End time</label>
+            <input type="time" className={inputClass} value={form.endTime} onChange={set("endTime")} />
+          </div>
+          <p className="col-span-2 -mt-2 text-[10px] text-white/45">
+            Time in opens at the start time. Time out, which gives the points, opens at the end time.
+            Scanning stays open until an admin closes the event.
+          </p>
         </div>
 
         <div>

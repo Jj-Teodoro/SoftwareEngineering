@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { FiAward, FiCalendar, FiCheckCircle, FiLock, FiPlus, FiTrash2, FiUsers, FiZap } from "react-icons/fi";
-import { daysUntil, formatEventDate, getEventPhase, todayLocal } from "../../utils/events.js";
+import { daysUntil, formatEventDate, getEventPhase, todayLocal, formatEventWhen, formatClock } from "../../utils/events.js";
 import { EmptyState, PageHeader } from "./ui.jsx";
 import Pagination, { usePagination } from "./Pagination.jsx";
 
@@ -8,6 +8,9 @@ function PhaseChip({ event, today }) {
   const phase = getEventPhase(event, today);
   if (phase === "today") {
     return <span className="chip-green"><FiZap size={11} /> Scanning open</span>;
+  }
+  if (phase === "upcoming" && event.date === today) {
+    return <span className="chip-amber"><FiLock size={11} /> Opens at {formatClock(event.startTime)}</span>;
   }
   if (phase === "upcoming") {
     const days = daysUntil(event.date, today);
@@ -17,7 +20,7 @@ function PhaseChip({ event, today }) {
       </span>
     );
   }
-  return <span className="chip-gray"><FiCheckCircle size={11} /> Done</span>;
+  return <span className="chip-gray"><FiCheckCircle size={11} /> Closed</span>;
 }
 
 function EventCard({ event, today, eligible, present, onOpen, onDelete }) {
@@ -33,7 +36,7 @@ function EventCard({ event, today, eligible, present, onOpen, onDelete }) {
         </div>
         <h3 className="text-sm font-bold uppercase tracking-wide">{event.title}</h3>
         <p className="mt-1 flex items-center gap-1.5 font-mono text-xs muted">
-          <FiCalendar size={12} /> {formatEventDate(event.date)}
+          <FiCalendar size={12} /> {formatEventWhen(event)}
         </p>
         {event.description && <p className="mt-2 line-clamp-3 text-sm text-white/70">{event.description}</p>}
         <p className="label mt-3">{restricted ? event.programFilter : "All programs"}</p>
@@ -106,9 +109,9 @@ export default function EventsBoard({ events, students, presentCounts, onCreate,
     const byDate = (a, b) => a.date.localeCompare(b.date);
     const inPhase = (phase) => events.filter((e) => getEventPhase(e, today) === phase);
     return [
-      { key: "today", title: "Happening today", hint: "Scanning is open", list: inPhase("today") },
-      { key: "upcoming", title: "Upcoming", hint: "Scanning opens on the event date", list: inPhase("upcoming").sort(byDate) },
-      { key: "done", title: "Done", hint: "Scanning is closed", list: inPhase("done").sort((a, b) => byDate(b, a)) },
+      { key: "today", title: "Open now", hint: "Scanning is open until an admin closes the event", list: inPhase("today").sort(byDate) },
+      { key: "upcoming", title: "Upcoming", hint: "Time in opens at the start time", list: inPhase("upcoming").sort(byDate) },
+      { key: "done", title: "Closed", hint: "Closed by an admin; scanning has ended", list: inPhase("done").sort((a, b) => byDate(b, a)) },
     ].filter((s) => s.list.length > 0);
   }, [events, today]);
 

@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 import re
 import secrets
 
@@ -392,6 +392,34 @@ class AccountView(APIView):
     log_activity(request, request.user, ACTION, "password.issued", user.student_id)
     return Response({"student_id": user.student_id, "temp_password": temp_password}, status=status.HTTP_200_OK)
 
+class MakeAdminView(APIView):
+  """An admin makes a student an admin. They keep their student number as their username
+  and sign in at /admin. A student without a login gets a temporary password, returned once."""
+  permission_classes = [IsAdmin]
+
+  def post(self, request, student_id):
+    user = get_object_or_404(User, student_id=student_id)
+    if user == request.user:
+      return Response({"detail": "You can't change your own role."}, status=status.HTTP_400_BAD_REQUEST)
+    if user.role == UserRole.ADMIN:
+      return Response({"detail": "This person is already an admin."}, status=status.HTTP_400_BAD_REQUEST)
+
+    fields = ["role"]
+    temp_password = None
+    if not user.has_usable_password():
+      temp_password = generate_temp_password()
+      set_temp_password(user, temp_password)
+      user.temp_password = temp_password
+      user.must_change_password = True
+      fields += ["password", "temp_password", "must_change_password"]
+    user.role = UserRole.ADMIN
+    user.save(update_fields=fields)
+    log_activity(request, request.user, ACTION, "student.made_admin", user.student_id)
+    return Response(
+      {"student_id": user.student_id, "role": user.role, "temp_password": temp_password},
+      status=status.HTTP_200_OK,
+    )
+
 class BulkAccountView(APIView):
   """Creates logins for many students at once: {"student_ids": [...]}.
 
@@ -616,6 +644,48 @@ class AttendanceView(generics.RetrieveUpdateDestroyAPIView):
       User.objects.filter(pk=instance.user_id).update(points=F("points") - instance.points_awarded)
       instance.delete()
 
+def clock(value):
+  """9:00 AM style"""
+  return value.strftime("%I:%M %p").lstrip("0")
+
+
+def scan_problem(event, timing_out):
+  """Why a scan can't happen right now, or None. Time in opens at the start time, time out
+  at the end time, and scanning stays open until an admin closes the event."""
+  if event.closed_at:
+    return "This event is closed. Scanning has ended."
+  now = timezone.localtime().replace(tzinfo=None)
+  day = event.date.strftime("%b %d, %Y").replace(" 0", " ")
+  opens = datetime.combine(event.date, event.start_time or time.min)
+  if now < opens:
+    when = f" at {clock(event.start_time)}" if event.start_time else ""
+    return f"Time in opens on {day}{when}."
+  if timing_out and event.end_time and now < datetime.combine(event.date, event.end_time):
+    return f"Already timed in. Time out opens at {clock(event.end_time)}, when the event ends."
+  return None
+
+
+class CloseEventView(APIView):
+  """POST closes an event (scanning stops); DELETE opens it again."""
+  permission_classes = [IsAdmin]
+
+  def post(self, request, event_id):
+    event = get_object_or_404(Event, event_id=event_id)
+    if event.closed_at is None:
+      event.closed_at = timezone.now()
+      event.save(update_fields=["closed_at"])
+      log_activity(request, request.user, ACTION, "event.closed", event.title)
+    return Response(EventSerializer(event, context={"request": request}).data, status=status.HTTP_200_OK)
+
+  def delete(self, request, event_id):
+    event = get_object_or_404(Event, event_id=event_id)
+    if event.closed_at is not None:
+      event.closed_at = None
+      event.save(update_fields=["closed_at"])
+      log_activity(request, request.user, ACTION, "event.reopened", event.title)
+    return Response(EventSerializer(event, context={"request": request}).data, status=status.HTTP_200_OK)
+
+
 class ScanAttendanceView(APIView):
   """One scan: checks the student in, then out, then reports they're done."""
   permission_classes = [IsStaff]
@@ -625,6 +695,11 @@ class ScanAttendanceView(APIView):
     student = get_object_or_404(User, student_id=request.data.get("user"))
 
     existing = Attendance.objects.filter(user=student, event=event).first()
+    if existing is None or existing.time_out is None:
+      problem = scan_problem(event, timing_out=existing is not None)
+      if problem:
+        return Response({"detail": problem}, status=status.HTTP_400_BAD_REQUEST)
+
     if existing is None:
       serializer = AttendanceSerializer(data={"user": student.pk, "event": str(event.pk)})
       serializer.is_valid(raise_exception=True)

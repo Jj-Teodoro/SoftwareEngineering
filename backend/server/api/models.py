@@ -105,6 +105,11 @@ class Event(models.Model):
   description = models.TextField(default='', blank=True, null=True)
   category = models.CharField(max_length=20, default='', blank=True, null=True)
   date = models.DateField(default=timezone.localdate)
+  # Time in opens at start_time; time out (which earns the points) opens at end_time.
+  # Scanning stays open until an admin closes the event (closed_at).
+  start_time = models.TimeField(null=True, blank=True)
+  end_time = models.TimeField(null=True, blank=True)
+  closed_at = models.DateTimeField(null=True, blank=True)
   default_points = models.IntegerField(default=0)
   program_for = models.JSONField(default=list, blank=True)
   image = models.TextField(blank=True)

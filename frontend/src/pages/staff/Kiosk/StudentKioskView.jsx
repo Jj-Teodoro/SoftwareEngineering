@@ -24,11 +24,15 @@ export default function StudentKioskView({ eventId, currentStaff, onExit }) {
   const [isExiting, setIsExiting] = useState(false);
   const inputRef = useRef(null);
 
-  // The kiosk only accepts scans on the event's own day, and re-checks as the
-  // clock moves so it closes by itself after midnight.
+  // The kiosk opens at the event's start time and closes when an admin closes the event;
+  // it re-checks as the clock moves.
   const [today, setToday] = useState(todayLocal());
+  const [, setTick] = useState(0);
   useEffect(() => {
-    const timer = setInterval(() => setToday(todayLocal()), 30000);
+    const timer = setInterval(() => {
+      setToday(todayLocal());
+      setTick((t) => t + 1);
+    }, 30000);
     return () => clearInterval(timer);
   }, []);
 
@@ -95,7 +99,16 @@ export default function StudentKioskView({ eventId, currentStaff, onExit }) {
       return;
     }
 
-    const { action, record } = await scanEventAttendance(event.id, student.studentId);
+    let scanned;
+    try {
+      scanned = await scanEventAttendance(event.id, student.studentId);
+    } catch (error) {
+      // e.g. time out not open yet, or the event was just closed
+      setResult({ id: Date.now(), type: "error", message: `${student.name}: ${error.message || "The scan did not go through."}` });
+      setScanValue("");
+      return;
+    }
+    const { action, record } = scanned;
 
     setResult({
       id: Date.now(),

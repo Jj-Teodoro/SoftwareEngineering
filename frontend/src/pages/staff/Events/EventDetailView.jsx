@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FiArrowLeft, FiBell, FiCheck, FiEdit2, FiLock, FiMonitor, FiUserCheck, FiUserX } from "react-icons/fi";
+import { FiArrowLeft, FiBell, FiCheck, FiEdit2, FiLock, FiMonitor, FiRotateCcw, FiSlash, FiUserCheck, FiUserX } from "react-icons/fi";
 import { useConfirm } from "../../../components/common/ConfirmDialog.jsx";
 import { EmptyState, Section } from "../../../components/common/ui.jsx";
-import { formatEventDate, getEventPhase, scanLockMessage } from "../../../utils/events.js";
+import { formatEventDate, getEventPhase, scanLockMessage, formatEventWhen } from "../../../utils/events.js";
 import { useStudents } from "../../../context/staff/StudentsContext";
 import { useEvents, useEventAttendance, scanEventAttendance } from "../../../context/staff/EventsContext";
 import CreateEventModal from "../../../components/staff/CreateEventModal";
@@ -19,7 +19,8 @@ function formatTime(iso) {
 export default function EventDetailView({ event, onBack, onStartKiosk }) {
   const { students } = useStudents();
   const { records, markPresent, markOut, unmarkPresent } = useEventAttendance(event.id);
-  const { notifyEvent } = useEvents();
+  const { notifyEvent, closeEvent, reopenEvent } = useEvents();
+  const [closing, setClosing] = useState(false);
   const confirm = useConfirm();
   const [showEdit, setShowEdit] = useState(false);
   const [notifying, setNotifying] = useState(false);
@@ -33,8 +34,8 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
 
   const isRestricted = event.programFilter && event.programFilter !== "ALL";
 
-  // Scanning only works on the event's own date; manual corrections stay
-  // available afterwards but not before the event has started.
+  // Scanning opens at the start time and stays open until the event is closed here;
+  // manual corrections stay available after closing but not before the start.
   const phase = getEventPhase(event);
   const scanLocked = phase !== "today";
   const manualLocked = phase === "upcoming";
@@ -102,6 +103,27 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
     );
   };
 
+  const handleClose = async () => {
+    const confirmed = await confirm({
+      title: "Close event",
+      message: `Close "${event.title}"? Scanning stops for everyone, including students who timed in but have not timed out (they get no points for it). You can reopen it later.`,
+      confirmLabel: "Close event",
+      danger: true,
+    });
+    if (!confirmed) return;
+    setClosing(true);
+    const result = await closeEvent(event.id);
+    setClosing(false);
+    setNotice(result.ok ? { type: "success", text: "The event is closed. Scanning has ended." } : { type: "error", text: result.message });
+  };
+
+  const handleReopen = async () => {
+    setClosing(true);
+    const result = await reopenEvent(event.id);
+    setClosing(false);
+    setNotice(result.ok ? { type: "success", text: "The event is open for scanning again." } : { type: "error", text: result.message });
+  };
+
   const handleCheckIn = async (rawId) => {
     const id = rawId.trim();
     if (!id || scanLocked) return;
@@ -125,7 +147,15 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
       return;
     }
 
-    const { action, record } = await scanEventAttendance(event.id, student.studentId);
+    let scanned;
+    try {
+      scanned = await scanEventAttendance(event.id, student.studentId);
+    } catch (error) {
+      setFeedback({ type: "error", message: `${student.name}: ${error.message}` });
+      setScanValue("");
+      return;
+    }
+    const { action, record } = scanned;
 
     if (action === "in") {
       setFeedback({
@@ -171,7 +201,7 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
           <div className="min-w-0">
             <h1 className="page-title">{event.title}</h1>
             <p className="mt-1 text-sm muted">
-              {formatEventDate(event.date)} · {event.pointValue} pts · {isRestricted ? event.programFilter : "All programs"}
+              {formatEventWhen(event)} · {event.pointValue} pts · {isRestricted ? event.programFilter : "All programs"}
             </p>
             {event.description && <p className="mt-1 max-w-2xl text-sm text-white/60">{event.description}</p>}
           </div>
@@ -185,11 +215,26 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
             type="button"
             onClick={handleNotify}
             disabled={notifying || phase === "done"}
-            title={phase === "done" ? "This event is over" : "Remind the students required to attend"}
+            title={phase === "done" ? "This event is closed" : "Remind the students required to attend"}
             className="btn-ghost"
           >
             <FiBell size={14} /> {notifying ? "Sending..." : "Notify students"}
           </button>
+          {phase === "done" ? (
+            <button type="button" onClick={handleReopen} disabled={closing} className="btn-ghost">
+              <FiRotateCcw size={14} /> Reopen
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={closing || phase === "upcoming"}
+              title={phase === "upcoming" ? "The event has not opened yet" : "Stop scanning for this event"}
+              className="btn-ghost hover:border-red-400/50 hover:text-red-300"
+            >
+              <FiSlash size={14} /> Close event
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onStartKiosk?.(event.id)}

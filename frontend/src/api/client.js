@@ -279,6 +279,8 @@ export const api = {
     // logins for many students at once: { created: [{student_id, temp_password}], skipped: [{student_id, reason}] }
     bulkAccounts: (studentIds) => request("/user/accounts", { method: "POST", body: { student_ids: studentIds } }),
     storedTempPassword: (studentId) => request(`/user/${id(studentId)}/account`),
+    // { student_id, role, temp_password (only when they had no login yet) }
+    makeAdmin: (studentId) => request(`/user/${id(studentId)}/make-admin`, { method: "POST" }),
     dismissPasswordRequest: (studentId) => request(`/user/${id(studentId)}/password-request`, { method: "DELETE" }),
   },
   events: {
@@ -286,6 +288,9 @@ export const api = {
     create: (event) => request("/event", { method: "POST", body: event }),
     update: (eventId, changes) => request(`/event/${eventId}`, { method: "PATCH", body: changes }),
     remove: (eventId) => request(`/event/${eventId}`, { method: "DELETE" }),
+    // stops scanning for good (until reopened)
+    close: (eventId) => request(`/event/${eventId}/close`, { method: "POST" }),
+    reopen: (eventId) => request(`/event/${eventId}/close`, { method: "DELETE" }),
     announce: (eventId, kind, message) =>
       request(`/event/${eventId}/announce`, { method: "POST", body: { kind, message } }),
   },

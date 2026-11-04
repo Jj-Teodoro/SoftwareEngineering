@@ -1,5 +1,5 @@
 import { FiAward, FiBell, FiCalendar } from "react-icons/fi";
-import { formatEventDate } from "../../../utils/events.js";
+import { formatEventDate, formatEventWhen } from "../../../utils/events.js";
 import Panel from "../../../components/student/Panel";
 import { useEvents } from "../../../context/student/EventsContext";
 import { useNotifications } from "../../../context/student/NotificationsContext";
@@ -63,7 +63,7 @@ export default function NotificationsPage() {
                         <p className="mt-0.5 text-sm font-bold">{event.title}</p>
                         <p className="st-muted mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                           <span className="inline-flex items-center gap-1">
-                            <FiCalendar size={12} /> {formatEventDate(event.date)}
+                            <FiCalendar size={12} /> {formatEventWhen(event)}
                           </span>
                           <span className="inline-flex items-center gap-1">
                             <FiAward size={12} /> {event.pointValue} pts

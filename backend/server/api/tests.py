@@ -1471,3 +1471,89 @@ class BulkAccountTest(TestCase):
     self.assertEqual(self.client.post("/api/user/accounts", {"student_ids": []}, format="json").status_code, 400)
     scanner = authenticated_client(staff_user("scanner"))
     self.assertEqual(scanner.post("/api/user/accounts", {"student_ids": ["2025-00001"]}, format="json").status_code, 403)
+
+
+class EventTimesAndCloseTest(TestCase):
+
+  def setUp(self):
+    self.admin = staff_user("admin")
+    self.client = authenticated_client(self.admin)
+    self.student = make_user("2024-00001")
+    today = timezone.localdate()
+    self.event = Event.objects.create_event(title="Seminar", date=today, default_points=5)
+
+  def scan(self):
+    return self.client.post("/api/attendance/scan", {"event": str(self.event.pk), "user": self.student.pk}, format="json")
+
+  def test_time_in_waits_for_the_start(self):
+    self.event.date = timezone.localdate() + timezone.timedelta(days=2)
+    self.event.save()
+    response = self.scan()
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertIn("Time in opens", response.data["detail"])
+    self.assertFalse(Attendance.objects.exists())
+
+  def test_time_out_waits_for_the_end(self):
+    import datetime
+    self.event.start_time = datetime.time(0, 0)
+    self.event.end_time = datetime.time(23, 59, 59)
+    self.event.save()
+    self.assertEqual(self.scan().data["action"], "in")
+    early = self.scan()
+    self.assertEqual(early.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertIn("Time out opens at 11:59 PM", early.data["detail"])
+    self.assertIsNone(Attendance.objects.get().time_out)
+    self.student.refresh_from_db()
+    self.assertEqual(self.student.points, 0)
+
+  def test_closed_event_stops_scanning_until_reopened(self):
+    response = self.client.post(f"/api/event/{self.event.pk}/close")
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    self.assertIsNotNone(response.data["closed_at"])
+    blocked = self.scan()
+    self.assertEqual(blocked.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertIn("closed", blocked.data["detail"])
+
+    reopened = self.client.delete(f"/api/event/{self.event.pk}/close")
+    self.assertIsNone(reopened.data["closed_at"])
+    self.assertEqual(self.scan().data["action"], "in")
+
+  def test_only_admins_close_events(self):
+    scanner = authenticated_client(staff_user("scanner"))
+    self.assertEqual(scanner.post(f"/api/event/{self.event.pk}/close").status_code, status.HTTP_403_FORBIDDEN)
+
+  def test_end_time_must_be_after_start(self):
+    response = self.client.patch(f"/api/event/{self.event.pk}", {"start_time": "10:00", "end_time": "09:00"}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertIn("end_time", response.data)
+
+
+class MakeAdminTest(TestCase):
+
+  def setUp(self):
+    self.admin = staff_user("admin")
+    self.client = authenticated_client(self.admin)
+
+  def test_student_with_login_becomes_admin(self):
+    make_user("2024-00001")
+    response = self.client.post("/api/user/2024-00001/make-admin")
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    self.assertIsNone(response.data["temp_password"])
+    self.assertEqual(User.objects.get(student_id="2024-00001").role, "admin")
+    login = APIClient().post("/api/auth/login", {"identifier": "2024-00001", "password": "JMC090907", "portal": "admin"}, format="json")
+    self.assertEqual(login.status_code, status.HTTP_200_OK)
+
+  def test_student_without_login_gets_temp_password(self):
+    User.objects.create_user("2024-00002", None, first_name="No", last_name="Login", role="student")
+    response = self.client.post("/api/user/2024-00002/make-admin")
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    user = User.objects.get(student_id="2024-00002")
+    self.assertEqual(user.role, "admin")
+    self.assertTrue(user.must_change_password)
+    self.assertTrue(user.check_password(response.data["temp_password"]))
+
+  def test_guards(self):
+    self.assertEqual(self.client.post(f"/api/user/{self.admin.student_id}/make-admin").status_code, 400)
+    make_user("2024-00003")
+    scanner = authenticated_client(staff_user("scanner"))
+    self.assertEqual(scanner.post("/api/user/2024-00003/make-admin").status_code, 403)

@@ -171,7 +171,7 @@ class EventSerializer(serializers.ModelSerializer):
   class Meta:
     model = Event
     fields = "__all__"
-    read_only_fields = ["event_id", "created_at", "created_by", "last_notified_at"]
+    read_only_fields = ["event_id", "created_at", "created_by", "last_notified_at", "closed_at"]
 
   def get_created_by_name(self, event):
     creator = event.created_by
@@ -194,6 +194,13 @@ class EventSerializer(serializers.ModelSerializer):
     if value < 0:
       raise serializers.ValidationError("Default points must not be negative")
     return value
+
+  def validate(self, attrs):
+    start = attrs.get("start_time", getattr(self.instance, "start_time", None))
+    end = attrs.get("end_time", getattr(self.instance, "end_time", None))
+    if start and end and end <= start:
+      raise serializers.ValidationError({"end_time": ["End time must be after the start time"]})
+    return attrs
 
   def validate_program_for(self, value):
     if not isinstance(value, list):

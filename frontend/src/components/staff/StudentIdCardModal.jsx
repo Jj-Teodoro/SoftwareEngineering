@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getEventPhase, formatEventDate } from "../../utils/events.js";
-import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiRefreshCw, FiTrash2, FiXCircle } from "react-icons/fi";
+import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiRefreshCw, FiShield, FiTrash2, FiXCircle } from "react-icons/fi";
 import { api } from "../../api/client.js";
 import StudentIdCard from "../common/StudentIdCard.jsx";
 import { useConfirm } from "../common/ConfirmDialog.jsx";
@@ -21,14 +21,62 @@ const TABS = [
 const inputClass = "input";
 
 export default function StudentIdCardModal({ studentId, onClose }) {
-  const { students, deleteStudents } = useStudents();
+  const { students, deleteStudents, makeAdmin, refreshStudents } = useStudents();
   const { getClearance } = usePoints();
   const confirm = useConfirm();
   const [tab, setTab] = useState("id");
   const [deleting, setDeleting] = useState(false);
+  const [promoting, setPromoting] = useState(false);
+  const [promoted, setPromoted] = useState(null); // { name, studentId, tempPassword }
+  const [promoteError, setPromoteError] = useState("");
+
+  // after "Make admin": what happened, and their temporary password if they had no login
+  if (promoted) {
+    const finish = async () => {
+      await refreshStudents();
+      onClose();
+    };
+    return (
+      <Modal onClose={finish} maxWidth="max-w-md">
+        <h2 className="page-title pr-8">Now an admin</h2>
+        <p className="mt-2 text-sm text-white/75">
+          {promoted.name} is now an admin. They sign in at <span className="font-mono text-white">/admin</span> with
+          their student number, <span className="font-mono text-white">{promoted.studentId}</span>, and now appear in
+          Settings under the staff accounts instead of the student list.
+        </p>
+        {promoted.tempPassword && (
+          <div className="surface-inset mt-4 p-4">
+            <p className="label">Temporary password</p>
+            <p className="mt-1 select-all font-mono text-lg font-bold tracking-[1px]">{promoted.tempPassword}</p>
+            <p className="mt-2 text-xs text-gold">
+              They had no login yet. Give them this password; they choose their own the first time they sign in.
+            </p>
+          </div>
+        )}
+        <div className="mt-5 flex justify-end">
+          <button type="button" onClick={finish} className="btn-primary">Done</button>
+        </div>
+      </Modal>
+    );
+  }
 
   const student = students.find((s) => s.studentId === studentId);
   if (!student) return null;
+
+  const handleMakeAdmin = async () => {
+    const confirmed = await confirm({
+      title: "Make admin",
+      message: `Make ${student.name} an admin? They will be able to manage students, events, accounts and settings, and they move from the student list to the staff accounts.`,
+      confirmLabel: "Make admin",
+    });
+    if (!confirmed) return;
+    setPromoting(true);
+    setPromoteError("");
+    const result = await makeAdmin(student.studentId);
+    setPromoting(false);
+    if (!result.ok) return setPromoteError(result.message);
+    setPromoted({ name: student.name, studentId: student.studentId, tempPassword: result.tempPassword });
+  };
 
   const { totalPoints, targetPoints, cleared } = getClearance(student.studentId);
 
@@ -76,7 +124,11 @@ export default function StudentIdCardModal({ studentId, onClose }) {
       )}
       {tab === "account" && <StudentAccountTab student={student} />}
 
-      <div className="mt-5 flex justify-end border-t border-white/10 pt-4">
+      {promoteError && <p className="mt-4 text-right text-xs font-semibold text-red-300">{promoteError}</p>}
+      <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-white/10 pt-4">
+        <button type="button" onClick={handleMakeAdmin} disabled={promoting || deleting} className="btn-ghost">
+          <FiShield size={13} /> {promoting ? "Saving..." : "Make admin"}
+        </button>
         <button
           type="button"
           onClick={handleDelete}

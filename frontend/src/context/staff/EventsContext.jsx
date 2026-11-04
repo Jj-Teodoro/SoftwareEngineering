@@ -2,16 +2,18 @@ import { createContext, useContext, useState } from "react";
 import { api } from "../../api/client.js";
 import { useSignedIn, usePolling } from "../../api/hooks.js";
 import { fromEvent, toAttendance, toEvent } from "../../api/mappers.js";
-import { formatEventDate, getEventPhase } from "../../utils/events.js";
+import { formatEventDate, getEventPhase, formatEventWhen } from "../../utils/events.js";
 
 const EventsContext = createContext(null);
 
 // How often the per-event roster refreshes while an admin is watching it.
 const ROSTER_POLL_MS = 3000;
 
-function validateEvent({ title, date, description, image }) {
+function validateEvent({ title, date, startTime, endTime, description, image }) {
   if (!(title || "").trim()) return "Event name is required.";
   if (!date) return "Date is required.";
+  if (!startTime || !endTime) return "Start and end time are required.";
+  if (endTime <= startTime) return "The end time must be after the start time.";
   if (!(description || "").trim() && !image) {
     return "Add a description or a background picture. Students receive it in their notification.";
   }
@@ -50,7 +52,7 @@ export function EventsProvider({ children }) {
   // notification, even for students who already read an earlier one.
   const announce = async (event, kind) => {
     const label = kind === "reminder" ? "Reminder" : kind === "update" ? "Updated" : "New event";
-    await api.events.announce(event.id, kind, `${label}: ${event.title} on ${formatEventDate(event.date)}`);
+    await api.events.announce(event.id, kind, `${label}: ${event.title} on ${formatEventWhen(event)}`);
   };
 
   // An event needs a description or a background picture because that is what
@@ -118,6 +120,27 @@ export function EventsProvider({ children }) {
     return { ok: true, event: { id: eventId }, notified };
   };
 
+  // Closing stops all scanning for the event; reopening allows it again.
+  const closeEvent = async (eventId) => {
+    try {
+      await api.events.close(eventId);
+    } catch (error) {
+      return { ok: false, message: error.message };
+    }
+    await refresh();
+    return { ok: true };
+  };
+
+  const reopenEvent = async (eventId) => {
+    try {
+      await api.events.reopen(eventId);
+    } catch (error) {
+      return { ok: false, message: error.message };
+    }
+    await refresh();
+    return { ok: true };
+  };
+
   // The server removes the event's attendance and notifications with it.
   const deleteEvent = async (eventId) => {
     await api.events.remove(eventId);
@@ -125,7 +148,7 @@ export function EventsProvider({ children }) {
   };
 
   return (
-    <EventsContext.Provider value={{ events, presentCounts, createEvent, updateEvent, notifyEvent, deleteEvent }}>
+    <EventsContext.Provider value={{ events, presentCounts, createEvent, updateEvent, notifyEvent, deleteEvent, closeEvent, reopenEvent }}>
       {children}
     </EventsContext.Provider>
   );
