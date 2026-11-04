@@ -208,6 +208,34 @@ class UserViewTest(TestCase):
     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     self.assertEqual(User.objects.count(), 1)
 
+  def test_create_user_bulk_uses_few_queries(self):
+    # a big class list must not cost one database query per student
+    rows = [
+      {"student_id": f"2025-{i:05d}", "first_name": f"First {i}", "last_name": f"Last {i}", "role": "student"}
+      for i in range(400)
+    ]
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+    with CaptureQueriesContext(connection) as queries:
+      response = self.client.post("/api/user/bulk", rows, format="json")
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    self.assertEqual(User.objects.filter(student_id__startswith="2025-").count(), 400)
+    self.assertLess(len(queries), 20)
+
+  def test_create_user_bulk_reports_existing_ids_per_row(self):
+    self.client.post("/api/user/register", self.user, format="json")
+    rows = [
+      {"student_id": "2025-00001", "first_name": "A", "last_name": "B", "role": "student"},
+      {"student_id": self.user["student_id"], "first_name": "C", "last_name": "D", "role": "student"},
+      {"student_id": "2025-00003", "first_name": "E", "last_name": "F", "role": "student", "year_level": 9},
+    ]
+    response = self.client.post("/api/user/bulk", rows, format="json")
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertEqual(set(response.data.keys()), {1, 2})
+    self.assertEqual(response.data[1]["student_id"], ["user with this student id already exists."])
+    self.assertIn("year_level", response.data[2])
+    self.assertFalse(User.objects.filter(student_id="2025-00001").exists())
+
   def test_password_not_returned(self):
     response = self.client.post("/api/user/register", self.user, format="json")
     self.assertNotIn("password", response.data)
