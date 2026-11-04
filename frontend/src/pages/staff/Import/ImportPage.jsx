@@ -61,7 +61,14 @@ export default function ImportPage() {
 
   const handleImport = async () => {
     const validRows = preview.filter((r) => r.validity === "new");
-    const outcome = await importStudents(validRows);
+    let outcome;
+    try {
+      outcome = await importStudents(validRows);
+    } catch (error) {
+      const done = error.added ? ` ${error.added} students were added before this; choose the file again to add the rest.` : "";
+      setParseError(`${error.message || "The import did not finish."}${done}`);
+      return;
+    }
     setResult(outcome);
     setRows([]);
     setFileName("");
