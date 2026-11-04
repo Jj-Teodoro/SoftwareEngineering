@@ -137,7 +137,9 @@ export function StudentsProvider({ children }) {
     await refresh();
   };
 
-  const importStudents = async (rows) => {
+  // onProgress({ added, total, batch, batches, stage }) is called as each batch goes up,
+  // so the Import page can show how far along it is.
+  const importStudents = async (rows, onProgress) => {
     const existingIds = new Set(students.map((s) => s.studentId.toLowerCase()));
     const seenInBatch = new Set();
     const toAdd = [];
@@ -163,9 +165,12 @@ export function StudentsProvider({ children }) {
 
     // the API takes at most 500 students per request, so a big class list goes up in batches
     let added = 0;
+    const total = toAdd.length;
+    const batches = Math.ceil(total / IMPORT_BATCH);
     try {
-      for (let i = 0; i < toAdd.length; i += IMPORT_BATCH) {
+      for (let i = 0; i < total; i += IMPORT_BATCH) {
         const batch = toAdd.slice(i, i + IMPORT_BATCH);
+        onProgress?.({ added, total, batch: i / IMPORT_BATCH + 1, batches, stage: "sending" });
         await api.users.bulkCreate(batch.map(newStudentPayload));
         added += batch.length;
       }
@@ -173,7 +178,10 @@ export function StudentsProvider({ children }) {
       error.added = added; // lets the page say how many made it before the problem
       throw error;
     } finally {
-      if (added > 0) await refresh();
+      if (added > 0) {
+        onProgress?.({ added, total, batch: batches, batches, stage: "refreshing" });
+        await refresh();
+      }
     }
 
     return { added, skipped };

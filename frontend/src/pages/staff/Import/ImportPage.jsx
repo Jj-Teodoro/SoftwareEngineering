@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { FiDownload, FiUploadCloud } from "react-icons/fi";
+import { FiDownload, FiLoader, FiUploadCloud, FiUsers } from "react-icons/fi";
 import { PageHeader, Section } from "../../../components/common/ui.jsx";
 import { useStudents } from "../../../context/staff/StudentsContext";
 import {
@@ -8,6 +8,73 @@ import {
   downloadImportTemplate,
 } from "../../../utils/studentImport";
 
+// Full-page overlay while an import runs: a progress ring, a bar, and what is happening now.
+// It also stops the Import button from being pressed twice.
+function ImportProgress({ progress }) {
+  const { added, total, batch, batches, stage } = progress;
+  const pct = total > 0 ? Math.round((added / total) * 100) : 0;
+  const shown = stage === "refreshing" ? 100 : pct;
+  const ring = 2 * Math.PI * 52;
+  const step =
+    stage === "refreshing"
+      ? "Updating the student list..."
+      : batches > 1
+      ? `Sending batch ${batch} of ${batches}...`
+      : "Saving the students...";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm" role="status" aria-live="polite">
+      <div className="surface-accent w-full max-w-sm p-6 text-center shadow-2xl sm:p-8">
+        <div className="relative mx-auto h-32 w-32">
+          {/* a faint spinning dashed ring behind the progress ring, so it never looks frozen */}
+          <svg className="absolute inset-0 h-full w-full animate-spin [animation-duration:3s]" viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="58" fill="none" stroke="rgba(5,217,232,0.35)" strokeWidth="1.5" strokeDasharray="4 10" />
+          </svg>
+          <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+            <circle
+              cx="60"
+              cy="60"
+              r="52"
+              fill="none"
+              stroke="#f2b400"
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray={ring}
+              strokeDashoffset={ring * (1 - shown / 100)}
+              className="transition-[stroke-dashoffset] duration-700 ease-out"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="font-mono text-3xl font-bold leading-none">{shown}%</span>
+            <FiUsers size={14} className="mt-1.5 text-gold/80" />
+          </div>
+        </div>
+
+        <h2 className="page-title mt-5">Importing students</h2>
+        <p className="mt-2 font-mono text-sm">
+          <span className="text-gold">{added}</span>
+          <span className="muted"> of {total} added</span>
+        </p>
+
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+          <div
+            className="relative h-full rounded-full bg-gradient-to-r from-gold to-[#ffc933] transition-[width] duration-700 ease-out"
+            style={{ width: `${Math.max(shown, 4)}%` }}
+          >
+            <span className="absolute inset-0 animate-pulse bg-white/25" />
+          </div>
+        </div>
+
+        <p className="mt-4 flex items-center justify-center gap-2 text-sm text-white/80">
+          <FiLoader size={14} className="animate-spin text-neon-cyan" /> {step}
+        </p>
+        <p className="mt-2 text-xs muted">Keep this page open until it finishes.</p>
+      </div>
+    </div>
+  );
+}
+
 export default function ImportPage() {
   const { students, importStudents } = useStudents();
   const [fileName, setFileName] = useState("");
@@ -15,6 +82,7 @@ export default function ImportPage() {
   const [parseError, setParseError] = useState("");
   const [isParsing, setIsParsing] = useState(false);
   const [result, setResult] = useState(null);
+  const [progress, setProgress] = useState(null); // set while an import is running
   const fileInputRef = useRef(null);
 
   const existingIds = useMemo(
@@ -61,13 +129,17 @@ export default function ImportPage() {
 
   const handleImport = async () => {
     const validRows = preview.filter((r) => r.validity === "new");
+    setParseError("");
+    setProgress({ added: 0, total: validRows.length, batch: 1, batches: 1, stage: "sending" });
     let outcome;
     try {
-      outcome = await importStudents(validRows);
+      outcome = await importStudents(validRows, setProgress);
     } catch (error) {
       const done = error.added ? ` ${error.added} students were added before this; choose the file again to add the rest.` : "";
       setParseError(`${error.message || "The import did not finish."}${done}`);
       return;
+    } finally {
+      setProgress(null);
     }
     setResult(outcome);
     setRows([]);
@@ -79,6 +151,7 @@ export default function ImportPage() {
 
   return (
     <div className="flex flex-col gap-5">
+      {progress && <ImportProgress progress={progress} />}
       <PageHeader title="Import students" subtitle="Add many students at once from a spreadsheet.">
         <button type="button" onClick={downloadImportTemplate} className="btn-ghost">
           <FiDownload size={14} /> Download template
@@ -91,8 +164,14 @@ export default function ImportPage() {
           <p className="mx-auto mt-3 max-w-md text-sm muted">
             Upload an Excel (.xlsx) or CSV file. Not sure of the format? Download the template first.
           </p>
-          <label className="btn-primary mt-5 cursor-pointer px-6">
-            {isParsing ? "Reading file..." : "Choose file"}
+          <label className={`btn-primary mt-5 cursor-pointer px-6 ${isParsing ? "pointer-events-none opacity-80" : ""}`}>
+            {isParsing ? (
+              <>
+                <FiLoader size={14} className="animate-spin" /> Reading file...
+              </>
+            ) : (
+              "Choose file"
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -121,7 +200,7 @@ export default function ImportPage() {
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-white/80">{validCount} of {preview.length} rows ready to import</p>
-            <button type="button" onClick={handleImport} disabled={validCount === 0} className="btn-primary">
+            <button type="button" onClick={handleImport} disabled={validCount === 0 || Boolean(progress)} className="btn-primary">
               Import {validCount} student{validCount === 1 ? "" : "s"}
             </button>
           </div>
