@@ -229,9 +229,13 @@ class AttendanceSerializer(serializers.ModelSerializer):
       raise serializers.ValidationError("User already has attendance for this event")
     return attrs
 
+  # An event's points are earned at time out: a student who only timed in has 0 points
+  # for it until they time out (or staff record a time out for them). Points that staff
+  # type in themselves are kept as given.
   def create(self, validated_data):
     if validated_data.get("points_awarded") is None:
-      validated_data["points_awarded"] = validated_data["event"].default_points
+      timed_out = validated_data.get("time_out") is not None
+      validated_data["points_awarded"] = validated_data["event"].default_points if timed_out else 0
 
     with transaction.atomic():
       attendance = super().create(validated_data)
@@ -241,6 +245,13 @@ class AttendanceSerializer(serializers.ModelSerializer):
   def update(self, instance, validated_data):
     old_user_id = instance.user_id
     old_points = instance.points_awarded
+
+    if "points_awarded" not in validated_data and "time_out" in validated_data:
+      if validated_data["time_out"] is None:
+        validated_data["points_awarded"] = 0  # the time out was removed
+      elif instance.time_out is None:
+        event = validated_data.get("event", instance.event)
+        validated_data["points_awarded"] = event.default_points  # timing out earns the points
 
     with transaction.atomic():
       attendance = super().update(instance, validated_data)

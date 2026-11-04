@@ -276,6 +276,8 @@ export const api = {
     update: (studentId, changes) => request(`/user/${id(studentId)}`, { method: "PATCH", body: changes }),
     remove: (studentId) => request(`/user/${id(studentId)}`, { method: "DELETE" }),
     issueAccount: (studentId) => request(`/user/${id(studentId)}/account`, { method: "POST" }),
+    // logins for many students at once: { created: [{student_id, temp_password}], skipped: [{student_id, reason}] }
+    bulkAccounts: (studentIds) => request("/user/accounts", { method: "POST", body: { student_ids: studentIds } }),
     storedTempPassword: (studentId) => request(`/user/${id(studentId)}/account`),
     dismissPasswordRequest: (studentId) => request(`/user/${id(studentId)}/password-request`, { method: "DELETE" }),
   },

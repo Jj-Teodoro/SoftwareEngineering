@@ -23,6 +23,8 @@ function newStudentPayload(data) {
   return { ...fromStudent({ ...data, studentId: data.studentId.trim() }), role: "student" };
 }
 
+const ACCOUNT_BATCH = 250;
+
 export function StudentsProvider({ children }) {
   const signedIn = useSignedIn();
   const [students, setStudents] = useState([]);
@@ -119,13 +121,33 @@ export function StudentsProvider({ children }) {
     await refresh();
   };
 
+  // Creates logins for many students, ACCOUNT_BATCH per request, and reloads the
+  // student list once at the end (not after every student).
   const provisionAccounts = async (studentIds, onProgress) => {
+    const nameOf = Object.fromEntries(students.map((s) => [s.studentId, s.name]));
     const results = [];
-    for (const id of studentIds) {
-      const student = students.find((s) => s.studentId === id);
-      const result = await provisionAccount(id);
-      results.push({ studentId: id, name: student?.name || "", ...result });
-      onProgress?.(results.length, studentIds.length);
+    const batches = Math.ceil(studentIds.length / ACCOUNT_BATCH);
+    try {
+      for (let i = 0; i < studentIds.length; i += ACCOUNT_BATCH) {
+        const batch = studentIds.slice(i, i + ACCOUNT_BATCH);
+        onProgress?.(results.length, studentIds.length, i / ACCOUNT_BATCH + 1, batches);
+        try {
+          const { created, skipped } = await api.users.bulkAccounts(batch);
+          created.forEach((r) =>
+            results.push({ studentId: r.student_id, name: nameOf[r.student_id] || "", ok: true, tempPassword: r.temp_password })
+          );
+          skipped.forEach((r) =>
+            results.push({ studentId: r.student_id, name: nameOf[r.student_id] || "", ok: false, message: r.reason })
+          );
+        } catch (error) {
+          batch.forEach((studentId) =>
+            results.push({ studentId, name: nameOf[studentId] || "", ok: false, message: error.message || "Could not create the account." })
+          );
+        }
+        onProgress?.(results.length, studentIds.length, i / ACCOUNT_BATCH + 1, batches);
+      }
+    } finally {
+      await refresh();
     }
     return results;
   };
