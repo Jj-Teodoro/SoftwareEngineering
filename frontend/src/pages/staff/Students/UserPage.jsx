@@ -9,8 +9,8 @@ import AddStudentModal from "../../../components/staff/AddStudentModal";
 import StudentIdCardModal from "../../../components/staff/StudentIdCardModal";
 import ProvisionAccountsModal from "../../../components/staff/ProvisionAccountsModal";
 import StudentAvatar from "../../../components/staff/StudentAvatar";
+import Pagination, { usePagination } from "../../../components/common/Pagination.jsx";
 
-const PAGE_SIZE = 8;
 
 // One grid for header and rows: a card on phones, a table row from md up.
 const ROW =
@@ -106,7 +106,6 @@ export default function UserPage() {
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState(NO_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [page, setPage] = useState(1);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [showAddModal, setShowAddModal] = useState(false);
@@ -153,12 +152,8 @@ export default function UserPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [students, search, filters, getActivity, getClearance, resetRequests]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
-  useEffect(() => setPage(1), [search, filters]);
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-  const pageStudents = filteredStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pagination = usePagination(filteredStudents, { initialPageSize: 10, resetKey: `${search}|${JSON.stringify(filters)}` });
+  const pageStudents = pagination.pageItems;
 
   const toggleSelectMode = () => {
     setSelectMode((prev) => !prev);
@@ -300,20 +295,7 @@ export default function UserPage() {
         })}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex flex-wrap justify-center gap-2">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setPage(n)}
-              className={`btn-sm min-w-8 ${page === n ? "btn-primary" : "btn-ghost"}`}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-      )}
+      <Pagination {...pagination} itemLabel="students" />
 
       {showAddModal && <AddStudentModal onClose={() => setShowAddModal(false)} />}
       {showProvisionModal && (

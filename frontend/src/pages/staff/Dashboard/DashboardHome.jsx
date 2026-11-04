@@ -17,6 +17,8 @@ import { usePoints } from "../../../context/staff/PointsContext";
 import { usePresence } from "../../../context/staff/PresenceContext";
 import ActivityFeed from "./ActivityFeed";
 
+const CLEARANCE_LIMIT = 10;
+
 const QUICK_ACTIONS = [
   { to: "Event", label: "New event", icon: FiPlus },
   { to: "Scan", label: "Launch scan", icon: FiMonitor },
@@ -61,7 +63,10 @@ export default function DashboardHome({ onNavigate }) {
 
   const today = todayLocal();
   const upcomingEvents = events.filter((e) => e.date >= today).sort((a, b) => a.date.localeCompare(b.date));
-  const usersStatus = [...students].sort((a, b) => getTotalPoints(a.studentId) - getTotalPoints(b.studentId));
+  // the dashboard shows only the 10 students with the fewest points; "View all" has the rest
+  const usersStatus = [...students]
+    .sort((a, b) => getTotalPoints(a.studentId) - getTotalPoints(b.studentId))
+    .slice(0, CLEARANCE_LIMIT);
 
   const viewAll = (to) => (
     <button type="button" onClick={() => onNavigate?.(to)} className="label hover:text-white">
@@ -87,11 +92,17 @@ export default function DashboardHome({ onNavigate }) {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-5">
-        <Section title="Upcoming events" action={viewAll("Event")} className="xl:col-span-2">
+        {/* side by side, the events card is as tall as the clearance card and scrolls inside */}
+        <Section
+          title="Upcoming events"
+          action={viewAll("Event")}
+          className="flex flex-col xl:col-span-2"
+          bodyClassName="relative min-h-0 flex-1"
+        >
           {upcomingEvents.length === 0 ? (
             <EmptyState>No upcoming events.</EmptyState>
           ) : (
-            <ul className="space-y-3">
+            <ul className="max-h-[36rem] space-y-3 overflow-y-auto pr-1 xl:absolute xl:inset-0 xl:max-h-none">
               {upcomingEvents.map((event) => {
                 const restricted = event.programFilter && event.programFilter !== "ALL";
                 const eligible = restricted
@@ -123,6 +134,8 @@ export default function DashboardHome({ onNavigate }) {
         >
           <p className="mb-3 text-xs muted">
             Each student's target is every requirement and event that applies to their program.
+            {students.length > CLEARANCE_LIMIT &&
+              ` Showing the ${CLEARANCE_LIMIT} students with the fewest points out of ${students.length}.`}
           </p>
           {usersStatus.length === 0 ? (
             <EmptyState>No students yet.</EmptyState>
