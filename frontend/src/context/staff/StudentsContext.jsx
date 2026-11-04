@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState } from "react";
-import { api } from "../../api/client.js";
+import { api, rowErrors } from "../../api/client.js";
 import { useSignedIn, usePolling } from "../../api/hooks.js";
 import { fromStudent, toStudent } from "../../api/mappers.js";
 
@@ -169,9 +169,23 @@ export function StudentsProvider({ children }) {
     const batches = Math.ceil(total / IMPORT_BATCH);
     try {
       for (let i = 0; i < total; i += IMPORT_BATCH) {
-        const batch = toAdd.slice(i, i + IMPORT_BATCH);
+        let batch = toAdd.slice(i, i + IMPORT_BATCH);
         onProgress?.({ added, total, batch: i / IMPORT_BATCH + 1, batches, stage: "sending" });
-        await api.users.bulkCreate(batch.map(newStudentPayload));
+        try {
+          await api.users.bulkCreate(batch.map(newStudentPayload));
+        } catch (error) {
+          // The server rejects the whole batch if any row is invalid (an ID already used by
+          // another account, a name or section that is too long...) and says which rows.
+          // Skip just those rows, with the reason, and send the rest again.
+          const rejected = error.status === 400 ? rowErrors(error.data) : [];
+          if (rejected.length === 0) throw error;
+          const bad = new Set(rejected.map((r) => r.index));
+          rejected.forEach(({ index, message }) => {
+            if (batch[index]) skipped.push({ row: batch[index], reason: message });
+          });
+          batch = batch.filter((_, index) => !bad.has(index));
+          if (batch.length > 0) await api.users.bulkCreate(batch.map(newStudentPayload));
+        }
         added += batch.length;
       }
     } catch (error) {

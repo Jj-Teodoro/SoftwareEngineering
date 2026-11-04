@@ -191,8 +191,22 @@ export default function ImportPage() {
           <p className="mt-1">
             Added {result.added} student{result.added === 1 ? "" : "s"}.
             {result.skipped.length > 0 &&
-              ` Skipped ${result.skipped.length} row${result.skipped.length === 1 ? "" : "s"} (missing info or already existing).`}
+              ` Skipped ${result.skipped.length} row${result.skipped.length === 1 ? "" : "s"}.`}
           </p>
+          {result.skipped.length > 0 && (
+            <div className="mt-3 rounded-md border border-yellow-400/25 bg-black/20 p-3 text-yellow-100">
+              <p className="label text-yellow-300">Skipped rows — fix these in the file and import it again</p>
+              <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto font-mono text-xs">
+                {result.skipped.map(({ row, reason }, i) => (
+                  <li key={`${row.studentId}-${i}`}>
+                    <span className="text-white">{row.studentId || "(no ID)"}</span>
+                    {row.name ? <span className="text-white/60"> · {row.name}</span> : null}
+                    <span className="text-yellow-200/80"> — {reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
