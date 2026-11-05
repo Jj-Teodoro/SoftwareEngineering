@@ -4,13 +4,19 @@ import QrCode from "./QrCode.jsx";
 
 const GOLD = "#f2b400";
 
-// Each program has its own card colour: BSIT maroon, BSCpE orange, BSCS green. Anything else
+// Each program has its own colour: BSIT blue, BSCpE orange, BSCS green. Anything else
 // (or an unknown program) keeps the maroon and gold of the college.
 const THEMES = {
-  bsit: { accent: "#d6434b", soft: "#f6c3c6", deep: "#800000", ink: "#fff5f5", bg: ["#7a1418", "#4a0b0f", "#240507"], photo: ["#a3222a", "#4a0b0f"] },
+  bsit: { accent: "#3b8bff", soft: "#bcd8ff", deep: "#1c5fcf", ink: "#04122c", bg: ["#123f8f", "#0b2657", "#06142f"], photo: ["#2f6fd6", "#0b2657"] },
   bscpe: { accent: "#ff8a1f", soft: "#ffd3a6", deep: "#c25a00", ink: "#2a1200", bg: ["#8a4108", "#4a2205", "#241002"], photo: ["#c8690f", "#4a2205"] },
   bscs: { accent: "#2fd47a", soft: "#b8f4d3", deep: "#139a52", ink: "#03210f", bg: ["#0e6a3a", "#08401f", "#04210f"], photo: ["#1f9e5a", "#08401f"] },
   default: { accent: GOLD, soft: "#fbe08a", deep: "#b98500", ink: "#2a0507", bg: ["#6b1015", "#3a0a0d", "#1f0506"], photo: ["#8c1a1f", "#3a0a0d"] },
+};
+
+// The ID card itself uses these instead where given: the BSIT card is maroon, while the
+// rest of the site keeps BSIT blue.
+const CARD_THEMES = {
+  bsit: { accent: "#d6434b", soft: "#f6c3c6", deep: "#800000", ink: "#fff5f5", bg: ["#7a1418", "#4a0b0f", "#240507"], photo: ["#a3222a", "#4a0b0f"] },
 };
 
 export function programKey(course = "") {
@@ -26,7 +32,8 @@ export function programTheme(course) {
 }
 
 function themeVars(course) {
-  const t = THEMES[programKey(course)];
+  const key = programKey(course);
+  const t = CARD_THEMES[key] || THEMES[key];
   return {
     "--idc-accent": t.accent,
     "--idc-soft": t.soft,
