@@ -24,6 +24,7 @@ export function StaffAuthProvider({ children }) {
       const user = await login(id, password, portal);
       return { ok: true, staff: toStaff(user) };
     } catch (error) {
+      if (error.status === 429) return { ok: false, message: error.message }; // locked for a few minutes
       if (error.status !== 401) return { ok: false, message: "Unable to reach the server." };
       return portal === "admin"
         ? { ok: false, message: "Invalid username or password. Scanner accounts sign in at /scanner." }

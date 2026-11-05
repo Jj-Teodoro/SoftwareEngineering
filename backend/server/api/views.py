@@ -53,6 +53,21 @@ def generate_temp_password(length=10):
   return "".join(secrets.choice(TEMP_PASSWORD_ALPHABET) for _ in range(length))
 
 
+# After this many wrong passwords in a row-ish window an account is locked for a while, so a
+# password cannot be guessed by trying again and again. It counts by account, not by address,
+# because a whole class often shares one school connection.
+LOCKOUT_AFTER = 5
+LOCKOUT_MINUTES = 10
+
+
+def is_locked_out(user):
+  since = timezone.now() - timedelta(minutes=LOCKOUT_MINUTES)
+  try:
+    return ActivityLog.objects.filter(user=user, kind=FAILED, created_at__gte=since).count() >= LOCKOUT_AFTER
+  except DatabaseError:
+    return False  # no trail table yet: never lock anyone out because of it
+
+
 def tokens_for(user):
   refresh = RefreshToken.for_user(user)
   return {"access": str(refresh.access_token), "refresh": str(refresh)}
@@ -81,6 +96,11 @@ class LoginView(APIView):
       candidates = User.objects.filter(student_id__iexact=identifier, role=UserRole.STUDENT.value)
 
     for user in candidates:
+      if is_locked_out(user):
+        return Response(
+          {"detail": f"Too many wrong passwords. Try again in {LOCKOUT_MINUTES} minutes."},
+          status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
       if user.is_active and user.check_password(password):
         # record it before replying, so the response already has this sign-in time
         user.last_login = timezone.now()
@@ -89,9 +109,10 @@ class LoginView(APIView):
           log_activity(request, user, LOGIN, detail=f"{portal} site")
         return Response({**tokens_for(user), "user": UserSerializer(user).data}, status=status.HTTP_200_OK)
 
-    # a wrong password on a real admin or scanner account goes in that account's security trail
+    # a wrong password on a real account goes in its trail (the admin's security panel for staff,
+    # and the count behind the lockout for everyone)
     tried = candidates.first()
-    if tried is not None and tried.role in STAFF_ROLES:
+    if tried is not None:
       log_activity(request, tried, FAILED, detail=f"Wrong password on the {portal} site")
     return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
