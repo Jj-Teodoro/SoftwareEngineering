@@ -165,6 +165,18 @@ export function StudentsProvider({ children }) {
 
   // Removes the students along with their attendance, requirement progress and
   // notifications, so a student re-added later with the same ID starts fresh.
+  // Removes every student (only students; admins and scanners stay).
+  const deleteAllStudents = async () => {
+    try {
+      const { deleted } = await api.users.deleteAllStudents();
+      return { ok: true, deleted };
+    } catch (error) {
+      return { ok: false, message: error.message || "Could not delete the students." };
+    } finally {
+      await refresh();
+    }
+  };
+
   const deleteStudents = async (studentIds) => {
     await api.users.bulkDelete(studentIds);
     await refresh();
@@ -243,6 +255,7 @@ export function StudentsProvider({ children }) {
         addStudent,
         updateStudent,
         deleteStudents,
+        deleteAllStudents,
         importStudents,
         provisionAccount,
         regenerateTempPassword,

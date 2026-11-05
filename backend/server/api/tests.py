@@ -1557,3 +1557,35 @@ class MakeAdminTest(TestCase):
     make_user("2024-00003")
     scanner = authenticated_client(staff_user("scanner"))
     self.assertEqual(scanner.post("/api/user/2024-00003/make-admin").status_code, 403)
+
+
+class DeleteStudentsTest(TestCase):
+
+  def setUp(self):
+    self.admin = staff_user("admin")
+    self.client = authenticated_client(self.admin)
+    self.scanner = staff_user("scanner")
+    User.objects.create_user("admin-02", "AdminPass1", first_name="Other", last_name="Admin", role="admin")
+    for i in range(1, 4):
+      make_user(f"2024-0000{i}")
+
+  def test_delete_all_removes_only_students(self):
+    response = self.client.post("/api/user/bulk-delete", {"all_students": True}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    self.assertEqual(response.data["deleted"], 3)
+    self.assertFalse(User.objects.filter(role="student").exists())
+    self.assertEqual(set(User.objects.values_list("student_id", flat=True)), {"staff-admin", "staff-scanner", "admin-02"})
+
+  def test_listed_delete_skips_staff(self):
+    response = self.client.post(
+      "/api/user/bulk-delete", {"student_ids": ["2024-00001", "admin-02", "staff-scanner"]}, format="json"
+    )
+    self.assertEqual(response.data["deleted"], 1)
+    self.assertTrue(User.objects.filter(student_id="admin-02").exists())
+    self.assertTrue(User.objects.filter(student_id="staff-scanner").exists())
+
+  def test_scanners_cannot_delete(self):
+    scanner = authenticated_client(self.scanner)
+    response = scanner.post("/api/user/bulk-delete", {"all_students": True}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    self.assertEqual(User.objects.filter(role="student").count(), 3)

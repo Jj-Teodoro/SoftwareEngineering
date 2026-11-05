@@ -273,6 +273,8 @@ export const api = {
     create: (user) => request("/user/register", { method: "POST", body: user }),
     bulkCreate: (users) => request("/user/bulk", { method: "POST", body: users }),
     bulkDelete: (studentIds) => request("/user/bulk-delete", { method: "POST", body: { student_ids: studentIds } }),
+    // every student account (admins and scanners are never deleted)
+    deleteAllStudents: () => request("/user/bulk-delete", { method: "POST", body: { all_students: true } }),
     update: (studentId, changes) => request(`/user/${id(studentId)}`, { method: "PATCH", body: changes }),
     remove: (studentId) => request(`/user/${id(studentId)}`, { method: "DELETE" }),
     issueAccount: (studentId) => request(`/user/${id(studentId)}/account`, { method: "POST" }),

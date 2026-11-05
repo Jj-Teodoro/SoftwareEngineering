@@ -10,6 +10,7 @@ import StudentIdCardModal from "../../../components/staff/StudentIdCardModal";
 import ProvisionAccountsModal from "../../../components/staff/ProvisionAccountsModal";
 import StudentAvatar from "../../../components/staff/StudentAvatar";
 import Pagination, { usePagination } from "../../../components/common/Pagination.jsx";
+import ProgressOverlay from "../../../components/common/ProgressOverlay.jsx";
 import { DirectionChips, OptionChips, sortBy } from "../../../components/common/SortControls.jsx";
 
 
@@ -122,7 +123,9 @@ function FilterPanel({ groups, filters, setFilters, activeCount, sort, setSort }
 }
 
 export default function UserPage() {
-  const { students, deleteStudents, resetRequests } = useStudents();
+  const { students, deleteStudents, deleteAllStudents, resetRequests } = useStudents();
+  const [deletingAll, setDeletingAll] = useState(false);
+  const [deleteNotice, setDeleteNotice] = useState(null);
   const confirm = useConfirm();
   const { getTotalPoints, getClearance } = usePoints();
   const { getActivity } = usePresence();
@@ -215,9 +218,53 @@ export default function UserPage() {
     setSelectMode(false);
   };
 
+  const handleDeleteAll = async () => {
+    const count = students.length;
+    if (count === 0) return;
+    const first = await confirm({
+      title: "Delete all students",
+      message: `Delete all ${count} students? Their records, attendance, requirement progress and logins are removed. Admin and scanner accounts are not affected. This cannot be undone.`,
+      confirmLabel: "Continue",
+      danger: true,
+    });
+    if (!first) return;
+    const second = await confirm({
+      title: "Are you sure?",
+      message: `This permanently deletes ${count} students. Only do this if you are starting a new roster (for example, a new school year).`,
+      confirmLabel: `Delete ${count} students`,
+      danger: true,
+    });
+    if (!second) return;
+    setDeletingAll(true);
+    const result = await deleteAllStudents();
+    setDeletingAll(false);
+    setSelectedIds(new Set());
+    setSelectMode(false);
+    setDeleteNotice(
+      result.ok
+        ? { type: "success", text: `Deleted ${result.deleted} student${result.deleted === 1 ? "" : "s"}. Admin and scanner accounts were kept.` }
+        : { type: "error", text: result.message }
+    );
+  };
+
   return (
     <div className="flex flex-col gap-4">
+      {deletingAll && (
+        <ProgressOverlay
+          title="Deleting students"
+          done={0}
+          total={students.length}
+          doneLabel="students"
+          step="Removing the students and their records..."
+          icon={FiTrash2}
+        />
+      )}
       <PageHeader title="Students" subtitle={`${students.length} on the roster`}>
+        {selectMode && students.length > 0 && (
+          <button type="button" onClick={handleDeleteAll} disabled={deletingAll} className="btn-danger">
+            <FiTrash2 size={14} /> Delete all students
+          </button>
+        )}
         {selectMode && selectedIds.size > 0 && (
           <button type="button" onClick={handleDeleteSelected} className="btn-danger">
             <FiTrash2 size={14} /> Delete ({selectedIds.size})
@@ -233,6 +280,21 @@ export default function UserPage() {
           <FiPlus size={14} /> Add
         </button>
       </PageHeader>
+
+      {deleteNotice && (
+        <div
+          className={`flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm ${
+            deleteNotice.type === "success"
+              ? "border-green-400/30 bg-green-500/10 text-green-200"
+              : "border-red-400/30 bg-red-500/10 text-red-200"
+          }`}
+        >
+          {deleteNotice.text}
+          <button type="button" onClick={() => setDeleteNotice(null)} aria-label="Dismiss" className="shrink-0 opacity-70 hover:opacity-100">
+            <FiX size={14} />
+          </button>
+        </div>
+      )}
 
       <div className="relative flex flex-wrap items-center gap-2" ref={filterRef}>
         <div className="relative min-w-[200px] flex-1 sm:max-w-md">

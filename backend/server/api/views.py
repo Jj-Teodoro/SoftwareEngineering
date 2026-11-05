@@ -361,14 +361,27 @@ class CreateUserBulkView(generics.CreateAPIView):
 class DeleteUserBulkView(APIView):
   permission_classes = [IsAdmin]
 
+  """Deletes students: the listed {"student_ids": [...]}, or every student with
+  {"all_students": true}. Only accounts with the student role are ever deleted here;
+  admins and scanners are left alone."""
+
   def post(self, request):
-    student_ids = request.data.get("student_ids")
-    if not isinstance(student_ids, list):
-      return Response({"student_ids": ["Expected a list of student IDs"]}, status=status.HTTP_400_BAD_REQUEST)
+    students = User.objects.filter(role=UserRole.STUDENT).exclude(pk=request.user.pk)
+    if request.data.get("all_students") is True:
+      targets = students
+      what = "all students"
+    else:
+      student_ids = request.data.get("student_ids")
+      if not isinstance(student_ids, list):
+        return Response({"student_ids": ["Expected a list of student IDs"]}, status=status.HTTP_400_BAD_REQUEST)
+      targets = students.filter(student_id__in=student_ids)
+      what = f"{len(student_ids)} students"
+    count = targets.count()
     # attendance, requirement progress and notifications go with the user (CASCADE)
-    deleted, _ = User.objects.filter(student_id__in=student_ids).exclude(pk=request.user.pk).delete()
-    log_activity(request, request.user, ACTION, "students.deleted", f"{len(student_ids)} students")
-    return Response({"message": f"{deleted} record(s) deleted"}, status=status.HTTP_200_OK)
+    with transaction.atomic():
+      targets.delete()
+    log_activity(request, request.user, ACTION, "students.deleted", what)
+    return Response({"deleted": count, "message": f"{count} student(s) deleted"}, status=status.HTTP_200_OK)
 
 class AccountView(APIView):
   """An admin issues a student's login with a temporary password (or replaces it).
