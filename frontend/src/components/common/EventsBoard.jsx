@@ -3,6 +3,7 @@ import { FiAward, FiCalendar, FiCheckCircle, FiLock, FiPlus, FiSearch, FiTrash2,
 import { DirectionToggle, MiniSelect, sortBy } from "./SortControls.jsx";
 import { daysUntil, formatEventDate, getEventPhase, todayLocal, formatEventWhen, formatClock } from "../../utils/events.js";
 import { EmptyState, PageHeader } from "./ui.jsx";
+import EventBanner from "./EventBanner.jsx";
 import Pagination, { usePagination } from "./Pagination.jsx";
 
 function PhaseChip({ event, today }) {
@@ -29,7 +30,7 @@ function EventCard({ event, today, eligible, present, onOpen, onDelete }) {
   const done = getEventPhase(event, today) === "done";
   return (
     <article className={`surface flex flex-col overflow-hidden ${done ? "opacity-80" : ""}`}>
-      {event.image && <img src={event.image} alt="" className="h-32 w-full object-cover" />}
+      <EventBanner event={event} />
       <div className="flex flex-1 flex-col p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <PhaseChip event={event} today={today} />
