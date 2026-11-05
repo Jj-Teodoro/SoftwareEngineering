@@ -1308,12 +1308,14 @@ class ActivityTrailTest(TestCase):
     entry = ActivityLog.objects.get(user=self.admin)
     self.assertEqual(entry.kind, "failed")
 
-  def test_unknown_accounts_and_students_leave_no_trail(self):
+  def test_unknown_accounts_and_student_sign_ins_leave_no_trail_but_student_failures_are_counted(self):
     make_user("2024-00500")
     self.client.post("/api/auth/login", {"identifier": "ghost", "password": "x", "portal": "admin"}, format="json")
     self.client.post("/api/auth/login", {"identifier": "2024-00500", "password": "JMC090907", "portal": "student"}, format="json")
-    self.client.post("/api/auth/login", {"identifier": "2024-00500", "password": "wrong", "portal": "student"}, format="json")
     self.assertEqual(ActivityLog.objects.count(), 0)
+    # a student's wrong password is kept only so the lockout can count it
+    self.client.post("/api/auth/login", {"identifier": "2024-00500", "password": "wrong", "portal": "student"}, format="json")
+    self.assertEqual(list(ActivityLog.objects.values_list("kind", flat=True)), ["failed"])
 
   def test_my_activity_lists_own_trail_only(self):
     other = staff_user("scanner")
@@ -1471,3 +1473,62 @@ class BulkAccountTest(TestCase):
     self.assertEqual(self.client.post("/api/user/accounts", {"student_ids": []}, format="json").status_code, 400)
     scanner = authenticated_client(staff_user("scanner"))
     self.assertEqual(scanner.post("/api/user/accounts", {"student_ids": ["2025-00001"]}, format="json").status_code, 403)
+
+
+class LoginLockoutTest(TestCase):
+  """Too many wrong passwords lock an account for a few minutes."""
+
+  def setUp(self):
+    self.client = APIClient()
+    self.student = make_user("2024-00001")
+    self.other = make_user("2024-00002")
+
+  def login(self, identifier, password):
+    return self.client.post("/api/auth/login", {"identifier": identifier, "password": password, "portal": "student"}, format="json")
+
+  def test_five_wrong_passwords_lock_the_account_even_for_the_right_one(self):
+    for _ in range(5):
+      self.assertEqual(self.login("2024-00001", "wrong").status_code, status.HTTP_401_UNAUTHORIZED)
+    locked = self.login("2024-00001", "JMC090907")
+    self.assertEqual(locked.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+    self.assertIn("Too many", locked.data["detail"])
+
+  def test_other_accounts_are_not_affected(self):
+    for _ in range(5):
+      self.login("2024-00001", "wrong")
+    self.assertEqual(self.login("2024-00002", "JMC090907").status_code, status.HTTP_200_OK)
+
+  def test_the_lock_ends_after_the_wait(self):
+    for _ in range(5):
+      self.login("2024-00001", "wrong")
+    ActivityLog.objects.filter(user=self.student).update(created_at=timezone.now() - timezone.timedelta(minutes=11))
+    self.assertEqual(self.login("2024-00001", "JMC090907").status_code, status.HTTP_200_OK)
+
+  def test_four_wrong_passwords_do_not_lock(self):
+    for _ in range(4):
+      self.login("2024-00001", "wrong")
+    self.assertEqual(self.login("2024-00001", "JMC090907").status_code, status.HTTP_200_OK)
+
+
+class ScannerPrivacyTest(TestCase):
+  """A scanner sees names, numbers and photos, not how to reach a student."""
+
+  def test_scanner_list_leaves_out_contact_details(self):
+    make_user("2024-00001")
+    scanner = staff_user("scanner")
+    rows = authenticated_client(scanner).get("/api/user").data
+    row = next(r for r in rows if r["student_id"] == "2024-00001")
+    for private in ("email", "contact_number", "address"):
+      self.assertNotIn(private, row)
+    self.assertIn("first_name", row)
+
+  def test_admin_list_keeps_contact_details(self):
+    make_user("2024-00001")
+    rows = authenticated_client(staff_user("admin")).get("/api/user").data
+    row = next(r for r in rows if r["student_id"] == "2024-00001")
+    self.assertIn("email", row)
+
+  def test_scanner_still_sees_their_own_email(self):
+    scanner = staff_user("scanner")
+    scanner.email = "scan@school.edu"; scanner.save()
+    self.assertEqual(authenticated_client(scanner).get("/api/user/me").data["email"], "scan@school.edu")

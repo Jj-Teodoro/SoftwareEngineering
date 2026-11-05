@@ -20,7 +20,12 @@ export function AuthProvider({ children }) {
     } catch (error) {
       return {
         ok: false,
-        message: error.status === 401 ? "Invalid student number or password." : "Unable to reach the server.",
+        message:
+          error.status === 401
+            ? "Invalid student number or password."
+            : error.status === 429
+              ? error.message // too many wrong passwords: the server says how long to wait
+              : "Unable to reach the server.",
       };
     }
   };

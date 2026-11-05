@@ -119,6 +119,11 @@ class UserSerializer(ProfileValidationMixin, serializers.ModelSerializer):
     viewer = getattr(request, "user", None)
     if not (viewer and viewer.is_authenticated and viewer.role == "admin"):
       data.pop("password_requested_at", None)
+    # a scanner needs a student's name, number, section and photo to run the kiosk, not how to
+    # reach them or where they live (Data Privacy Act: collect and show only what a task needs)
+    if viewer and viewer.is_authenticated and viewer.role == "scanner" and user.pk != viewer.pk:
+      for private in ("email", "contact_number", "address", "bio", "hobbies", "talent"):
+        data.pop(private, None)
     return data
 
   def validate_year_level(self, value):
