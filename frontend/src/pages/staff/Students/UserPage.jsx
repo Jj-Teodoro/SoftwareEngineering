@@ -9,8 +9,9 @@ import AddStudentModal from "../../../components/staff/AddStudentModal";
 import StudentIdCardModal from "../../../components/staff/StudentIdCardModal";
 import ProvisionAccountsModal from "../../../components/staff/ProvisionAccountsModal";
 import StudentAvatar from "../../../components/staff/StudentAvatar";
+import Pagination, { usePagination } from "../../../components/common/Pagination.jsx";
+import { DirectionChips, OptionChips, sortBy } from "../../../components/common/SortControls.jsx";
 
-const PAGE_SIZE = 8;
 
 // One grid for header and rows: a card on phones, a table row from md up.
 const ROW =
@@ -22,6 +23,14 @@ const FIXED_GROUPS = [
   { key: "clearance", label: "Clearance", options: ["CLEARED", "NOT CLEARED"] },
 ];
 const NO_FILTERS = { status: "ALL", account: "ALL", clearance: "ALL", program: "ALL", year: "ALL", section: "ALL" };
+const SORT_FIELDS = [
+  { value: "name", label: "Name" },
+  { value: "studentId", label: "Student ID" },
+  { value: "points", label: "Points" },
+  { value: "section", label: "Section" },
+  { value: "year", label: "Year level" },
+];
+const DEFAULT_SORT = { key: "name", dir: "asc" };
 const uniqueSorted = (values) => [...new Set(values.filter(Boolean))].sort();
 
 // Literal class names so Tailwind can see them.
@@ -66,9 +75,16 @@ function AccountCell({ student, requested }) {
   return student.mustChangePassword ? <Chip tone="amber">Pending</Chip> : <Chip tone="green">Active</Chip>;
 }
 
-function FilterPanel({ groups, filters, setFilters, activeCount }) {
+function FilterPanel({ groups, filters, setFilters, activeCount, sort, setSort }) {
+  const sortChanged = sort.key !== DEFAULT_SORT.key || sort.dir !== DEFAULT_SORT.dir;
   return (
     <div className="surface-accent absolute left-0 right-0 top-12 z-20 max-h-[70vh] overflow-y-auto bg-ink-panel p-4 shadow-2xl sm:right-auto sm:w-[380px]">
+      <div className="mb-4 border-b border-white/10 pb-4">
+        <p className="label mb-2">Sort by</p>
+        <OptionChips options={SORT_FIELDS} value={sort.key} onChange={(key) => setSort((s) => ({ ...s, key }))} />
+        <p className="label mb-2 mt-3">Order</p>
+        <DirectionChips dir={sort.dir} onChange={(dir) => setSort((s) => ({ ...s, dir }))} />
+      </div>
       {groups.map((group) => (
         <div key={group.key} className="mb-4">
           <p className="label mb-2">{group.label}</p>
@@ -90,8 +106,16 @@ function FilterPanel({ groups, filters, setFilters, activeCount }) {
           </div>
         </div>
       ))}
-      <button type="button" onClick={() => setFilters(NO_FILTERS)} disabled={!activeCount} className="btn-ghost w-full">
-        Reset filters
+      <button
+        type="button"
+        onClick={() => {
+          setFilters(NO_FILTERS);
+          setSort(DEFAULT_SORT);
+        }}
+        disabled={!activeCount && !sortChanged}
+        className="btn-ghost w-full"
+      >
+        Reset filters and sorting
       </button>
     </div>
   );
@@ -105,8 +129,8 @@ export default function UserPage() {
 
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState(NO_FILTERS);
+  const [sort, setSort] = useState(DEFAULT_SORT);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [page, setPage] = useState(1);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [showAddModal, setShowAddModal] = useState(false);
@@ -138,7 +162,7 @@ export default function UserPage() {
 
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return students.filter((s) => {
+    const matching = students.filter((s) => {
       if (query && !s.studentId.toLowerCase().includes(query) && !s.name.toLowerCase().includes(query)) return false;
       const values = {
         status: getActivity(s.studentId).active ? "ACTIVE" : "INACTIVE",
@@ -150,15 +174,19 @@ export default function UserPage() {
       };
       return Object.entries(filters).every(([key, wanted]) => wanted === "ALL" || values[key] === wanted);
     });
+    const valueOf = {
+      name: (s) => s.name,
+      studentId: (s) => s.studentId,
+      points: (s) => getTotalPoints(s.studentId),
+      section: (s) => s.section,
+      year: (s) => Number(s.yearLevel) || 0,
+    }[sort.key];
+    return sortBy(matching, valueOf, sort.dir);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [students, search, filters, getActivity, getClearance, resetRequests]);
+  }, [students, search, filters, sort, getActivity, getClearance, getTotalPoints, resetRequests]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
-  useEffect(() => setPage(1), [search, filters]);
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-  const pageStudents = filteredStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pagination = usePagination(filteredStudents, { initialPageSize: 10, resetKey: `${search}|${JSON.stringify(filters)}|${sort.key}|${sort.dir}` });
+  const pageStudents = pagination.pageItems;
 
   const toggleSelectMode = () => {
     setSelectMode((prev) => !prev);
@@ -218,11 +246,18 @@ export default function UserPage() {
           />
         </div>
         <button type="button" onClick={() => setFilterOpen((o) => !o)} className="btn-ghost">
-          <FiFilter size={14} /> Filter
+          <FiFilter size={14} /> Filter & sort
           {activeFilters.length > 0 && <span className="chip-cyan px-1.5">{activeFilters.length}</span>}
         </button>
         {filterOpen && (
-          <FilterPanel groups={groups} filters={filters} setFilters={setFilters} activeCount={activeFilters.length} />
+          <FilterPanel
+            groups={groups}
+            filters={filters}
+            setFilters={setFilters}
+            activeCount={activeFilters.length}
+            sort={sort}
+            setSort={setSort}
+          />
         )}
       </div>
 
@@ -300,20 +335,7 @@ export default function UserPage() {
         })}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex flex-wrap justify-center gap-2">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setPage(n)}
-              className={`btn-sm min-w-8 ${page === n ? "btn-primary" : "btn-ghost"}`}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-      )}
+      <Pagination {...pagination} itemLabel="students" />
 
       {showAddModal && <AddStudentModal onClose={() => setShowAddModal(false)} />}
       {showProvisionModal && (

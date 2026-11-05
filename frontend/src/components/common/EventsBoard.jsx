@@ -3,6 +3,7 @@ import { FiAward, FiCalendar, FiCheckCircle, FiLock, FiPlus, FiTrash2, FiUsers, 
 import { daysUntil, formatEventDate, getEventPhase, todayLocal } from "../../utils/events.js";
 import { EmptyState, PageHeader } from "./ui.jsx";
 import EventBanner from "./EventBanner.jsx";
+import Pagination, { usePagination } from "./Pagination.jsx";
 
 function PhaseChip({ event, today }) {
   const phase = getEventPhase(event, today);
@@ -59,6 +60,42 @@ function EventCard({ event, today, eligible, present, onOpen, onDelete }) {
   );
 }
 
+// One group of events (Today / Upcoming / Done), paged on its own so a long list of
+// past events doesn't push everything else down.
+function EventSection({ section, today, students, presentCounts, onOpen, onDelete }) {
+  const pagination = usePagination(section.list, { initialPageSize: 6 });
+  return (
+    <section>
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
+        <h2 className="label text-white/80">
+          {section.title} <span className="ml-1 text-gold">{section.list.length}</span>
+        </h2>
+        <p className="text-xs text-white/40">{section.hint}</p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {pagination.pageItems.map((event) => {
+          const restricted = event.programFilter && event.programFilter !== "ALL";
+          const eligible = restricted ? students.filter((s) => s.course === event.programFilter).length : students.length;
+          return (
+            <EventCard
+              key={event.id}
+              event={event}
+              today={today}
+              eligible={eligible}
+              present={presentCounts[event.id] ?? 0}
+              onOpen={onOpen && (() => onOpen(event))}
+              onDelete={onDelete && (() => onDelete(event))}
+            />
+          );
+        })}
+      </div>
+      {section.list.length > 6 && (
+        <Pagination {...pagination} itemLabel="events" pageSizeOptions={[6, 12, 24, 48]} className="mt-4" />
+      )}
+    </section>
+  );
+}
+
 /**
  * Events grouped as Today / Upcoming / Done. The host supplies the data and
  * actions: onCreate for the New Event button, onOpen / onDelete per card.
@@ -93,31 +130,15 @@ export default function EventsBoard({ events, students, presentCounts, onCreate,
       )}
 
       {sections.map((section) => (
-        <section key={section.key}>
-          <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
-            <h2 className="label text-white/80">
-              {section.title} <span className="ml-1 text-gold">{section.list.length}</span>
-            </h2>
-            <p className="text-xs text-white/40">{section.hint}</p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {section.list.map((event) => {
-              const restricted = event.programFilter && event.programFilter !== "ALL";
-              const eligible = restricted ? students.filter((s) => s.course === event.programFilter).length : students.length;
-              return (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  today={today}
-                  eligible={eligible}
-                  present={presentCounts[event.id] ?? 0}
-                  onOpen={onOpen && (() => onOpen(event))}
-                  onDelete={onDelete && (() => onDelete(event))}
-                />
-              );
-            })}
-          </div>
-        </section>
+        <EventSection
+          key={section.key}
+          section={section}
+          today={today}
+          students={students}
+          presentCounts={presentCounts}
+          onOpen={onOpen}
+          onDelete={onDelete}
+        />
       ))}
     </div>
   );

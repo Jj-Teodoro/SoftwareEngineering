@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
-import { FiDownload, FiUploadCloud } from "react-icons/fi";
+import { FiDownload, FiLoader, FiUploadCloud } from "react-icons/fi";
+import ProgressOverlay from "../../../components/common/ProgressOverlay.jsx";
 import { PageHeader, Section } from "../../../components/common/ui.jsx";
 import { useStudents } from "../../../context/staff/StudentsContext";
 import {
@@ -8,6 +9,26 @@ import {
   downloadImportTemplate,
 } from "../../../utils/studentImport";
 
+// The loading screen while an import runs; it also stops the Import button being pressed twice.
+function ImportProgress({ progress }) {
+  const { added, total, batch, batches, stage } = progress;
+  const step =
+    stage === "refreshing"
+      ? "Updating the student list..."
+      : batches > 1
+      ? `Sending batch ${batch} of ${batches}...`
+      : "Saving the students...";
+  return (
+    <ProgressOverlay
+      title="Importing students"
+      done={stage === "refreshing" ? total : added}
+      total={total}
+      doneLabel="added"
+      step={step}
+    />
+  );
+}
+
 export default function ImportPage() {
   const { students, importStudents } = useStudents();
   const [fileName, setFileName] = useState("");
@@ -15,6 +36,7 @@ export default function ImportPage() {
   const [parseError, setParseError] = useState("");
   const [isParsing, setIsParsing] = useState(false);
   const [result, setResult] = useState(null);
+  const [progress, setProgress] = useState(null); // set while an import is running
   const fileInputRef = useRef(null);
 
   const existingIds = useMemo(
@@ -61,7 +83,18 @@ export default function ImportPage() {
 
   const handleImport = async () => {
     const validRows = preview.filter((r) => r.validity === "new");
-    const outcome = await importStudents(validRows);
+    setParseError("");
+    setProgress({ added: 0, total: validRows.length, batch: 1, batches: 1, stage: "sending" });
+    let outcome;
+    try {
+      outcome = await importStudents(validRows, setProgress);
+    } catch (error) {
+      const done = error.added ? ` ${error.added} students were added before this; choose the file again to add the rest.` : "";
+      setParseError(`${error.message || "The import did not finish."}${done}`);
+      return;
+    } finally {
+      setProgress(null);
+    }
     setResult(outcome);
     setRows([]);
     setFileName("");
@@ -72,6 +105,7 @@ export default function ImportPage() {
 
   return (
     <div className="flex flex-col gap-5">
+      {progress && <ImportProgress progress={progress} />}
       <PageHeader title="Import students" subtitle="Add many students at once from a spreadsheet.">
         <button type="button" onClick={downloadImportTemplate} className="btn-ghost">
           <FiDownload size={14} /> Download template
@@ -84,8 +118,14 @@ export default function ImportPage() {
           <p className="mx-auto mt-3 max-w-md text-sm muted">
             Upload an Excel (.xlsx) or CSV file. Not sure of the format? Download the template first.
           </p>
-          <label className="btn-primary mt-5 cursor-pointer px-6">
-            {isParsing ? "Reading file..." : "Choose file"}
+          <label className={`btn-primary mt-5 cursor-pointer px-6 ${isParsing ? "pointer-events-none opacity-80" : ""}`}>
+            {isParsing ? (
+              <>
+                <FiLoader size={14} className="animate-spin" /> Reading file...
+              </>
+            ) : (
+              "Choose file"
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -105,8 +145,22 @@ export default function ImportPage() {
           <p className="mt-1">
             Added {result.added} student{result.added === 1 ? "" : "s"}.
             {result.skipped.length > 0 &&
-              ` Skipped ${result.skipped.length} row${result.skipped.length === 1 ? "" : "s"} (missing info or already existing).`}
+              ` Skipped ${result.skipped.length} row${result.skipped.length === 1 ? "" : "s"}.`}
           </p>
+          {result.skipped.length > 0 && (
+            <div className="mt-3 rounded-md border border-yellow-400/25 bg-black/20 p-3 text-yellow-100">
+              <p className="label text-yellow-300">Skipped rows — fix these in the file and import it again</p>
+              <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto font-mono text-xs">
+                {result.skipped.map(({ row, reason }, i) => (
+                  <li key={`${row.studentId}-${i}`}>
+                    <span className="text-white">{row.studentId || "(no ID)"}</span>
+                    {row.name ? <span className="text-white/60"> · {row.name}</span> : null}
+                    <span className="text-yellow-200/80"> — {reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
@@ -114,7 +168,7 @@ export default function ImportPage() {
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-white/80">{validCount} of {preview.length} rows ready to import</p>
-            <button type="button" onClick={handleImport} disabled={validCount === 0} className="btn-primary">
+            <button type="button" onClick={handleImport} disabled={validCount === 0 || Boolean(progress)} className="btn-primary">
               Import {validCount} student{validCount === 1 ? "" : "s"}
             </button>
           </div>

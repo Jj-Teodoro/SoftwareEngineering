@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -208,6 +209,34 @@ class UserViewTest(TestCase):
     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     self.assertEqual(User.objects.count(), 1)
 
+  def test_create_user_bulk_uses_few_queries(self):
+    # a big class list must not cost one database query per student
+    rows = [
+      {"student_id": f"2025-{i:05d}", "first_name": f"First {i}", "last_name": f"Last {i}", "role": "student"}
+      for i in range(400)
+    ]
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+    with CaptureQueriesContext(connection) as queries:
+      response = self.client.post("/api/user/bulk", rows, format="json")
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    self.assertEqual(User.objects.filter(student_id__startswith="2025-").count(), 400)
+    self.assertLess(len(queries), 20)
+
+  def test_create_user_bulk_reports_existing_ids_per_row(self):
+    self.client.post("/api/user/register", self.user, format="json")
+    rows = [
+      {"student_id": "2025-00001", "first_name": "A", "last_name": "B", "role": "student"},
+      {"student_id": self.user["student_id"], "first_name": "C", "last_name": "D", "role": "student"},
+      {"student_id": "2025-00003", "first_name": "E", "last_name": "F", "role": "student", "year_level": 9},
+    ]
+    response = self.client.post("/api/user/bulk", rows, format="json")
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertEqual(set(response.data.keys()), {1, 2})
+    self.assertEqual(response.data[1]["student_id"], ["user with this student id already exists."])
+    self.assertIn("year_level", response.data[2])
+    self.assertFalse(User.objects.filter(student_id="2025-00001").exists())
+
   def test_password_not_returned(self):
     response = self.client.post("/api/user/register", self.user, format="json")
     self.assertNotIn("password", response.data)
@@ -329,7 +358,11 @@ class AttendanceSerializerTest(TestCase):
     serializer = AttendanceSerializer(data={"user": self.user.pk, "event": str(self.event.pk)})
     self.assertTrue(serializer.is_valid(), serializer.errors)
     attendance = serializer.save()
-    self.assertEqual(attendance.points_awarded, 5)
+    self.assertEqual(attendance.points_awarded, 0)  # timed in only: nothing yet
+
+    serializer = AttendanceSerializer(attendance, data={"time_out": timezone.now()}, partial=True)
+    self.assertTrue(serializer.is_valid(), serializer.errors)
+    self.assertEqual(serializer.save().points_awarded, 5)  # timing out earns the event's points
 
   def test_requires_user_and_event(self):
     serializer = AttendanceSerializer(data={})
@@ -467,8 +500,13 @@ class AttendanceViewTest(TestCase):
   def test_record_attendance_uses_default_points(self):
     response = self.record()
     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-    self.assertEqual(response.data["points_awarded"], 10)
+    self.assertEqual(response.data["points_awarded"], 0)  # timed in only
     self.assertEqual(response.data["scanned_by"], self.scanner.pk)
+    self.assertEqual(self.points(self.student), 0)
+
+    attendance_id = response.data["attendance_id"]
+    response = self.client.patch(f"/api/attendance/{attendance_id}", {"time_out": timezone.now().isoformat()}, format="json")
+    self.assertEqual(response.data["points_awarded"], 10)
     self.assertEqual(self.points(self.student), 10)
 
   def test_record_attendance_custom_points(self):
@@ -487,7 +525,7 @@ class AttendanceViewTest(TestCase):
     response = self.record()
     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     self.assertEqual(Attendance.objects.count(), 1)
-    self.assertEqual(self.points(self.student), 10)
+    self.assertEqual(self.points(self.student), 0)
 
   def test_attendance_unknown_event(self):
     response = self.client.post("/api/attendance", {
@@ -524,6 +562,8 @@ class AttendanceViewTest(TestCase):
 
   def test_patch_attendance_change_user_moves_points(self):
     attendance_id = self.record().data["attendance_id"]
+    self.client.patch(f"/api/attendance/{attendance_id}", {"time_out": timezone.now().isoformat()}, format="json")
+    self.assertEqual(self.points(self.student), 10)
     response = self.client.patch(f"/api/attendance/{attendance_id}", {"user": self.other_student.pk}, format="json")
     self.assertEqual(response.status_code, status.HTTP_200_OK)
     self.assertEqual(self.points(self.student), 0)
@@ -899,13 +939,16 @@ class ScanAndAnnounceTest(TestCase):
   def test_scan_in_out_already(self):
     first = self.scan(self.cpe)
     self.assertEqual(first.data["action"], "in")
-    self.assertEqual(first.data["record"]["points_awarded"], 7)
+    self.assertEqual(first.data["record"]["points_awarded"], 0)  # no points until time out
+    self.cpe.refresh_from_db()
+    self.assertEqual(self.cpe.points, 0)
     self.assertEqual(first.data["record"]["scanned_by"], self.scanner.pk)
     self.assertIsNone(first.data["record"]["time_out"])
 
     second = self.scan(self.cpe)
     self.assertEqual(second.data["action"], "out")
     self.assertIsNotNone(second.data["record"]["time_out"])
+    self.assertEqual(second.data["record"]["points_awarded"], 7)
 
     self.assertEqual(self.scan(self.cpe).data["action"], "already")
     self.assertEqual(Attendance.objects.count(), 1)
@@ -1388,3 +1431,43 @@ class ClearanceSettingUnmigratedTest(TestCase):
       response = authenticated_client().patch("/api/settings/clearance", {"required_points": 40}, format="json")
     self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
     self.assertIn("migrate", response.data["detail"])
+
+
+class BulkAccountTest(TestCase):
+
+  def setUp(self):
+    self.client = authenticated_client()
+    for i in range(1, 6):
+      User.objects.create_user(f"2025-{i:05d}", None, first_name="S", last_name=str(i), role="student")
+    make_user("2025-00009")  # already has a login
+
+  def test_creates_accounts_in_one_request(self):
+    ids = [f"2025-{i:05d}" for i in range(1, 6)] + ["2025-00009", "missing-1"]
+    response = self.client.post("/api/user/accounts", {"student_ids": ids}, format="json")
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    self.assertEqual([r["student_id"] for r in response.data["created"]], ids[:5])
+    self.assertEqual({r["student_id"] for r in response.data["skipped"]}, {"2025-00009", "missing-1"})
+
+    created = response.data["created"][0]
+    user = User.objects.get(student_id=created["student_id"])
+    self.assertTrue(user.must_change_password)
+    self.assertEqual(user.temp_password, created["temp_password"])
+    self.assertTrue(user.password.startswith("pbkdf2_sha256_temp$"))
+    self.assertTrue(user.check_password(created["temp_password"]))
+
+  def test_temp_password_is_rehashed_on_sign_in(self):
+    created = self.client.post("/api/user/accounts", {"student_ids": ["2025-00001"]}, format="json").data["created"][0]
+    login = APIClient().post(
+      "/api/auth/login",
+      {"identifier": "2025-00001", "password": created["temp_password"], "portal": "student"},
+      format="json",
+    )
+    self.assertEqual(login.status_code, status.HTTP_200_OK)
+    user = User.objects.get(student_id="2025-00001")
+    self.assertFalse(user.password.startswith("pbkdf2_sha256_temp$"))  # upgraded to the strong hasher
+    self.assertTrue(user.check_password(created["temp_password"]))
+
+  def test_admin_only_and_validates_input(self):
+    self.assertEqual(self.client.post("/api/user/accounts", {"student_ids": []}, format="json").status_code, 400)
+    scanner = authenticated_client(staff_user("scanner"))
+    self.assertEqual(scanner.post("/api/user/accounts", {"student_ids": ["2025-00001"]}, format="json").status_code, 403)

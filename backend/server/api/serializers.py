@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.db.models import F
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 from .models import User, Event, Attendance, Notification, SubmissionLog, Requirement, RequirementCompletion, Hobby
 
 MAX_PHOTO_LENGTH = 200_000
@@ -9,6 +10,44 @@ MAX_EVENT_IMAGE_LENGTH = 400_000
 
 class UserListSerializer(serializers.ListSerializer):
   MAX_BULK_SIZE = 500
+  TAKEN = "user with this student id already exists."
+
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    # Each row would otherwise ask the database "is this student number taken?" on its own:
+    # one query per student, too slow for a big class list. All rows are checked at once below.
+    field = self.child.fields.get("student_id")
+    if field is not None:
+      field.validators = [v for v in field.validators if not isinstance(v, UniqueValidator)]
+
+  def to_internal_value(self, data):
+    if not isinstance(data, list):
+      return super().to_internal_value(data)
+    ids = [str(row.get("student_id", "")).strip() for row in data if isinstance(row, dict)]
+    taken = set(User.objects.filter(student_id__in=ids).values_list("student_id", flat=True))
+
+    try:
+      validated = super().to_internal_value(data)
+      errors = [{} for _ in data]
+    except serializers.ValidationError as exc:
+      detail = exc.detail
+      if isinstance(detail, list):
+        errors = [dict(e) if e else {} for e in detail]
+      elif isinstance(detail, dict) and detail and all(str(k).isdigit() for k in detail):
+        errors = [{} for _ in data]
+        for key, row_errors in detail.items():
+          errors[int(key)] = dict(row_errors)
+      else:
+        raise
+      validated = None
+
+    # errors per row, so the import can skip just the rows that are wrong
+    for index, row in enumerate(data):
+      if isinstance(row, dict) and str(row.get("student_id", "")).strip() in taken:
+        errors[index]["student_id"] = [self.TAKEN]
+    if any(errors):
+      raise serializers.ValidationError({i: e for i, e in enumerate(errors) if e})
+    return validated
 
   def validate(self, attr):
     if len(attr) > self.MAX_BULK_SIZE:
@@ -190,9 +229,13 @@ class AttendanceSerializer(serializers.ModelSerializer):
       raise serializers.ValidationError("User already has attendance for this event")
     return attrs
 
+  # An event's points are earned at time out: a student who only timed in has 0 points
+  # for it until they time out (or staff record a time out for them). Points that staff
+  # type in themselves are kept as given.
   def create(self, validated_data):
     if validated_data.get("points_awarded") is None:
-      validated_data["points_awarded"] = validated_data["event"].default_points
+      timed_out = validated_data.get("time_out") is not None
+      validated_data["points_awarded"] = validated_data["event"].default_points if timed_out else 0
 
     with transaction.atomic():
       attendance = super().create(validated_data)
@@ -202,6 +245,13 @@ class AttendanceSerializer(serializers.ModelSerializer):
   def update(self, instance, validated_data):
     old_user_id = instance.user_id
     old_points = instance.points_awarded
+
+    if "points_awarded" not in validated_data and "time_out" in validated_data:
+      if validated_data["time_out"] is None:
+        validated_data["points_awarded"] = 0  # the time out was removed
+      elif instance.time_out is None:
+        event = validated_data.get("event", instance.event)
+        validated_data["points_awarded"] = event.default_points  # timing out earns the points
 
     with transaction.atomic():
       attendance = super().update(instance, validated_data)

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { FiCopy, FiDownload, FiFileText } from "react-icons/fi";
 import Modal from "../common/Modal.jsx";
+import ProgressOverlay from "../common/ProgressOverlay.jsx";
 import { useStudents } from "../../context/staff/StudentsContext";
 import { downloadPasswordsXlsx } from "../../utils/accountsExport";
 
@@ -28,13 +29,16 @@ export default function ProvisionAccountsModal({ onClose, candidates, scopeLabel
   const alreadyHave = pool.length - ready.length;
 
   const handleCreate = async () => {
-    setProgress({ done: 0, total: ready.length });
-    const out = await provisionAccounts(
-      ready.map((s) => s.studentId),
-      (done, total) => setProgress({ done, total })
-    );
-    setResults(out);
-    setProgress(null);
+    setProgress({ done: 0, total: ready.length, batch: 1, batches: 1 });
+    try {
+      const out = await provisionAccounts(
+        ready.map((s) => s.studentId),
+        (done, total, batch, batches) => setProgress({ done, total, batch, batches })
+      );
+      setResults(out);
+    } finally {
+      setProgress(null);
+    }
   };
 
   const downloadCsv = () => {
@@ -82,7 +86,17 @@ export default function ProvisionAccountsModal({ onClose, candidates, scopeLabel
   const failed = results?.filter((r) => !r.ok) ?? [];
 
   return (
-    <Modal onClose={onClose} maxWidth="max-w-3xl">
+    // the window can't be closed while accounts are being created
+    <Modal onClose={progress ? () => {} : onClose} maxWidth="max-w-3xl">
+      {progress && (
+        <ProgressOverlay
+          title="Creating accounts"
+          done={progress.done}
+          total={progress.total}
+          doneLabel="processed"
+          step={progress.batches > 1 ? `Sending batch ${progress.batch} of ${progress.batches}...` : "Creating the logins..."}
+        />
+      )}
       <h2 className="page-title pr-8 mb-2">
         Create Student Accounts
       </h2>

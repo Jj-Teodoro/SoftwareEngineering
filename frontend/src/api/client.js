@@ -126,13 +126,35 @@ const FIELD_LABELS = {
   address: "Address",
 };
 
-function extractMessage(data) {
-  if (!data || typeof data !== "object") return null;
-  if (typeof data.detail === "string") return data.detail;
-  const [field, first] = Object.entries(data)[0] || [];
+// One record's errors, e.g. {section: ["Ensure this field has no more than 20 characters."]}
+export function describeFieldErrors(errors) {
+  if (!errors || typeof errors !== "object") return null;
+  const [field, first] = Object.entries(errors)[0] || [];
   const message = Array.isArray(first) ? String(first[0]) : typeof first === "string" ? first : null;
   if (!message) return null;
   return FIELD_LABELS[field] ? `${FIELD_LABELS[field]}: ${message}` : message;
+}
+
+// A bulk request answers with errors per row: a list, or an object keyed by row number
+// ({"2": {...}}). Returns [{ index, message }] for the rows that were rejected.
+export function rowErrors(data) {
+  if (!data || typeof data !== "object") return [];
+  const entries = Array.isArray(data) ? data.map((e, i) => [i, e]) : Object.entries(data);
+  if (!entries.every(([key]) => /^\d+$/.test(String(key)))) return [];
+  return entries
+    .map(([key, errors]) => ({ index: Number(key), message: describeFieldErrors(errors) }))
+    .filter((e) => e.message);
+}
+
+function extractMessage(data) {
+  if (!data || typeof data !== "object") return null;
+  if (typeof data.detail === "string") return data.detail;
+  const rows = rowErrors(data);
+  if (rows.length > 0) {
+    const more = rows.length > 1 ? ` (and ${rows.length - 1} more row${rows.length === 2 ? "" : "s"})` : "";
+    return `Row ${rows[0].index + 1}: ${rows[0].message}${more}`;
+  }
+  return describeFieldErrors(data);
 }
 
 async function send(path, { method = "GET", body, query, auth = true } = {}) {
@@ -254,6 +276,8 @@ export const api = {
     update: (studentId, changes) => request(`/user/${id(studentId)}`, { method: "PATCH", body: changes }),
     remove: (studentId) => request(`/user/${id(studentId)}`, { method: "DELETE" }),
     issueAccount: (studentId) => request(`/user/${id(studentId)}/account`, { method: "POST" }),
+    // logins for many students at once: { created: [{student_id, temp_password}], skipped: [{student_id, reason}] }
+    bulkAccounts: (studentIds) => request("/user/accounts", { method: "POST", body: { student_ids: studentIds } }),
     storedTempPassword: (studentId) => request(`/user/${id(studentId)}/account`),
     dismissPasswordRequest: (studentId) => request(`/user/${id(studentId)}/password-request`, { method: "DELETE" }),
   },

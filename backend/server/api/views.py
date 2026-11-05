@@ -39,6 +39,7 @@ from .permissions import (
   is_staff_member,
 )
 from .utils import UserRole
+from .hashers import set_temp_password
 
 # Create your views here.
 
@@ -383,13 +384,55 @@ class AccountView(APIView):
     # the student signs in with their student number, so no email is needed
     user = get_object_or_404(User, student_id=student_id)
     temp_password = generate_temp_password()
-    user.set_password(temp_password)
+    set_temp_password(user, temp_password)
     user.temp_password = temp_password
     user.must_change_password = True
     user.password_requested_at = None
     user.save(update_fields=["password", "temp_password", "must_change_password", "password_requested_at"])
     log_activity(request, request.user, ACTION, "password.issued", user.student_id)
     return Response({"student_id": user.student_id, "temp_password": temp_password}, status=status.HTTP_200_OK)
+
+class BulkAccountView(APIView):
+  """Creates logins for many students at once: {"student_ids": [...]}.
+
+  Each student without an account gets a temporary password (returned once, here) and must
+  choose their own on first sign-in. Students who already have an account, or who are not
+  found, are listed under "skipped". Everything is saved with one bulk update."""
+  permission_classes = [IsAdmin]
+  MAX = 500
+
+  def post(self, request):
+    ids = request.data.get("student_ids") if isinstance(request.data, dict) else None
+    if not isinstance(ids, list) or not ids:
+      return Response({"detail": "Send student_ids as a non-empty list."}, status=status.HTTP_400_BAD_REQUEST)
+    if len(ids) > self.MAX:
+      return Response({"detail": f"At most {self.MAX} students per request."}, status=status.HTTP_400_BAD_REQUEST)
+
+    ids = [str(i).strip() for i in ids]
+    users = {u.student_id: u for u in User.objects.filter(student_id__in=ids, role=UserRole.STUDENT)}
+    created, skipped, changed = [], [], []
+    for student_id in dict.fromkeys(ids):  # keeps order, drops repeats
+      user = users.get(student_id)
+      if user is None:
+        skipped.append({"student_id": student_id, "reason": "Student not found."})
+        continue
+      if user.has_usable_password():
+        skipped.append({"student_id": student_id, "reason": "This student already has an account."})
+        continue
+      temp_password = generate_temp_password()
+      set_temp_password(user, temp_password)
+      user.temp_password = temp_password
+      user.must_change_password = True
+      user.password_requested_at = None
+      changed.append(user)
+      created.append({"student_id": student_id, "temp_password": temp_password})
+
+    if changed:
+      User.objects.bulk_update(
+        changed, ["password", "temp_password", "must_change_password", "password_requested_at"], batch_size=500
+      )
+      log_activity(request, request.user, ACTION, "accounts.created", f"{len(changed)} students")
+    return Response({"created": created, "skipped": skipped}, status=status.HTTP_200_OK)
 
 class StaffListCreateView(APIView):
   """Admin and scanner accounts. Admins add both here; each starts with a
@@ -436,7 +479,7 @@ class StaffListCreateView(APIView):
     user = serializer.save()
 
     temp_password = generate_temp_password()
-    user.set_password(temp_password)
+    set_temp_password(user, temp_password)
     user.temp_password = temp_password
     user.must_change_password = True
     user.save(update_fields=["password", "temp_password", "must_change_password"])
@@ -593,9 +636,10 @@ class ScanAttendanceView(APIView):
         # another scan of the same student just checked them in (SRS FR-28)
         record, action = Attendance.objects.get(user=student, event=event), "already"
     elif existing.time_out is None:
-      existing.time_out = timezone.now()
-      existing.save(update_fields=["time_out"])
-      record, action = existing, "out"
+      # timing out is what earns the event's points (the serializer adds them)
+      serializer = AttendanceSerializer(existing, data={"time_out": timezone.now()}, partial=True)
+      serializer.is_valid(raise_exception=True)
+      record, action = serializer.save(), "out"
     else:
       record, action = existing, "already"
 

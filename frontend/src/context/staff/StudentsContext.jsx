@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState } from "react";
-import { api } from "../../api/client.js";
+import { api, rowErrors } from "../../api/client.js";
 import { useSignedIn, usePolling } from "../../api/hooks.js";
 import { fromStudent, toStudent } from "../../api/mappers.js";
 
@@ -14,6 +14,7 @@ const ADMIN_EDITABLE_FIELDS = [
   "address",
 ];
 
+const IMPORT_BATCH = 400;
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 
 const StudentsContext = createContext(null);
@@ -21,6 +22,8 @@ const StudentsContext = createContext(null);
 function newStudentPayload(data) {
   return { ...fromStudent({ ...data, studentId: data.studentId.trim() }), role: "student" };
 }
+
+const ACCOUNT_BATCH = 250;
 
 export function StudentsProvider({ children }) {
   const signedIn = useSignedIn();
@@ -118,13 +121,33 @@ export function StudentsProvider({ children }) {
     await refresh();
   };
 
+  // Creates logins for many students, ACCOUNT_BATCH per request, and reloads the
+  // student list once at the end (not after every student).
   const provisionAccounts = async (studentIds, onProgress) => {
+    const nameOf = Object.fromEntries(students.map((s) => [s.studentId, s.name]));
     const results = [];
-    for (const id of studentIds) {
-      const student = students.find((s) => s.studentId === id);
-      const result = await provisionAccount(id);
-      results.push({ studentId: id, name: student?.name || "", ...result });
-      onProgress?.(results.length, studentIds.length);
+    const batches = Math.ceil(studentIds.length / ACCOUNT_BATCH);
+    try {
+      for (let i = 0; i < studentIds.length; i += ACCOUNT_BATCH) {
+        const batch = studentIds.slice(i, i + ACCOUNT_BATCH);
+        onProgress?.(results.length, studentIds.length, i / ACCOUNT_BATCH + 1, batches);
+        try {
+          const { created, skipped } = await api.users.bulkAccounts(batch);
+          created.forEach((r) =>
+            results.push({ studentId: r.student_id, name: nameOf[r.student_id] || "", ok: true, tempPassword: r.temp_password })
+          );
+          skipped.forEach((r) =>
+            results.push({ studentId: r.student_id, name: nameOf[r.student_id] || "", ok: false, message: r.reason })
+          );
+        } catch (error) {
+          batch.forEach((studentId) =>
+            results.push({ studentId, name: nameOf[studentId] || "", ok: false, message: error.message || "Could not create the account." })
+          );
+        }
+        onProgress?.(results.length, studentIds.length, i / ACCOUNT_BATCH + 1, batches);
+      }
+    } finally {
+      await refresh();
     }
     return results;
   };
@@ -136,7 +159,9 @@ export function StudentsProvider({ children }) {
     await refresh();
   };
 
-  const importStudents = async (rows) => {
+  // onProgress({ added, total, batch, batches, stage }) is called as each batch goes up,
+  // so the Import page can show how far along it is.
+  const importStudents = async (rows, onProgress) => {
     const existingIds = new Set(students.map((s) => s.studentId.toLowerCase()));
     const seenInBatch = new Set();
     const toAdd = [];
@@ -160,12 +185,42 @@ export function StudentsProvider({ children }) {
       toAdd.push(row);
     });
 
-    if (toAdd.length > 0) {
-      await api.users.bulkCreate(toAdd.map(newStudentPayload));
-      await refresh();
+    // the API takes at most 500 students per request, so a big class list goes up in batches
+    let added = 0;
+    const total = toAdd.length;
+    const batches = Math.ceil(total / IMPORT_BATCH);
+    try {
+      for (let i = 0; i < total; i += IMPORT_BATCH) {
+        let batch = toAdd.slice(i, i + IMPORT_BATCH);
+        onProgress?.({ added, total, batch: i / IMPORT_BATCH + 1, batches, stage: "sending" });
+        try {
+          await api.users.bulkCreate(batch.map(newStudentPayload));
+        } catch (error) {
+          // The server rejects the whole batch if any row is invalid (an ID already used by
+          // another account, a name or section that is too long...) and says which rows.
+          // Skip just those rows, with the reason, and send the rest again.
+          const rejected = error.status === 400 ? rowErrors(error.data) : [];
+          if (rejected.length === 0) throw error;
+          const bad = new Set(rejected.map((r) => r.index));
+          rejected.forEach(({ index, message }) => {
+            if (batch[index]) skipped.push({ row: batch[index], reason: message });
+          });
+          batch = batch.filter((_, index) => !bad.has(index));
+          if (batch.length > 0) await api.users.bulkCreate(batch.map(newStudentPayload));
+        }
+        added += batch.length;
+      }
+    } catch (error) {
+      error.added = added; // lets the page say how many made it before the problem
+      throw error;
+    } finally {
+      if (added > 0) {
+        onProgress?.({ added, total, batch: batches, batches, stage: "refreshing" });
+        await refresh();
+      }
     }
 
-    return { added: toAdd.length, skipped };
+    return { added, skipped };
   };
 
   return (

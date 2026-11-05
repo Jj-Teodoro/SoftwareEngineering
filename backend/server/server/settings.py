@@ -196,7 +196,18 @@ CORS_ALLOWED_ORIGINS = os.getenv(
     "http://localhost:5173,https://softwareengineering-flax.vercel.app",
 ).split(",")
 
+# Django's default hashers, plus a quick one used only for admin-issued temporary
+# passwords (see api/hashers.py); those are re-hashed with the first one on sign-in.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+    "django.contrib.auth.hashers.ScryptPasswordHasher",
+    "api.hashers.TempPasswordHasher",
+]
+
 # Faster password hashing when running the test suite
 if "test" in sys.argv:
-    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher", "api.hashers.TempPasswordHasher"]
 
