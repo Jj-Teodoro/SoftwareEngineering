@@ -8,7 +8,7 @@ export const PROGRAMS = [
     id: "bsit",
     code: "BSIT",
     name: "Information Technology",
-    accent: "#3b8bff",
+    accent: "#d6434b",
     tagline: "Build the web.",
     blurb: "Websites, apps, networks and databases: the tools that keep a whole campus running.",
     topics: ["Web & apps", "Networks", "Databases"],
