@@ -281,8 +281,9 @@ export const api = {
     // logins for many students at once: { created: [{student_id, temp_password}], skipped: [{student_id, reason}] }
     bulkAccounts: (studentIds) => request("/user/accounts", { method: "POST", body: { student_ids: studentIds } }),
     storedTempPassword: (studentId) => request(`/user/${id(studentId)}/account`),
-    // { student_id, role, temp_password (only when they had no login yet) }
-    makeAdmin: (studentId) => request(`/user/${id(studentId)}/make-admin`, { method: "POST" }),
+    // answers { student_id, role, temp_password (only when they had no login yet) }
+    // role: "student" | "scanner" | "admin"
+    setRole: (studentId, role) => request(`/user/${id(studentId)}/role`, { method: "POST", body: { role } }),
     dismissPasswordRequest: (studentId) => request(`/user/${id(studentId)}/password-request`, { method: "DELETE" }),
   },
   events: {

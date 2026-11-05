@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getEventPhase, formatEventDate } from "../../utils/events.js";
-import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiRefreshCw, FiShield, FiTrash2, FiXCircle } from "react-icons/fi";
+import { FiCheckCircle, FiCopy, FiEdit2, FiKey, FiMonitor, FiRefreshCw, FiShield, FiTrash2, FiXCircle } from "react-icons/fi";
 import { api } from "../../api/client.js";
 import StudentIdCard from "../common/StudentIdCard.jsx";
 import { useConfirm } from "../common/ConfirmDialog.jsx";
@@ -21,16 +21,16 @@ const TABS = [
 const inputClass = "input";
 
 export default function StudentIdCardModal({ studentId, onClose }) {
-  const { students, deleteStudents, makeAdmin, refreshStudents } = useStudents();
+  const { students, deleteStudents, setRole, refreshStudents } = useStudents();
   const { getClearance } = usePoints();
   const confirm = useConfirm();
   const [tab, setTab] = useState("id");
   const [deleting, setDeleting] = useState(false);
   const [promoting, setPromoting] = useState(false);
-  const [promoted, setPromoted] = useState(null); // { name, studentId, tempPassword }
+  const [promoted, setPromoted] = useState(null); // { name, studentId, role, tempPassword }
   const [promoteError, setPromoteError] = useState("");
 
-  // after "Make admin": what happened, and their temporary password if they had no login
+  // after "Make scanner" / "Make admin": what happened, and their temporary password if they had no login
   if (promoted) {
     const finish = async () => {
       await refreshStudents();
@@ -38,9 +38,10 @@ export default function StudentIdCardModal({ studentId, onClose }) {
     };
     return (
       <Modal onClose={finish} maxWidth="max-w-md">
-        <h2 className="page-title pr-8">Now an admin</h2>
+        <h2 className="page-title pr-8">Now {promoted.role === "admin" ? "an admin" : "a scanner"}</h2>
         <p className="mt-2 text-sm text-white/75">
-          {promoted.name} is now an admin. They sign in at <span className="font-mono text-white">/admin</span> with
+          {promoted.name} is now {promoted.role === "admin" ? "an admin" : "a scanner"}. They sign in at{" "}
+          <span className="font-mono text-white">/{promoted.role === "admin" ? "admin" : "scanner"}</span> with
           their student number, <span className="font-mono text-white">{promoted.studentId}</span>, and now appear in
           Settings under the staff accounts instead of the student list.
         </p>
@@ -63,19 +64,22 @@ export default function StudentIdCardModal({ studentId, onClose }) {
   const student = students.find((s) => s.studentId === studentId);
   if (!student) return null;
 
-  const handleMakeAdmin = async () => {
+  const handleRole = async (role) => {
+    const admin = role === "admin";
     const confirmed = await confirm({
-      title: "Make admin",
-      message: `Make ${student.name} an admin? They will be able to manage students, events, accounts and settings, and they move from the student list to the staff accounts.`,
-      confirmLabel: "Make admin",
+      title: admin ? "Make admin" : "Make scanner",
+      message: admin
+        ? `Make ${student.name} an admin? They will be able to manage students, events, accounts and settings, and they move from the student list to the staff accounts.`
+        : `Make ${student.name} a scanner? They will be able to scan attendance at events, and they move from the student list to the staff accounts.`,
+      confirmLabel: admin ? "Make admin" : "Make scanner",
     });
     if (!confirmed) return;
     setPromoting(true);
     setPromoteError("");
-    const result = await makeAdmin(student.studentId);
+    const result = await setRole(student.studentId, role);
     setPromoting(false);
     if (!result.ok) return setPromoteError(result.message);
-    setPromoted({ name: student.name, studentId: student.studentId, tempPassword: result.tempPassword });
+    setPromoted({ name: student.name, studentId: student.studentId, role, tempPassword: result.tempPassword });
   };
 
   const { totalPoints, targetPoints, cleared } = getClearance(student.studentId);
@@ -126,7 +130,10 @@ export default function StudentIdCardModal({ studentId, onClose }) {
 
       {promoteError && <p className="mt-4 text-right text-xs font-semibold text-red-300">{promoteError}</p>}
       <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-white/10 pt-4">
-        <button type="button" onClick={handleMakeAdmin} disabled={promoting || deleting} className="btn-ghost">
+        <button type="button" onClick={() => handleRole("scanner")} disabled={promoting || deleting} className="btn-ghost">
+          <FiMonitor size={13} /> Make scanner
+        </button>
+        <button type="button" onClick={() => handleRole("admin")} disabled={promoting || deleting} className="btn-ghost">
           <FiShield size={13} /> {promoting ? "Saving..." : "Make admin"}
         </button>
         <button

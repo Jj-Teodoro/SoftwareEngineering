@@ -426,29 +426,37 @@ class AccountView(APIView):
     log_activity(request, request.user, ACTION, "password.issued", user.student_id)
     return Response({"student_id": user.student_id, "temp_password": temp_password}, status=status.HTTP_200_OK)
 
-class MakeAdminView(APIView):
-  """An admin makes a student an admin. They keep their student number as their username
-  and sign in at /admin. A student without a login gets a temporary password, returned once."""
+class RoleView(APIView):
+  """An admin changes an account's role: {"role": "student" | "scanner" | "admin"}.
+  The person keeps their ID number as their username. Anyone made an admin or scanner
+  who has no login yet gets a temporary password, returned once. You can't change your
+  own role (so there is always at least one admin left)."""
   permission_classes = [IsAdmin]
+  ROLES = {UserRole.STUDENT: "a student", UserRole.SCANNER: "a scanner", UserRole.ADMIN: "an admin"}
+  default_role = None  # the old /make-admin address always means "admin"
 
   def post(self, request, student_id):
     user = get_object_or_404(User, student_id=student_id)
+    role = self.default_role or request.data.get("role")
+    if role not in self.ROLES:
+      return Response({"role": ["Choose student, scanner or admin."]}, status=status.HTTP_400_BAD_REQUEST)
     if user == request.user:
       return Response({"detail": "You can't change your own role."}, status=status.HTTP_400_BAD_REQUEST)
-    if user.role == UserRole.ADMIN:
-      return Response({"detail": "This person is already an admin."}, status=status.HTTP_400_BAD_REQUEST)
+    if user.role == role:
+      return Response({"detail": f"This person is already {self.ROLES[role]}."}, status=status.HTTP_400_BAD_REQUEST)
 
     fields = ["role"]
     temp_password = None
-    if not user.has_usable_password():
+    if role in STAFF_ROLES and not user.has_usable_password():
       temp_password = generate_temp_password()
       set_temp_password(user, temp_password)
       user.temp_password = temp_password
       user.must_change_password = True
       fields += ["password", "temp_password", "must_change_password"]
-    user.role = UserRole.ADMIN
+    previous = user.role
+    user.role = role
     user.save(update_fields=fields)
-    log_activity(request, request.user, ACTION, "student.made_admin", user.student_id)
+    log_activity(request, request.user, ACTION, "user.role_changed", f"{user.student_id}: {previous} -> {role}")
     return Response(
       {"student_id": user.student_id, "role": user.role, "temp_password": temp_password},
       status=status.HTTP_200_OK,

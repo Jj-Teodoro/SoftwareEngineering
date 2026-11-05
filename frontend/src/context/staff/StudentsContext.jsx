@@ -116,11 +116,11 @@ export function StudentsProvider({ children }) {
     return issueAccount(studentId);
   };
 
-  // Makes a student an admin. The student list is not reloaded here (they would vanish
-  // from it at once); call refreshStudents when the admin is done reading the result.
-  const makeAdmin = async (studentId) => {
+  // Makes a student a scanner or an admin. The student list is not reloaded here (they would
+  // vanish from it at once); call refreshStudents when the admin is done reading the result.
+  const setRole = async (studentId, role) => {
     try {
-      const { temp_password: tempPassword } = await api.users.makeAdmin(studentId);
+      const { temp_password: tempPassword } = await api.users.setRole(studentId, role);
       return { ok: true, tempPassword };
     } catch (error) {
       return { ok: false, message: error.message || "Could not change the role." };
@@ -263,7 +263,7 @@ export function StudentsProvider({ children }) {
         dismissRequest,
         resetRequests,
         provisionAccounts,
-        makeAdmin,
+        setRole,
         refreshStudents: refresh,
       }}
     >

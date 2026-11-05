@@ -74,13 +74,24 @@ export function StaffProvider({ children }) {
     }
   };
 
+  // Makes an admin a scanner (or the other way round), or turns them back into a student.
+  const changeRole = async (member, role) => {
+    try {
+      const result = await api.users.setRole(member.username, role);
+      await refresh();
+      return { ok: true, tempPassword: result.temp_password };
+    } catch (error) {
+      return { ok: false, message: error.message || "Could not change the role." };
+    }
+  };
+
   const dismissRequest = async (member) => {
     await api.users.dismissPasswordRequest(member.username);
     await refresh();
   };
 
   return (
-    <StaffContext.Provider value={{ staff, getActivity, now, createStaff, issuePassword, removeStaff, dismissRequest }}>
+    <StaffContext.Provider value={{ staff, getActivity, now, createStaff, issuePassword, removeStaff, dismissRequest, changeRole }}>
       {children}
     </StaffContext.Provider>
   );

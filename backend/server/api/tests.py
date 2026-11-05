@@ -1650,3 +1650,40 @@ class ScannerPrivacyTest(TestCase):
     scanner = staff_user("scanner")
     scanner.email = "scan@school.edu"; scanner.save()
     self.assertEqual(authenticated_client(scanner).get("/api/user/me").data["email"], "scan@school.edu")
+
+
+class RoleChangeTest(TestCase):
+
+  def setUp(self):
+    self.admin = staff_user("admin")
+    self.client = authenticated_client(self.admin)
+
+  def role(self, student_id, role):
+    return self.client.post(f"/api/user/{student_id}/role", {"role": role}, format="json")
+
+  def test_student_to_scanner_and_back(self):
+    User.objects.create_user("2024-00010", None, first_name="No", last_name="Login", role="student")
+    response = self.role("2024-00010", "scanner")
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    self.assertIsNotNone(response.data["temp_password"])  # had no login yet
+    self.assertEqual(User.objects.get(student_id="2024-00010").role, "scanner")
+
+    back = self.role("2024-00010", "student")
+    self.assertEqual(back.status_code, status.HTTP_200_OK)
+    self.assertIsNone(back.data["temp_password"])
+    self.assertEqual(User.objects.get(student_id="2024-00010").role, "student")
+
+  def test_admin_to_scanner_takes_admin_rights_away(self):
+    other = User.objects.create_user("admin-02", "AdminPass1", first_name="O", last_name="A", role="admin")
+    self.assertEqual(self.role("admin-02", "scanner").status_code, status.HTTP_200_OK)
+    as_scanner = authenticated_client(User.objects.get(pk=other.pk))
+    self.assertEqual(as_scanner.post("/api/user/bulk-delete", {"all_students": True}, format="json").status_code, 403)
+
+  def test_guards(self):
+    self.assertEqual(self.role(self.admin.student_id, "student").status_code, 400)  # not yourself
+    make_user("2024-00011")
+    self.assertEqual(self.role("2024-00011", "teacher").status_code, 400)
+    self.assertEqual(self.role("2024-00011", "student").status_code, 400)  # already a student
+    scanner = authenticated_client(staff_user("scanner"))
+    response = scanner.post("/api/user/2024-00011/role", {"role": "admin"}, format="json")
+    self.assertEqual(response.status_code, 403)

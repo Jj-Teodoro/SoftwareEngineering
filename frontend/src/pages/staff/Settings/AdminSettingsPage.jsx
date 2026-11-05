@@ -67,7 +67,7 @@ function PendingPassword({ member }) {
 }
 
 function StaffAccounts({ user }) {
-  const { staff, getActivity, now, createStaff, issuePassword, removeStaff, dismissRequest } = useStaff();
+  const { staff, getActivity, now, createStaff, issuePassword, removeStaff, dismissRequest, changeRole } = useStaff();
   const confirm = useConfirm();
 
   const [newRole, setNewRole] = useState(null); // "admin" / "scanner" while its form is open
@@ -103,6 +103,33 @@ function StaffAccounts({ user }) {
     if (!result.ok) return setError(result.message);
     setError("");
     setIssued({ username: result.username, password: result.tempPassword, heading: `New temporary password for ${member.name}` });
+  };
+
+  const ROLE_TEXT = { admin: "an admin", scanner: "a scanner", student: "a student" };
+  const handleRole = async (member, role) => {
+    if (role === member.role) return;
+    const ok = await confirm({
+      title: "Change role",
+      message:
+        role === "student"
+          ? `Make ${member.name} a student? They lose access to the ${member.role} site and appear in the student list instead.`
+          : `Make ${member.name} ${ROLE_TEXT[role]}? ${
+              role === "admin"
+                ? "They will be able to manage students, events, accounts and settings."
+                : "They will only be able to scan attendance; admin pages are no longer available to them."
+            }`,
+      confirmLabel: "Change role",
+      danger: role === "student",
+    });
+    if (!ok) return;
+    setBusyUid(member.uid);
+    const result = await changeRole(member, role);
+    setBusyUid(null);
+    if (!result.ok) return setError(result.message);
+    setError("");
+    if (result.tempPassword) {
+      setIssued({ username: member.username, password: result.tempPassword, heading: `${member.name} is now ${ROLE_TEXT[role]} — give these to them` });
+    }
   };
 
   const handleRemove = async (member) => {
@@ -250,7 +277,18 @@ function StaffAccounts({ user }) {
                 </div>
 
                 {canManage && (
-                  <div className="flex shrink-0 gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <select
+                      value={m.role}
+                      onChange={(e) => handleRole(m, e.target.value)}
+                      disabled={busyUid === m.uid}
+                      aria-label={`Role for ${m.name}`}
+                      className="rounded-lg border border-white/15 bg-black/30 px-2 py-1.5 text-xs text-white focus:border-gold/60 focus:outline-none"
+                    >
+                      <option value="admin" className="bg-[#1c1011]">Admin</option>
+                      <option value="scanner" className="bg-[#1c1011]">Scanner</option>
+                      <option value="student" className="bg-[#1c1011]">Student</option>
+                    </select>
                     <button type="button" onClick={() => handleIssue(m)} disabled={busyUid === m.uid} className="btn-ghost btn-sm">
                       <FiRefreshCw size={12} /> {busyUid === m.uid ? "Working..." : "New password"}
                     </button>
