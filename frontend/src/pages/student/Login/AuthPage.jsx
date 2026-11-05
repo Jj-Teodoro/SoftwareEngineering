@@ -1,21 +1,37 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 import { AuthShell, TypedLines } from "../../../components/student/AuthHero";
 import { useAuth } from "../../../context/student/AuthContext";
 
 function Field({ id, label, error, type = "text", register, rules, autoComplete }) {
+  const [peek, setPeek] = useState(false); // a password field can show what was typed
+  const isPassword = type === "password";
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold">
         <span className="st-mono text-[var(--gold)]">&gt;</span> {label}
       </label>
-      <input
-        id={id}
-        type={type}
-        autoComplete={autoComplete}
-        {...register(id, rules)}
-        className={`st-input ${error ? "st-error" : ""}`}
-      />
+      <div className="relative">
+        <input
+          id={id}
+          type={isPassword && peek ? "text" : type}
+          autoComplete={autoComplete}
+          {...register(id, rules)}
+          className={`st-input ${isPassword ? "pr-12" : ""} ${error ? "st-error" : ""}`}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setPeek((v) => !v)}
+            aria-label={peek ? "Hide password" : "Show password"}
+            title={peek ? "Hide password" : "Show password"}
+            className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md text-[var(--text-muted)] transition hover:text-[var(--accent-text)]"
+          >
+            {peek ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+          </button>
+        )}
+      </div>
       {error && <p className="mt-1.5 text-sm font-medium text-[var(--danger)]">! {error.message}</p>}
     </div>
   );

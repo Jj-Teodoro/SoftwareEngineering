@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 import PageBackground from "./PageBackground.jsx";
 
 /**
@@ -10,6 +11,7 @@ import PageBackground from "./PageBackground.jsx";
  */
 export default function LoginScreen({ title, logoSrc, acesSrc, onLogin, onRequestReset }) {
   const [mode, setMode] = useState("login");
+  const [peek, setPeek] = useState(false); // show what was typed in the password field
   const [requested, setRequested] = useState(false);
   const {
     register,
@@ -90,16 +92,27 @@ export default function LoginScreen({ title, logoSrc, acesSrc, onLogin, onReques
               {!forgot && (
                 <div>
                   <label htmlFor="password" className="label mb-1.5 block">Password</label>
-                  <input
-                    id="password"
-                    type="password"
-                    autoComplete="current-password"
-                    className={`input h-11 ${errors.password ? "border-neon-pink" : ""}`}
-                    {...register("password", {
-                      required: "Password is required",
-                      minLength: { value: 6, message: "At least 6 characters" },
-                    })}
-                  />
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={peek ? "text" : "password"}
+                      autoComplete="current-password"
+                      className={`input h-11 pr-12 ${errors.password ? "border-neon-pink" : ""}`}
+                      {...register("password", {
+                        required: "Password is required",
+                        minLength: { value: 6, message: "At least 6 characters" },
+                      })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPeek((v) => !v)}
+                      aria-label={peek ? "Hide password" : "Show password"}
+                      title={peek ? "Hide password" : "Show password"}
+                      className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-white/60 transition hover:text-gold"
+                    >
+                      {peek ? <FiEyeOff size={17} /> : <FiEye size={17} />}
+                    </button>
+                  </div>
                   {errors.password && <p className="mt-1 text-xs text-neon-pink">{errors.password.message}</p>}
                 </div>
               )}
