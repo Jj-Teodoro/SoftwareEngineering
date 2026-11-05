@@ -1,6 +1,7 @@
 import { FiAward, FiCalendar, FiCheckCircle, FiClock, FiZap } from "react-icons/fi";
 import { daysUntil, formatEventDate, getEventPhase } from "../../../utils/events.js";
 import Panel from "../../../components/student/Panel";
+import EventBanner from "../../../components/common/EventBanner.jsx";
 import { useEvents } from "../../../context/student/EventsContext";
 
 function WhenChip({ event }) {
@@ -27,7 +28,7 @@ export function EventCard({ event, attended }) {
   const isRestricted = event.programFilter && event.programFilter !== "ALL";
   return (
     <div className="st-inset overflow-hidden">
-      {event.image && <img src={event.image} alt="" className="h-32 w-full object-cover" />}
+      <EventBanner event={event} />
       <div className="p-4">
         <div className="mb-2 flex items-center justify-between gap-2">
           {attended ? (

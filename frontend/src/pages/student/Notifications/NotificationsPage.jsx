@@ -1,6 +1,7 @@
 import { FiAward, FiBell, FiCalendar } from "react-icons/fi";
 import { formatEventDate } from "../../../utils/events.js";
 import Panel from "../../../components/student/Panel";
+import EventBanner from "../../../components/common/EventBanner.jsx";
 import { useEvents } from "../../../context/student/EventsContext";
 import { useNotifications } from "../../../context/student/NotificationsContext";
 
@@ -42,7 +43,7 @@ export default function NotificationsPage() {
                   read ? "border-transparent" : "border-[color-mix(in_srgb,var(--gold)_60%,transparent)]"
                 }`}
               >
-                {event?.image && <img src={event.image} alt="" className="h-40 w-full object-cover" />}
+                {event && <EventBanner event={event} height="h-36" />}
                 <div className="flex items-start gap-3 p-4">
                   <span
                     className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${
