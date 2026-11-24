@@ -1687,3 +1687,37 @@ class RoleChangeTest(TestCase):
     scanner = authenticated_client(staff_user("scanner"))
     response = scanner.post("/api/user/2024-00011/role", {"role": "admin"}, format="json")
     self.assertEqual(response.status_code, 403)
+
+
+class EventReportTest(TestCase):
+
+  def setUp(self):
+    self.admin = staff_user("admin")
+    self.client = authenticated_client(self.admin)
+    self.event = Event.objects.create_event(title="Seminar", date=timezone.localdate(), default_points=10, program_for=["BSIT"])
+    self.done = make_user("2024-00001", program="BSIT", first_name="Ana", last_name="Cruz")
+    self.half = make_user("2024-00002", program="BSIT", first_name="Ben", last_name="Diaz")
+    self.away = make_user("2024-00003", program="BSIT", first_name="Cara", last_name="Reyes")
+    make_user("2024-00004", program="BSCS")  # another program: not eligible
+    now = timezone.now()
+    Attendance.objects.create(user=self.done, event=self.event, timestamp=now, time_out=now, points_awarded=10)
+    Attendance.objects.create(user=self.half, event=self.event, timestamp=now, points_awarded=0)
+
+  def test_report_counts_and_rows(self):
+    response = self.client.get(f"/api/event/{self.event.pk}/report")
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    totals = response.data["totals"]
+    self.assertEqual((totals["eligible"], totals["timed_in"], totals["completed"], totals["absent"]), (3, 2, 1, 1))
+    self.assertEqual(totals["attendance_rate"], 33.3)
+    self.assertEqual(totals["points_awarded"], 10)
+    statuses = {r["student_id"]: r["status"] for r in response.data["rows"]}
+    self.assertEqual(statuses, {"2024-00001": "Completed", "2024-00002": "Timed in only", "2024-00003": "Absent"})
+    self.assertTrue(response.data["provisional"])
+
+  def test_closed_event_is_final(self):
+    self.client.post(f"/api/event/{self.event.pk}/close")
+    self.assertFalse(self.client.get(f"/api/event/{self.event.pk}/report").data["provisional"])
+
+  def test_admins_only(self):
+    scanner = authenticated_client(staff_user("scanner"))
+    self.assertEqual(scanner.get(f"/api/event/{self.event.pk}/report").status_code, status.HTTP_403_FORBIDDEN)

@@ -707,6 +707,77 @@ def scan_problem(event, timing_out):
   return None
 
 
+class EventReportView(APIView):
+  """Attendance report of one event: the event, totals, and one row per eligible student
+  (plus anyone else who has a record). Admins only. The page turns it into Excel or a
+  printable PDF. An event that is not closed yet gives a provisional report."""
+  permission_classes = [IsAdmin]
+
+  def get(self, request, event_id):
+    event = get_object_or_404(Event.objects.select_related("created_by"), event_id=event_id)
+    students = User.objects.filter(role=UserRole.STUDENT)
+    if event.program_for:
+      students = students.filter(program__in=event.program_for)
+    records = {a.user_id: a for a in Attendance.objects.filter(event=event)}
+    people = {u.pk: u for u in students}
+    # someone credited by hand from another program still appears in the report
+    for user in User.objects.filter(pk__in=[pk for pk in records if pk not in people]):
+      people[user.pk] = user
+
+    rows = []
+    for user in people.values():
+      record = records.get(user.pk)
+      if record is None:
+        state = "Absent"
+      elif record.time_out is None:
+        state = "Timed in only"
+      else:
+        state = "Completed"
+      rows.append({
+        "student_id": user.student_id,
+        "name": ", ".join(part for part in (user.last_name, " ".join(p for p in (user.first_name, user.middle_name) if p)) if part),
+        "program": user.program,
+        "year_level": user.year_level,
+        "section": user.section,
+        "time_in": record.timestamp if record else None,
+        "time_out": record.time_out if record else None,
+        "points": record.points_awarded if record else 0,
+        "status": state,
+      })
+    rows.sort(key=lambda r: (r["program"] or "", r["year_level"] or 0, r["section"] or "", r["name"].lower()))
+
+    eligible = students.count()
+    completed = sum(1 for r in rows if r["status"] == "Completed")
+    timed_in = sum(1 for r in rows if r["status"] != "Absent")
+    viewer = request.user
+    return Response({
+      "event": {
+        "id": str(event.event_id),
+        "title": event.title,
+        "date": event.date,
+        "start_time": event.start_time,
+        "end_time": event.end_time,
+        "points": event.default_points,
+        "program": event.program_for[0] if event.program_for else "ALL",
+        "closed_at": event.closed_at,
+        "description": event.description or "",
+      },
+      "totals": {
+        "eligible": eligible,
+        "timed_in": timed_in,
+        "completed": completed,
+        "timed_in_only": timed_in - completed,
+        "absent": sum(1 for r in rows if r["status"] == "Absent"),
+        "attendance_rate": round(completed / eligible * 100, 1) if eligible else 0.0,
+        "points_awarded": sum(r["points"] for r in rows),
+      },
+      "provisional": event.closed_at is None,
+      "generated_by": " ".join(p for p in (viewer.first_name, viewer.last_name) if p) or viewer.student_id,
+      "generated_at": timezone.now(),
+      "rows": rows,
+    }, status=status.HTTP_200_OK)
+
+
 class CloseEventView(APIView):
   """POST closes an event (scanning stops); DELETE opens it again."""
   permission_classes = [IsAdmin]

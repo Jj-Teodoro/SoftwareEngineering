@@ -53,6 +53,7 @@ urlpatterns = [
     path("api/event/<uuid:event_id>", views.EventView.as_view(), name="event_method"),
     path("api/event/<uuid:event_id>/announce", views.AnnounceEventView.as_view(), name="announce_event"),
     path("api/event/<uuid:event_id>/close", views.CloseEventView.as_view(), name="close_event"),
+    path("api/event/<uuid:event_id>/report", views.EventReportView.as_view(), name="event_report"),
     path("api/attendance", views.AttendanceListCreateView.as_view(), name="attendance_list"),
     path("api/attendance/scan", views.ScanAttendanceView.as_view(), name="attendance_scan"),
     path("api/attendance/<uuid:attendance_id>", views.AttendanceView.as_view(), name="attendance_method"),

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FiArrowLeft, FiBell, FiCheck, FiEdit2, FiLock, FiMonitor, FiRotateCcw, FiSlash, FiUserCheck, FiUserX } from "react-icons/fi";
+import { FiArrowLeft, FiBell, FiCheck, FiEdit2, FiFileText, FiLock, FiMonitor, FiRotateCcw, FiSlash, FiUserCheck, FiUserX } from "react-icons/fi";
 import { useConfirm } from "../../../components/common/ConfirmDialog.jsx";
 import { EmptyState, Section } from "../../../components/common/ui.jsx";
 import { formatEventDate, getEventPhase, scanLockMessage, formatEventWhen } from "../../../utils/events.js";
 import { useStudents } from "../../../context/staff/StudentsContext";
 import { useEvents, useEventAttendance, scanEventAttendance } from "../../../context/staff/EventsContext";
 import CreateEventModal from "../../../components/staff/CreateEventModal";
+import EventReportModal from "../../../components/staff/EventReportModal";
 
 // One grid for header and rows: a card on phones, a table row from md up.
 const ROW =
@@ -21,6 +22,7 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
   const { records, markPresent, markOut, unmarkPresent } = useEventAttendance(event.id);
   const { notifyEvent, closeEvent, reopenEvent } = useEvents();
   const [closing, setClosing] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const confirm = useConfirm();
   const [showEdit, setShowEdit] = useState(false);
   const [notifying, setNotifying] = useState(false);
@@ -220,6 +222,9 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
           >
             <FiBell size={14} /> {notifying ? "Sending..." : "Notify students"}
           </button>
+          <button type="button" onClick={() => setShowReport(true)} className="btn-ghost" title="Attendance report (Excel or PDF)">
+            <FiFileText size={14} /> Report
+          </button>
           {phase === "done" ? (
             <button type="button" onClick={handleReopen} disabled={closing} className="btn-ghost">
               <FiRotateCcw size={14} /> Reopen
@@ -361,6 +366,7 @@ export default function EventDetailView({ event, onBack, onStartKiosk }) {
       {showEdit && (
         <CreateEventModal event={event} onClose={() => setShowEdit(false)} onCreated={() => setShowEdit(false)} />
       )}
+      {showReport && <EventReportModal event={event} onClose={() => setShowReport(false)} />}
     </div>
   );
 }

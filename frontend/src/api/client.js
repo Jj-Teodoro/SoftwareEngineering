@@ -294,6 +294,8 @@ export const api = {
     // stops scanning for good (until reopened)
     close: (eventId) => request(`/event/${eventId}/close`, { method: "POST" }),
     reopen: (eventId) => request(`/event/${eventId}/close`, { method: "DELETE" }),
+    // attendance report: event, totals and one row per eligible student
+    report: (eventId) => request(`/event/${eventId}/report`),
     announce: (eventId, kind, message) =>
       request(`/event/${eventId}/announce`, { method: "POST", body: { kind, message } }),
   },
